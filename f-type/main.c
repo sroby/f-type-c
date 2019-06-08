@@ -49,8 +49,9 @@ int main(int argc, const char * argv[]) {
     int chr_size = header[5] * 8;
     printf("CHR ROM: %dKB\n", chr_size);
     chr_size *= 1024;
-    uint8_t chr_rom[chr_size];
+    uint8_t *chr_rom = NULL;
     if (chr_size >= 0) {
+        chr_rom = malloc(chr_size);
         if (fread(chr_rom, chr_size, 1, rom_file) < 1) {
             printf("Error reading CHR ROM\n");
             return 1;
@@ -85,6 +86,9 @@ int main(int argc, const char * argv[]) {
     }
     printf("Ended in %d cycles\n", total_t);
     
+    if (chr_rom) {
+        free(chr_rom);
+    }
     free(prg_rom);
     return 0;
 }
