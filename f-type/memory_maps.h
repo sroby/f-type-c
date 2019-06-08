@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #define SIZE_WRAM 0x800
+#define SIZE_PRG_ROM 0x8000
 
 typedef struct memory_map memory_map;
 

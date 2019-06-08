@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 
@@ -35,15 +36,14 @@ int main(int argc, const char * argv[]) {
         return 1;
     }
     prg_size *= 1024;
-    uint8_t prg_rom[(prg_size < 0x8000 ? 0x8000 : prg_size)];
+    uint8_t *prg_rom = malloc(prg_size < SIZE_PRG_ROM ? SIZE_PRG_ROM : prg_size);
     if (fread(prg_rom, prg_size, 1, rom_file) < 1) {
         printf("Error reading PRG ROM\n");
         return 1;
     }
-    if (prg_size < 0x8000) {
-        for (int i = 0; i < 0x4000; i++) {
-            prg_rom[i + 0x4000] = prg_rom[i];
-        }
+    if (prg_size < SIZE_PRG_ROM) {
+        // Duplicate the rom if it's just 16kB
+        memcpy(prg_rom + prg_size, prg_rom, prg_size);
     }
     
     int chr_size = header[5] * 8;
@@ -84,5 +84,7 @@ int main(int argc, const char * argv[]) {
         cpu_debug_print_state(&st);
     }
     printf("Ended in %d cycles\n", total_t);
+    
+    free(prg_rom);
     return 0;
 }
