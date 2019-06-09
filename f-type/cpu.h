@@ -23,7 +23,14 @@
 #define IVT_IRQ   0xFFFE
 
 typedef enum {
-    am_implied, am_immediate, am_zp, am_absolute, am_indirect_word, am_indirect_x, am_indirect_y, am_relative
+    AM_IMPLIED,
+    AM_IMMEDIATE,
+    AM_ZP,
+    AM_ABSOLUTE,
+    AM_INDIRECT_WORD,
+    AM_INDIRECT_X,
+    AM_INDIRECT_Y,
+    AM_RELATIVE
 } addressing_mode;
 
 
