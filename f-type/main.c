@@ -7,18 +7,18 @@
 
 int main(int argc, const char * argv[]) {
     bool verbose = getenv("VERBOSE");
-    
+
     if (argc != 2) {
         printf("Usage: %s rom.nes\n", argv[0]);
         return 1;
     }
-    
+
     FILE *rom_file = fopen(argv[1], "r");
     if (!rom_file) {
         printf("Error opening file %s\n", argv[1]);
         return 1;
     }
-    
+
     uint8_t header[0x10];
     if (fread(header, sizeof(header), 1, rom_file) < 1) {
         printf("Error reading iNES header\n");
@@ -28,7 +28,7 @@ int main(int argc, const char * argv[]) {
         printf("Not a iNES file\n");
         return 1;
     }
-    
+
     int prg_size = header[4] * 16;
     printf("PRG ROM: %dKB\n", prg_size);
     if (prg_size <= 0) {
@@ -45,7 +45,7 @@ int main(int argc, const char * argv[]) {
         // Duplicate the rom if it's just 16kB
         memcpy(prg_rom + prg_size, prg_rom, prg_size);
     }
-    
+
     int chr_size = header[5] * 8;
     printf("CHR ROM: %dKB\n", chr_size);
     chr_size *= 1024;
@@ -66,13 +66,13 @@ int main(int argc, const char * argv[]) {
     bool mirroring = header[6] & 1;
     printf("Mirroring: %s\n", (mirroring ? "Vertical" : "Horizontal"));
     fclose(rom_file);
-    
+
     memory_map mm;
     memory_map_cpu_init(&mm, prg_rom);
-    
+
     cpu_state st;
     cpu_init(&st, &mm);
-    
+
     int total_t = cpu_reset(&st);
     do {
         if (verbose) {
@@ -80,12 +80,12 @@ int main(int argc, const char * argv[]) {
         }
         total_t += cpu_step(&st, verbose);
     } while(st.pc != 0x8057);
-    
+
     if (verbose) {
         cpu_debug_print_state(&st);
     }
     printf("Ended in %d cycles\n", total_t);
-    
+
     if (chr_rom) {
         free(chr_rom);
     }

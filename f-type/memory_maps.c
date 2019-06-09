@@ -22,14 +22,14 @@ uint8_t always_vblank(memory_map *mm, int offset) {
 void memory_map_cpu_init(memory_map *mm, const uint8_t *prg_rom) {
     mm->last_read = 0;
     mm->prg_rom = prg_rom;
-    
+
     int i;
-    
+
     // Wipe the WRAM
     for (i = 0; i < SIZE_WRAM; i++) {
         mm->wram[i] = 0;
     }
-    
+
     // Populate the address map
     // 0000-1FFF: WRAM (2kB repeated multiple times)
     for (i = 0; i < 0x2000; i++) {
@@ -43,7 +43,7 @@ void memory_map_cpu_init(memory_map *mm, const uint8_t *prg_rom) {
     for (i = 0; i < 0x8000; i++) {
         mm->addrs[i + 0x8000] = (memory_address) {read_prg_rom, NULL, i};
     }
-    
+
     // Have $2002 (PPUSTATUS) always return all true for now, so we can go past the vblank check
     mm->addrs[0x2002] = (memory_address) { always_vblank, NULL, 0};
 }

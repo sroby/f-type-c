@@ -304,20 +304,20 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->p = 1 << P__;
     st->pc = 0;
     st->t = 0;
-    
+
     st->mm = mm;
-    
+
     // Initialize name on all opcodes so we can detect illegal usage
     for (int i = 0; i < 0x100; i++) {
         st->opcodes[i].name = NULL;
     }
-    
+
     uint8_t *a = &st->a;
     uint8_t *x = &st->x;
     uint8_t *y = &st->y;
     uint8_t *s = &st->s;
     uint8_t *p = &st->p;
-    
+
     // Define all legal opcodes
     st->opcodes[0xA8] = (opcode) {"TAY", a, y, 2, op_T, am_implied};
     st->opcodes[0xAA] = (opcode) {"TAX", a, x, 2, op_T, am_implied};
@@ -328,7 +328,7 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->opcodes[0xA9] = (opcode) {"LDA", a, 0, 2, op_LD, am_immediate};
     st->opcodes[0xA2] = (opcode) {"LDX", x, 0, 2, op_LD, am_immediate};
     st->opcodes[0xA0] = (opcode) {"LDY", y, 0, 2, op_LD, am_immediate};
-    
+
     st->opcodes[0xA5] = (opcode) {"LDA", a, 0, 3, op_LD, am_zp};
     st->opcodes[0xB5] = (opcode) {"LDA", a, x, 4, op_LD, am_zp};
     st->opcodes[0xAD] = (opcode) {"LDA", a, 0, 4, op_LD, am_absolute};
@@ -344,7 +344,7 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->opcodes[0xB4] = (opcode) {"LDY", y, x, 4, op_LD, am_zp};
     st->opcodes[0xAC] = (opcode) {"LDY", y, 0, 4, op_LD, am_absolute};
     st->opcodes[0xBC] = (opcode) {"LDY", y, x, -4, op_LD, am_absolute};
-    
+
     st->opcodes[0x85] = (opcode) {"STA", a, 0, 3, op_ST, am_zp};
     st->opcodes[0x95] = (opcode) {"STA", a, x, 4, op_ST, am_zp};
     st->opcodes[0x8D] = (opcode) {"STA", a, 0, 4, op_ST, am_absolute};
@@ -358,12 +358,12 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->opcodes[0x84] = (opcode) {"STY", y, 0, 3, op_ST, am_zp};
     st->opcodes[0x94] = (opcode) {"STY", y, x, 4, op_ST, am_zp};
     st->opcodes[0x8C] = (opcode) {"STY", y, 0, 4, op_ST, am_absolute};
-    
+
     st->opcodes[0x48] = (opcode) {"PHA", a, 0, 3, op_PH, am_implied};
     st->opcodes[0x08] = (opcode) {"PHP", p, 0, 3, op_PH, am_implied};
     st->opcodes[0x68] = (opcode) {"PLA", a, 0, 4, op_PL, am_implied};
     st->opcodes[0x28] = (opcode) {"PLP", p, 0, 4, op_PL, am_implied};
-    
+
     st->opcodes[0x69] = (opcode) {"ADC", 0, 0, 2, op_ADC, am_immediate};
     st->opcodes[0x65] = (opcode) {"ADC", 0, 0, 3, op_ADC, am_zp};
     st->opcodes[0x75] = (opcode) {"ADC", 0, x, 4, op_ADC, am_zp};
@@ -372,7 +372,7 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->opcodes[0x79] = (opcode) {"ADC", 0, y, -4, op_ADC, am_absolute};
     st->opcodes[0x61] = (opcode) {"ADC", 0, 0, 6, op_ADC, am_indirect_x};
     st->opcodes[0x71] = (opcode) {"ADC", 0, 0, -5, op_ADC, am_indirect_y};
-    
+
     st->opcodes[0xE9] = (opcode) {"SBC", 0, 0, 2, op_SBC, am_immediate};
     st->opcodes[0xE5] = (opcode) {"SBC", 0, 0, 3, op_SBC, am_zp};
     st->opcodes[0xF5] = (opcode) {"SBC", 0, x, 4, op_SBC, am_zp};
@@ -381,7 +381,7 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->opcodes[0xF9] = (opcode) {"SBC", 0, y, -4, op_SBC, am_absolute};
     st->opcodes[0xE1] = (opcode) {"SBC", 0, 0, 6, op_SBC, am_indirect_x};
     st->opcodes[0xF1] = (opcode) {"SBC", 0, 0, -5, op_SBC, am_indirect_y};
-    
+
     st->opcodes[0x29] = (opcode) {"AND", 0, 0, 2, op_AND, am_immediate};
     st->opcodes[0x25] = (opcode) {"AND", 0, 0, 3, op_AND, am_zp};
     st->opcodes[0x35] = (opcode) {"AND", 0, x, 4, op_AND, am_zp};
@@ -390,7 +390,7 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->opcodes[0x39] = (opcode) {"AND", 0, y, -4, op_AND, am_absolute};
     st->opcodes[0x21] = (opcode) {"AND", 0, 0, 6, op_AND, am_indirect_x};
     st->opcodes[0x31] = (opcode) {"AND", 0, 0, -5, op_AND, am_indirect_y};
-    
+
     st->opcodes[0x49] = (opcode) {"EOR", 0, 0, 2, op_EOR, am_immediate};
     st->opcodes[0x45] = (opcode) {"EOR", 0, 0, 3, op_EOR, am_zp};
     st->opcodes[0x55] = (opcode) {"EOR", 0, x, 4, op_EOR, am_zp};
@@ -399,7 +399,7 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->opcodes[0x59] = (opcode) {"EOR", 0, y, -4, op_EOR, am_absolute};
     st->opcodes[0x41] = (opcode) {"EOR", 0, 0, 6, op_EOR, am_indirect_x};
     st->opcodes[0x51] = (opcode) {"EOR", 0, 0, -5, op_EOR, am_indirect_y};
-    
+
     st->opcodes[0x09] = (opcode) {"ORA", 0, 0, 2, op_ORA, am_immediate};
     st->opcodes[0x05] = (opcode) {"ORA", 0, 0, 3, op_ORA, am_zp};
     st->opcodes[0x15] = (opcode) {"ORA", 0, x, 4, op_ORA, am_zp};
@@ -408,7 +408,7 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->opcodes[0x19] = (opcode) {"ORA", 0, y, -4, op_ORA, am_absolute};
     st->opcodes[0x01] = (opcode) {"ORA", 0, 0, 6, op_ORA, am_indirect_x};
     st->opcodes[0x11] = (opcode) {"ORA", 0, 0, -5, op_ORA, am_indirect_y};
-    
+
     st->opcodes[0xC9] = (opcode) {"CMP", a, 0, 2, op_CMP, am_immediate};
     st->opcodes[0xC5] = (opcode) {"CMP", a, 0, 3, op_CMP, am_zp};
     st->opcodes[0xD5] = (opcode) {"CMP", a, x, 4, op_CMP, am_zp};
@@ -423,54 +423,54 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->opcodes[0xC0] = (opcode) {"CPY", y, 0, 2, op_CMP, am_immediate};
     st->opcodes[0xC4] = (opcode) {"CPY", y, 0, 3, op_CMP, am_zp};
     st->opcodes[0xCC] = (opcode) {"CPY", y, 0, 4, op_CMP, am_absolute};
-    
+
     st->opcodes[0x24] = (opcode) {"BIT", 0, 0, 3, op_BIT, am_zp};
     st->opcodes[0x2C] = (opcode) {"BIT", 0, 0, 4, op_BIT, am_absolute};
-    
+
     st->opcodes[0xE6] = (opcode) {"INC", 0, 0, 5, op_INC, am_zp};
     st->opcodes[0xF6] = (opcode) {"INC", 0, x, 6, op_INC, am_zp};
     st->opcodes[0xEE] = (opcode) {"INC", 0, 0, 6, op_INC, am_absolute};
     st->opcodes[0xFE] = (opcode) {"INC", 0, x, 7, op_INC, am_absolute};
     st->opcodes[0xE8] = (opcode) {"INX", x, 0, 2, op_IN, am_implied};
     st->opcodes[0xC8] = (opcode) {"INY", y, 0, 2, op_IN, am_implied};
-    
+
     st->opcodes[0xC6] = (opcode) {"DEC", 0, 0, 5, op_DEC, am_zp};
     st->opcodes[0xD6] = (opcode) {"DEC", 0, x, 6, op_DEC, am_zp};
     st->opcodes[0xCE] = (opcode) {"DEC", 0, 0, 6, op_DEC, am_absolute};
     st->opcodes[0xDE] = (opcode) {"DEC", 0, x, 7, op_DEC, am_absolute};
     st->opcodes[0xCA] = (opcode) {"DEX", x, 0, 2, op_DE, am_implied};
     st->opcodes[0x88] = (opcode) {"DEY", y, 0, 2, op_DE, am_implied};
-    
+
     st->opcodes[0x0A] = (opcode) {"ASL A", a, 0, 2, op_ASL, am_implied};
     st->opcodes[0x06] = (opcode) {"ASL", 0, 0, 5, op_ASL, am_zp};
     st->opcodes[0x16] = (opcode) {"ASL", 0, x, 6, op_ASL, am_zp};
     st->opcodes[0x0E] = (opcode) {"ASL", 0, 0, 6, op_ASL, am_absolute};
     st->opcodes[0x1E] = (opcode) {"ASL", 0, x, 7, op_ASL, am_absolute};
-    
+
     st->opcodes[0x0A] = (opcode) {"LSR A", a, 0, 2, op_LSR, am_implied};
     st->opcodes[0x06] = (opcode) {"LSR", 0, 0, 5, op_LSR, am_zp};
     st->opcodes[0x16] = (opcode) {"LSR", 0, x, 6, op_LSR, am_zp};
     st->opcodes[0x0E] = (opcode) {"LSR", 0, 0, 6, op_LSR, am_absolute};
     st->opcodes[0x1E] = (opcode) {"LSR", 0, x, 7, op_LSR, am_absolute};
-    
+
     st->opcodes[0x0A] = (opcode) {"ROL A", a, 0, 2, op_ROL, am_implied};
     st->opcodes[0x06] = (opcode) {"ROL", 0, 0, 5, op_ROL, am_zp};
     st->opcodes[0x16] = (opcode) {"ROL", 0, x, 6, op_ROL, am_zp};
     st->opcodes[0x0E] = (opcode) {"ROL", 0, 0, 6, op_ROL, am_absolute};
     st->opcodes[0x1E] = (opcode) {"ROL", 0, x, 7, op_ROL, am_absolute};
-    
+
     st->opcodes[0x0A] = (opcode) {"ROR A", a, 0, 2, op_ROR, am_implied};
     st->opcodes[0x06] = (opcode) {"ROR", 0, 0, 5, op_ROR, am_zp};
     st->opcodes[0x16] = (opcode) {"ROR", 0, x, 6, op_ROR, am_zp};
     st->opcodes[0x0E] = (opcode) {"ROR", 0, 0, 6, op_ROR, am_absolute};
     st->opcodes[0x1E] = (opcode) {"ROR", 0, x, 7, op_ROR, am_absolute};
-    
+
     st->opcodes[0x4C] = (opcode) {"JMP", 0, 0, 3, op_JMP, am_absolute};
     st->opcodes[0x6C] = (opcode) {"JMP", 0, 0, 5, op_JMP, am_indirect_word};
     st->opcodes[0x20] = (opcode) {"JSR", 0, 0, 6, op_JSR, am_absolute};
     st->opcodes[0x40] = (opcode) {"RTI", 0, 0, 6, op_RTI, am_implied};
     st->opcodes[0x60] = (opcode) {"RTS", 0, 0, 6, op_RTS, am_implied};
-    
+
     st->opcodes[0x10] = (opcode) {"BPL", 0, 0, 2, op_BPL, am_relative};
     st->opcodes[0x30] = (opcode) {"BMI", 0, 0, 2, op_BMI, am_relative};
     st->opcodes[0x50] = (opcode) {"BVC", 0, 0, 2, op_BVC, am_relative};
@@ -479,9 +479,9 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     st->opcodes[0xB0] = (opcode) {"BCS", 0, 0, 2, op_BCS, am_relative};
     st->opcodes[0xD0] = (opcode) {"BNE", 0, 0, 2, op_BNE, am_relative};
     st->opcodes[0xF0] = (opcode) {"BEQ", 0, 0, 2, op_BEQ, am_relative};
-    
+
     st->opcodes[0x00] = (opcode) {"BRK", 0, 0, 0, op_BRK, am_implied};
-    
+
     st->opcodes[0x18] = (opcode) {"CLC", 0, 0, 2, op_CLC, am_implied};
     st->opcodes[0x58] = (opcode) {"CLI", 0, 0, 2, op_CLI, am_implied};
     st->opcodes[0xD8] = (opcode) {"CLD", 0, 0, 2, op_CLD, am_implied};
@@ -501,7 +501,7 @@ int cpu_step(cpu_state *st, bool verbose) {
         printf("Invalid opcode %d", inst);
         return -1;
     }
-    
+
     // Fetch parameter, if any
     uint8_t zp_addr;
     uint16_t pre_indexing = 0;
@@ -543,14 +543,14 @@ int cpu_step(cpu_state *st, bool verbose) {
             param.relative_addr = mm_read(st->mm, st->pc++);
             break;
     }
-    
+
     if (op->cycles < 0) {
         st->t = abs(op->cycles);
         apply_page_boundary_penalty(st, pre_indexing, param.addr);
     } else {
         st->t = op->cycles;
     }
-    
+
     if (verbose) {
         printf(" %s", op->name);
         switch (op->am) {
@@ -587,11 +587,11 @@ int cpu_step(cpu_state *st, bool verbose) {
         }
         printf("\n");
     }
-    
+
     if (op->func) {
         (*op->func)(st, op, param);
     }
-    
+
     return st->t;
 }
 
