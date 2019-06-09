@@ -65,7 +65,7 @@ static int interrupt(cpu_state *st, bool b_flag, uint16_t ivt_addr) {
 // OPCODES //
 
 static uint8_t get_param_value(cpu_state *st, const opcode *op, op_param param) {
-    if (op->am == am_immediate) {
+    if (op->am == AM_IMMEDIATE) {
         return param.immediate_value;
     }
     return mm_read(st->mm, param.addr);
@@ -318,178 +318,178 @@ void cpu_init(cpu_state *st, memory_map *mm) {
     uint8_t *p = &st->p;
     
     // Define all legal opcodes
-    st->opcodes[0xA8] = (opcode) {"TAY", a, y, 2, op_T, am_implied};
-    st->opcodes[0xAA] = (opcode) {"TAX", a, x, 2, op_T, am_implied};
-    st->opcodes[0xBA] = (opcode) {"TSX", s, x, 2, op_T, am_implied};
-    st->opcodes[0x98] = (opcode) {"TYA", y, a, 2, op_T, am_implied};
-    st->opcodes[0x8A] = (opcode) {"TXA", x, a, 2, op_T, am_implied};
-    st->opcodes[0x9A] = (opcode) {"TXS", x, s, 2, op_T, am_implied};
-    st->opcodes[0xA9] = (opcode) {"LDA", a, 0, 2, op_LD, am_immediate};
-    st->opcodes[0xA2] = (opcode) {"LDX", x, 0, 2, op_LD, am_immediate};
-    st->opcodes[0xA0] = (opcode) {"LDY", y, 0, 2, op_LD, am_immediate};
+    st->opcodes[0xA8] = (opcode) {"TAY", a, y, 2, op_T, AM_IMPLIED};
+    st->opcodes[0xAA] = (opcode) {"TAX", a, x, 2, op_T, AM_IMPLIED};
+    st->opcodes[0xBA] = (opcode) {"TSX", s, x, 2, op_T, AM_IMPLIED};
+    st->opcodes[0x98] = (opcode) {"TYA", y, a, 2, op_T, AM_IMPLIED};
+    st->opcodes[0x8A] = (opcode) {"TXA", x, a, 2, op_T, AM_IMPLIED};
+    st->opcodes[0x9A] = (opcode) {"TXS", x, s, 2, op_T, AM_IMPLIED};
+    st->opcodes[0xA9] = (opcode) {"LDA", a, 0, 2, op_LD, AM_IMMEDIATE};
+    st->opcodes[0xA2] = (opcode) {"LDX", x, 0, 2, op_LD, AM_IMMEDIATE};
+    st->opcodes[0xA0] = (opcode) {"LDY", y, 0, 2, op_LD, AM_IMMEDIATE};
     
-    st->opcodes[0xA5] = (opcode) {"LDA", a, 0, 3, op_LD, am_zp};
-    st->opcodes[0xB5] = (opcode) {"LDA", a, x, 4, op_LD, am_zp};
-    st->opcodes[0xAD] = (opcode) {"LDA", a, 0, 4, op_LD, am_absolute};
-    st->opcodes[0xBD] = (opcode) {"LDA", a, x, -4, op_LD, am_absolute};
-    st->opcodes[0xB9] = (opcode) {"LDA", a, y, -4, op_LD, am_absolute};
-    st->opcodes[0xA1] = (opcode) {"LDA", a, 0, 6, op_LD, am_indirect_x};
-    st->opcodes[0xB1] = (opcode) {"LDA", a, 0, -5, op_LD, am_indirect_y};
-    st->opcodes[0xA6] = (opcode) {"LDX", x, 0, 3, op_LD, am_zp};
-    st->opcodes[0xB6] = (opcode) {"LDX", x, y, 4, op_LD, am_zp};
-    st->opcodes[0xAE] = (opcode) {"LDX", x, 0, 4, op_LD, am_absolute};
-    st->opcodes[0xBE] = (opcode) {"LDX", x, y, -4, op_LD, am_absolute};
-    st->opcodes[0xA4] = (opcode) {"LDY", y, 0, 3, op_LD, am_zp};
-    st->opcodes[0xB4] = (opcode) {"LDY", y, x, 4, op_LD, am_zp};
-    st->opcodes[0xAC] = (opcode) {"LDY", y, 0, 4, op_LD, am_absolute};
-    st->opcodes[0xBC] = (opcode) {"LDY", y, x, -4, op_LD, am_absolute};
+    st->opcodes[0xA5] = (opcode) {"LDA", a, 0, 3, op_LD, AM_ZP};
+    st->opcodes[0xB5] = (opcode) {"LDA", a, x, 4, op_LD, AM_ZP};
+    st->opcodes[0xAD] = (opcode) {"LDA", a, 0, 4, op_LD, AM_ABSOLUTE};
+    st->opcodes[0xBD] = (opcode) {"LDA", a, x, -4, op_LD, AM_ABSOLUTE};
+    st->opcodes[0xB9] = (opcode) {"LDA", a, y, -4, op_LD, AM_ABSOLUTE};
+    st->opcodes[0xA1] = (opcode) {"LDA", a, 0, 6, op_LD, AM_INDIRECT_X};
+    st->opcodes[0xB1] = (opcode) {"LDA", a, 0, -5, op_LD, AM_INDIRECT_Y};
+    st->opcodes[0xA6] = (opcode) {"LDX", x, 0, 3, op_LD, AM_ZP};
+    st->opcodes[0xB6] = (opcode) {"LDX", x, y, 4, op_LD, AM_ZP};
+    st->opcodes[0xAE] = (opcode) {"LDX", x, 0, 4, op_LD, AM_ABSOLUTE};
+    st->opcodes[0xBE] = (opcode) {"LDX", x, y, -4, op_LD, AM_ABSOLUTE};
+    st->opcodes[0xA4] = (opcode) {"LDY", y, 0, 3, op_LD, AM_ZP};
+    st->opcodes[0xB4] = (opcode) {"LDY", y, x, 4, op_LD, AM_ZP};
+    st->opcodes[0xAC] = (opcode) {"LDY", y, 0, 4, op_LD, AM_ABSOLUTE};
+    st->opcodes[0xBC] = (opcode) {"LDY", y, x, -4, op_LD, AM_ABSOLUTE};
     
-    st->opcodes[0x85] = (opcode) {"STA", a, 0, 3, op_ST, am_zp};
-    st->opcodes[0x95] = (opcode) {"STA", a, x, 4, op_ST, am_zp};
-    st->opcodes[0x8D] = (opcode) {"STA", a, 0, 4, op_ST, am_absolute};
-    st->opcodes[0x9D] = (opcode) {"STA", a, x, 5, op_ST, am_absolute};
-    st->opcodes[0x99] = (opcode) {"STA", a, y, 5, op_ST, am_absolute};
-    st->opcodes[0x81] = (opcode) {"STA", a, 0, 6, op_ST, am_indirect_x};
-    st->opcodes[0x91] = (opcode) {"STA", a, 0, 6, op_ST, am_indirect_y};
-    st->opcodes[0x86] = (opcode) {"STX", x, 0, 3, op_ST, am_zp};
-    st->opcodes[0x96] = (opcode) {"STX", x, y, 4, op_ST, am_zp};
-    st->opcodes[0x8E] = (opcode) {"STX", x, 0, 4, op_ST, am_absolute};
-    st->opcodes[0x84] = (opcode) {"STY", y, 0, 3, op_ST, am_zp};
-    st->opcodes[0x94] = (opcode) {"STY", y, x, 4, op_ST, am_zp};
-    st->opcodes[0x8C] = (opcode) {"STY", y, 0, 4, op_ST, am_absolute};
+    st->opcodes[0x85] = (opcode) {"STA", a, 0, 3, op_ST, AM_ZP};
+    st->opcodes[0x95] = (opcode) {"STA", a, x, 4, op_ST, AM_ZP};
+    st->opcodes[0x8D] = (opcode) {"STA", a, 0, 4, op_ST, AM_ABSOLUTE};
+    st->opcodes[0x9D] = (opcode) {"STA", a, x, 5, op_ST, AM_ABSOLUTE};
+    st->opcodes[0x99] = (opcode) {"STA", a, y, 5, op_ST, AM_ABSOLUTE};
+    st->opcodes[0x81] = (opcode) {"STA", a, 0, 6, op_ST, AM_INDIRECT_X};
+    st->opcodes[0x91] = (opcode) {"STA", a, 0, 6, op_ST, AM_INDIRECT_Y};
+    st->opcodes[0x86] = (opcode) {"STX", x, 0, 3, op_ST, AM_ZP};
+    st->opcodes[0x96] = (opcode) {"STX", x, y, 4, op_ST, AM_ZP};
+    st->opcodes[0x8E] = (opcode) {"STX", x, 0, 4, op_ST, AM_ABSOLUTE};
+    st->opcodes[0x84] = (opcode) {"STY", y, 0, 3, op_ST, AM_ZP};
+    st->opcodes[0x94] = (opcode) {"STY", y, x, 4, op_ST, AM_ZP};
+    st->opcodes[0x8C] = (opcode) {"STY", y, 0, 4, op_ST, AM_ABSOLUTE};
     
-    st->opcodes[0x48] = (opcode) {"PHA", a, 0, 3, op_PH, am_implied};
-    st->opcodes[0x08] = (opcode) {"PHP", p, 0, 3, op_PH, am_implied};
-    st->opcodes[0x68] = (opcode) {"PLA", a, 0, 4, op_PL, am_implied};
-    st->opcodes[0x28] = (opcode) {"PLP", p, 0, 4, op_PL, am_implied};
+    st->opcodes[0x48] = (opcode) {"PHA", a, 0, 3, op_PH, AM_IMPLIED};
+    st->opcodes[0x08] = (opcode) {"PHP", p, 0, 3, op_PH, AM_IMPLIED};
+    st->opcodes[0x68] = (opcode) {"PLA", a, 0, 4, op_PL, AM_IMPLIED};
+    st->opcodes[0x28] = (opcode) {"PLP", p, 0, 4, op_PL, AM_IMPLIED};
     
-    st->opcodes[0x69] = (opcode) {"ADC", 0, 0, 2, op_ADC, am_immediate};
-    st->opcodes[0x65] = (opcode) {"ADC", 0, 0, 3, op_ADC, am_zp};
-    st->opcodes[0x75] = (opcode) {"ADC", 0, x, 4, op_ADC, am_zp};
-    st->opcodes[0x6D] = (opcode) {"ADC", 0, 0, 4, op_ADC, am_absolute};
-    st->opcodes[0x7D] = (opcode) {"ADC", 0, x, -4, op_ADC, am_absolute};
-    st->opcodes[0x79] = (opcode) {"ADC", 0, y, -4, op_ADC, am_absolute};
-    st->opcodes[0x61] = (opcode) {"ADC", 0, 0, 6, op_ADC, am_indirect_x};
-    st->opcodes[0x71] = (opcode) {"ADC", 0, 0, -5, op_ADC, am_indirect_y};
+    st->opcodes[0x69] = (opcode) {"ADC", 0, 0, 2, op_ADC, AM_IMMEDIATE};
+    st->opcodes[0x65] = (opcode) {"ADC", 0, 0, 3, op_ADC, AM_ZP};
+    st->opcodes[0x75] = (opcode) {"ADC", 0, x, 4, op_ADC, AM_ZP};
+    st->opcodes[0x6D] = (opcode) {"ADC", 0, 0, 4, op_ADC, AM_ABSOLUTE};
+    st->opcodes[0x7D] = (opcode) {"ADC", 0, x, -4, op_ADC, AM_ABSOLUTE};
+    st->opcodes[0x79] = (opcode) {"ADC", 0, y, -4, op_ADC, AM_ABSOLUTE};
+    st->opcodes[0x61] = (opcode) {"ADC", 0, 0, 6, op_ADC, AM_INDIRECT_X};
+    st->opcodes[0x71] = (opcode) {"ADC", 0, 0, -5, op_ADC, AM_INDIRECT_Y};
     
-    st->opcodes[0xE9] = (opcode) {"SBC", 0, 0, 2, op_SBC, am_immediate};
-    st->opcodes[0xE5] = (opcode) {"SBC", 0, 0, 3, op_SBC, am_zp};
-    st->opcodes[0xF5] = (opcode) {"SBC", 0, x, 4, op_SBC, am_zp};
-    st->opcodes[0xED] = (opcode) {"SBC", 0, 0, 4, op_SBC, am_absolute};
-    st->opcodes[0xFD] = (opcode) {"SBC", 0, x, -4, op_SBC, am_absolute};
-    st->opcodes[0xF9] = (opcode) {"SBC", 0, y, -4, op_SBC, am_absolute};
-    st->opcodes[0xE1] = (opcode) {"SBC", 0, 0, 6, op_SBC, am_indirect_x};
-    st->opcodes[0xF1] = (opcode) {"SBC", 0, 0, -5, op_SBC, am_indirect_y};
+    st->opcodes[0xE9] = (opcode) {"SBC", 0, 0, 2, op_SBC, AM_IMMEDIATE};
+    st->opcodes[0xE5] = (opcode) {"SBC", 0, 0, 3, op_SBC, AM_ZP};
+    st->opcodes[0xF5] = (opcode) {"SBC", 0, x, 4, op_SBC, AM_ZP};
+    st->opcodes[0xED] = (opcode) {"SBC", 0, 0, 4, op_SBC, AM_ABSOLUTE};
+    st->opcodes[0xFD] = (opcode) {"SBC", 0, x, -4, op_SBC, AM_ABSOLUTE};
+    st->opcodes[0xF9] = (opcode) {"SBC", 0, y, -4, op_SBC, AM_ABSOLUTE};
+    st->opcodes[0xE1] = (opcode) {"SBC", 0, 0, 6, op_SBC, AM_INDIRECT_X};
+    st->opcodes[0xF1] = (opcode) {"SBC", 0, 0, -5, op_SBC, AM_INDIRECT_Y};
     
-    st->opcodes[0x29] = (opcode) {"AND", 0, 0, 2, op_AND, am_immediate};
-    st->opcodes[0x25] = (opcode) {"AND", 0, 0, 3, op_AND, am_zp};
-    st->opcodes[0x35] = (opcode) {"AND", 0, x, 4, op_AND, am_zp};
-    st->opcodes[0x2D] = (opcode) {"AND", 0, 0, 4, op_AND, am_absolute};
-    st->opcodes[0x3D] = (opcode) {"AND", 0, x, -4, op_AND, am_absolute};
-    st->opcodes[0x39] = (opcode) {"AND", 0, y, -4, op_AND, am_absolute};
-    st->opcodes[0x21] = (opcode) {"AND", 0, 0, 6, op_AND, am_indirect_x};
-    st->opcodes[0x31] = (opcode) {"AND", 0, 0, -5, op_AND, am_indirect_y};
+    st->opcodes[0x29] = (opcode) {"AND", 0, 0, 2, op_AND, AM_IMMEDIATE};
+    st->opcodes[0x25] = (opcode) {"AND", 0, 0, 3, op_AND, AM_ZP};
+    st->opcodes[0x35] = (opcode) {"AND", 0, x, 4, op_AND, AM_ZP};
+    st->opcodes[0x2D] = (opcode) {"AND", 0, 0, 4, op_AND, AM_ABSOLUTE};
+    st->opcodes[0x3D] = (opcode) {"AND", 0, x, -4, op_AND, AM_ABSOLUTE};
+    st->opcodes[0x39] = (opcode) {"AND", 0, y, -4, op_AND, AM_ABSOLUTE};
+    st->opcodes[0x21] = (opcode) {"AND", 0, 0, 6, op_AND, AM_INDIRECT_X};
+    st->opcodes[0x31] = (opcode) {"AND", 0, 0, -5, op_AND, AM_INDIRECT_Y};
     
-    st->opcodes[0x49] = (opcode) {"EOR", 0, 0, 2, op_EOR, am_immediate};
-    st->opcodes[0x45] = (opcode) {"EOR", 0, 0, 3, op_EOR, am_zp};
-    st->opcodes[0x55] = (opcode) {"EOR", 0, x, 4, op_EOR, am_zp};
-    st->opcodes[0x4D] = (opcode) {"EOR", 0, 0, 4, op_EOR, am_absolute};
-    st->opcodes[0x5D] = (opcode) {"EOR", 0, x, -4, op_EOR, am_absolute};
-    st->opcodes[0x59] = (opcode) {"EOR", 0, y, -4, op_EOR, am_absolute};
-    st->opcodes[0x41] = (opcode) {"EOR", 0, 0, 6, op_EOR, am_indirect_x};
-    st->opcodes[0x51] = (opcode) {"EOR", 0, 0, -5, op_EOR, am_indirect_y};
+    st->opcodes[0x49] = (opcode) {"EOR", 0, 0, 2, op_EOR, AM_IMMEDIATE};
+    st->opcodes[0x45] = (opcode) {"EOR", 0, 0, 3, op_EOR, AM_ZP};
+    st->opcodes[0x55] = (opcode) {"EOR", 0, x, 4, op_EOR, AM_ZP};
+    st->opcodes[0x4D] = (opcode) {"EOR", 0, 0, 4, op_EOR, AM_ABSOLUTE};
+    st->opcodes[0x5D] = (opcode) {"EOR", 0, x, -4, op_EOR, AM_ABSOLUTE};
+    st->opcodes[0x59] = (opcode) {"EOR", 0, y, -4, op_EOR, AM_ABSOLUTE};
+    st->opcodes[0x41] = (opcode) {"EOR", 0, 0, 6, op_EOR, AM_INDIRECT_X};
+    st->opcodes[0x51] = (opcode) {"EOR", 0, 0, -5, op_EOR, AM_INDIRECT_Y};
     
-    st->opcodes[0x09] = (opcode) {"ORA", 0, 0, 2, op_ORA, am_immediate};
-    st->opcodes[0x05] = (opcode) {"ORA", 0, 0, 3, op_ORA, am_zp};
-    st->opcodes[0x15] = (opcode) {"ORA", 0, x, 4, op_ORA, am_zp};
-    st->opcodes[0x0D] = (opcode) {"ORA", 0, 0, 4, op_ORA, am_absolute};
-    st->opcodes[0x1D] = (opcode) {"ORA", 0, x, -4, op_ORA, am_absolute};
-    st->opcodes[0x19] = (opcode) {"ORA", 0, y, -4, op_ORA, am_absolute};
-    st->opcodes[0x01] = (opcode) {"ORA", 0, 0, 6, op_ORA, am_indirect_x};
-    st->opcodes[0x11] = (opcode) {"ORA", 0, 0, -5, op_ORA, am_indirect_y};
+    st->opcodes[0x09] = (opcode) {"ORA", 0, 0, 2, op_ORA, AM_IMMEDIATE};
+    st->opcodes[0x05] = (opcode) {"ORA", 0, 0, 3, op_ORA, AM_ZP};
+    st->opcodes[0x15] = (opcode) {"ORA", 0, x, 4, op_ORA, AM_ZP};
+    st->opcodes[0x0D] = (opcode) {"ORA", 0, 0, 4, op_ORA, AM_ABSOLUTE};
+    st->opcodes[0x1D] = (opcode) {"ORA", 0, x, -4, op_ORA, AM_ABSOLUTE};
+    st->opcodes[0x19] = (opcode) {"ORA", 0, y, -4, op_ORA, AM_ABSOLUTE};
+    st->opcodes[0x01] = (opcode) {"ORA", 0, 0, 6, op_ORA, AM_INDIRECT_X};
+    st->opcodes[0x11] = (opcode) {"ORA", 0, 0, -5, op_ORA, AM_INDIRECT_Y};
     
-    st->opcodes[0xC9] = (opcode) {"CMP", a, 0, 2, op_CMP, am_immediate};
-    st->opcodes[0xC5] = (opcode) {"CMP", a, 0, 3, op_CMP, am_zp};
-    st->opcodes[0xD5] = (opcode) {"CMP", a, x, 4, op_CMP, am_zp};
-    st->opcodes[0xCD] = (opcode) {"CMP", a, 0, 4, op_CMP, am_absolute};
-    st->opcodes[0xDD] = (opcode) {"CMP", a, x, -4, op_CMP, am_absolute};
-    st->opcodes[0xD9] = (opcode) {"CMP", a, y, -4, op_CMP, am_absolute};
-    st->opcodes[0xC1] = (opcode) {"CMP", a, 0, 6, op_CMP, am_indirect_x};
-    st->opcodes[0xD1] = (opcode) {"CMP", a, 0, -5, op_CMP, am_indirect_y};
-    st->opcodes[0xE0] = (opcode) {"CPX", x, 0, 2, op_CMP, am_immediate};
-    st->opcodes[0xE4] = (opcode) {"CPX", x, 0, 3, op_CMP, am_zp};
-    st->opcodes[0xEC] = (opcode) {"CPX", x, 0, 4, op_CMP, am_absolute};
-    st->opcodes[0xC0] = (opcode) {"CPY", y, 0, 2, op_CMP, am_immediate};
-    st->opcodes[0xC4] = (opcode) {"CPY", y, 0, 3, op_CMP, am_zp};
-    st->opcodes[0xCC] = (opcode) {"CPY", y, 0, 4, op_CMP, am_absolute};
+    st->opcodes[0xC9] = (opcode) {"CMP", a, 0, 2, op_CMP, AM_IMMEDIATE};
+    st->opcodes[0xC5] = (opcode) {"CMP", a, 0, 3, op_CMP, AM_ZP};
+    st->opcodes[0xD5] = (opcode) {"CMP", a, x, 4, op_CMP, AM_ZP};
+    st->opcodes[0xCD] = (opcode) {"CMP", a, 0, 4, op_CMP, AM_ABSOLUTE};
+    st->opcodes[0xDD] = (opcode) {"CMP", a, x, -4, op_CMP, AM_ABSOLUTE};
+    st->opcodes[0xD9] = (opcode) {"CMP", a, y, -4, op_CMP, AM_ABSOLUTE};
+    st->opcodes[0xC1] = (opcode) {"CMP", a, 0, 6, op_CMP, AM_INDIRECT_X};
+    st->opcodes[0xD1] = (opcode) {"CMP", a, 0, -5, op_CMP, AM_INDIRECT_Y};
+    st->opcodes[0xE0] = (opcode) {"CPX", x, 0, 2, op_CMP, AM_IMMEDIATE};
+    st->opcodes[0xE4] = (opcode) {"CPX", x, 0, 3, op_CMP, AM_ZP};
+    st->opcodes[0xEC] = (opcode) {"CPX", x, 0, 4, op_CMP, AM_ABSOLUTE};
+    st->opcodes[0xC0] = (opcode) {"CPY", y, 0, 2, op_CMP, AM_IMMEDIATE};
+    st->opcodes[0xC4] = (opcode) {"CPY", y, 0, 3, op_CMP, AM_ZP};
+    st->opcodes[0xCC] = (opcode) {"CPY", y, 0, 4, op_CMP, AM_ABSOLUTE};
     
-    st->opcodes[0x24] = (opcode) {"BIT", 0, 0, 3, op_BIT, am_zp};
-    st->opcodes[0x2C] = (opcode) {"BIT", 0, 0, 4, op_BIT, am_absolute};
+    st->opcodes[0x24] = (opcode) {"BIT", 0, 0, 3, op_BIT, AM_ZP};
+    st->opcodes[0x2C] = (opcode) {"BIT", 0, 0, 4, op_BIT, AM_ABSOLUTE};
     
-    st->opcodes[0xE6] = (opcode) {"INC", 0, 0, 5, op_INC, am_zp};
-    st->opcodes[0xF6] = (opcode) {"INC", 0, x, 6, op_INC, am_zp};
-    st->opcodes[0xEE] = (opcode) {"INC", 0, 0, 6, op_INC, am_absolute};
-    st->opcodes[0xFE] = (opcode) {"INC", 0, x, 7, op_INC, am_absolute};
-    st->opcodes[0xE8] = (opcode) {"INX", x, 0, 2, op_IN, am_implied};
-    st->opcodes[0xC8] = (opcode) {"INY", y, 0, 2, op_IN, am_implied};
+    st->opcodes[0xE6] = (opcode) {"INC", 0, 0, 5, op_INC, AM_ZP};
+    st->opcodes[0xF6] = (opcode) {"INC", 0, x, 6, op_INC, AM_ZP};
+    st->opcodes[0xEE] = (opcode) {"INC", 0, 0, 6, op_INC, AM_ABSOLUTE};
+    st->opcodes[0xFE] = (opcode) {"INC", 0, x, 7, op_INC, AM_ABSOLUTE};
+    st->opcodes[0xE8] = (opcode) {"INX", x, 0, 2, op_IN, AM_IMPLIED};
+    st->opcodes[0xC8] = (opcode) {"INY", y, 0, 2, op_IN, AM_IMPLIED};
     
-    st->opcodes[0xC6] = (opcode) {"DEC", 0, 0, 5, op_DEC, am_zp};
-    st->opcodes[0xD6] = (opcode) {"DEC", 0, x, 6, op_DEC, am_zp};
-    st->opcodes[0xCE] = (opcode) {"DEC", 0, 0, 6, op_DEC, am_absolute};
-    st->opcodes[0xDE] = (opcode) {"DEC", 0, x, 7, op_DEC, am_absolute};
-    st->opcodes[0xCA] = (opcode) {"DEX", x, 0, 2, op_DE, am_implied};
-    st->opcodes[0x88] = (opcode) {"DEY", y, 0, 2, op_DE, am_implied};
+    st->opcodes[0xC6] = (opcode) {"DEC", 0, 0, 5, op_DEC, AM_ZP};
+    st->opcodes[0xD6] = (opcode) {"DEC", 0, x, 6, op_DEC, AM_ZP};
+    st->opcodes[0xCE] = (opcode) {"DEC", 0, 0, 6, op_DEC, AM_ABSOLUTE};
+    st->opcodes[0xDE] = (opcode) {"DEC", 0, x, 7, op_DEC, AM_ABSOLUTE};
+    st->opcodes[0xCA] = (opcode) {"DEX", x, 0, 2, op_DE, AM_IMPLIED};
+    st->opcodes[0x88] = (opcode) {"DEY", y, 0, 2, op_DE, AM_IMPLIED};
     
-    st->opcodes[0x0A] = (opcode) {"ASL A", a, 0, 2, op_ASL, am_implied};
-    st->opcodes[0x06] = (opcode) {"ASL", 0, 0, 5, op_ASL, am_zp};
-    st->opcodes[0x16] = (opcode) {"ASL", 0, x, 6, op_ASL, am_zp};
-    st->opcodes[0x0E] = (opcode) {"ASL", 0, 0, 6, op_ASL, am_absolute};
-    st->opcodes[0x1E] = (opcode) {"ASL", 0, x, 7, op_ASL, am_absolute};
+    st->opcodes[0x0A] = (opcode) {"ASL A", a, 0, 2, op_ASL, AM_IMPLIED};
+    st->opcodes[0x06] = (opcode) {"ASL", 0, 0, 5, op_ASL, AM_ZP};
+    st->opcodes[0x16] = (opcode) {"ASL", 0, x, 6, op_ASL, AM_ZP};
+    st->opcodes[0x0E] = (opcode) {"ASL", 0, 0, 6, op_ASL, AM_ABSOLUTE};
+    st->opcodes[0x1E] = (opcode) {"ASL", 0, x, 7, op_ASL, AM_ABSOLUTE};
     
-    st->opcodes[0x0A] = (opcode) {"LSR A", a, 0, 2, op_LSR, am_implied};
-    st->opcodes[0x06] = (opcode) {"LSR", 0, 0, 5, op_LSR, am_zp};
-    st->opcodes[0x16] = (opcode) {"LSR", 0, x, 6, op_LSR, am_zp};
-    st->opcodes[0x0E] = (opcode) {"LSR", 0, 0, 6, op_LSR, am_absolute};
-    st->opcodes[0x1E] = (opcode) {"LSR", 0, x, 7, op_LSR, am_absolute};
+    st->opcodes[0x0A] = (opcode) {"LSR A", a, 0, 2, op_LSR, AM_IMPLIED};
+    st->opcodes[0x06] = (opcode) {"LSR", 0, 0, 5, op_LSR, AM_ZP};
+    st->opcodes[0x16] = (opcode) {"LSR", 0, x, 6, op_LSR, AM_ZP};
+    st->opcodes[0x0E] = (opcode) {"LSR", 0, 0, 6, op_LSR, AM_ABSOLUTE};
+    st->opcodes[0x1E] = (opcode) {"LSR", 0, x, 7, op_LSR, AM_ABSOLUTE};
     
-    st->opcodes[0x0A] = (opcode) {"ROL A", a, 0, 2, op_ROL, am_implied};
-    st->opcodes[0x06] = (opcode) {"ROL", 0, 0, 5, op_ROL, am_zp};
-    st->opcodes[0x16] = (opcode) {"ROL", 0, x, 6, op_ROL, am_zp};
-    st->opcodes[0x0E] = (opcode) {"ROL", 0, 0, 6, op_ROL, am_absolute};
-    st->opcodes[0x1E] = (opcode) {"ROL", 0, x, 7, op_ROL, am_absolute};
+    st->opcodes[0x0A] = (opcode) {"ROL A", a, 0, 2, op_ROL, AM_IMPLIED};
+    st->opcodes[0x06] = (opcode) {"ROL", 0, 0, 5, op_ROL, AM_ZP};
+    st->opcodes[0x16] = (opcode) {"ROL", 0, x, 6, op_ROL, AM_ZP};
+    st->opcodes[0x0E] = (opcode) {"ROL", 0, 0, 6, op_ROL, AM_ABSOLUTE};
+    st->opcodes[0x1E] = (opcode) {"ROL", 0, x, 7, op_ROL, AM_ABSOLUTE};
     
-    st->opcodes[0x0A] = (opcode) {"ROR A", a, 0, 2, op_ROR, am_implied};
-    st->opcodes[0x06] = (opcode) {"ROR", 0, 0, 5, op_ROR, am_zp};
-    st->opcodes[0x16] = (opcode) {"ROR", 0, x, 6, op_ROR, am_zp};
-    st->opcodes[0x0E] = (opcode) {"ROR", 0, 0, 6, op_ROR, am_absolute};
-    st->opcodes[0x1E] = (opcode) {"ROR", 0, x, 7, op_ROR, am_absolute};
+    st->opcodes[0x0A] = (opcode) {"ROR A", a, 0, 2, op_ROR, AM_IMPLIED};
+    st->opcodes[0x06] = (opcode) {"ROR", 0, 0, 5, op_ROR, AM_ZP};
+    st->opcodes[0x16] = (opcode) {"ROR", 0, x, 6, op_ROR, AM_ZP};
+    st->opcodes[0x0E] = (opcode) {"ROR", 0, 0, 6, op_ROR, AM_ABSOLUTE};
+    st->opcodes[0x1E] = (opcode) {"ROR", 0, x, 7, op_ROR, AM_ABSOLUTE};
     
-    st->opcodes[0x4C] = (opcode) {"JMP", 0, 0, 3, op_JMP, am_absolute};
-    st->opcodes[0x6C] = (opcode) {"JMP", 0, 0, 5, op_JMP, am_indirect_word};
-    st->opcodes[0x20] = (opcode) {"JSR", 0, 0, 6, op_JSR, am_absolute};
-    st->opcodes[0x40] = (opcode) {"RTI", 0, 0, 6, op_RTI, am_implied};
-    st->opcodes[0x60] = (opcode) {"RTS", 0, 0, 6, op_RTS, am_implied};
+    st->opcodes[0x4C] = (opcode) {"JMP", 0, 0, 3, op_JMP, AM_ABSOLUTE};
+    st->opcodes[0x6C] = (opcode) {"JMP", 0, 0, 5, op_JMP, AM_INDIRECT_WORD};
+    st->opcodes[0x20] = (opcode) {"JSR", 0, 0, 6, op_JSR, AM_ABSOLUTE};
+    st->opcodes[0x40] = (opcode) {"RTI", 0, 0, 6, op_RTI, AM_IMPLIED};
+    st->opcodes[0x60] = (opcode) {"RTS", 0, 0, 6, op_RTS, AM_IMPLIED};
     
-    st->opcodes[0x10] = (opcode) {"BPL", 0, 0, 2, op_BPL, am_relative};
-    st->opcodes[0x30] = (opcode) {"BMI", 0, 0, 2, op_BMI, am_relative};
-    st->opcodes[0x50] = (opcode) {"BVC", 0, 0, 2, op_BVC, am_relative};
-    st->opcodes[0x70] = (opcode) {"BVS", 0, 0, 2, op_BVS, am_relative};
-    st->opcodes[0x90] = (opcode) {"BCC", 0, 0, 2, op_BCC, am_relative};
-    st->opcodes[0xB0] = (opcode) {"BCS", 0, 0, 2, op_BCS, am_relative};
-    st->opcodes[0xD0] = (opcode) {"BNE", 0, 0, 2, op_BNE, am_relative};
-    st->opcodes[0xF0] = (opcode) {"BEQ", 0, 0, 2, op_BEQ, am_relative};
+    st->opcodes[0x10] = (opcode) {"BPL", 0, 0, 2, op_BPL, AM_RELATIVE};
+    st->opcodes[0x30] = (opcode) {"BMI", 0, 0, 2, op_BMI, AM_RELATIVE};
+    st->opcodes[0x50] = (opcode) {"BVC", 0, 0, 2, op_BVC, AM_RELATIVE};
+    st->opcodes[0x70] = (opcode) {"BVS", 0, 0, 2, op_BVS, AM_RELATIVE};
+    st->opcodes[0x90] = (opcode) {"BCC", 0, 0, 2, op_BCC, AM_RELATIVE};
+    st->opcodes[0xB0] = (opcode) {"BCS", 0, 0, 2, op_BCS, AM_RELATIVE};
+    st->opcodes[0xD0] = (opcode) {"BNE", 0, 0, 2, op_BNE, AM_RELATIVE};
+    st->opcodes[0xF0] = (opcode) {"BEQ", 0, 0, 2, op_BEQ, AM_RELATIVE};
     
-    st->opcodes[0x00] = (opcode) {"BRK", 0, 0, 0, op_BRK, am_implied};
+    st->opcodes[0x00] = (opcode) {"BRK", 0, 0, 0, op_BRK, AM_IMPLIED};
     
-    st->opcodes[0x18] = (opcode) {"CLC", 0, 0, 2, op_CLC, am_implied};
-    st->opcodes[0x58] = (opcode) {"CLI", 0, 0, 2, op_CLI, am_implied};
-    st->opcodes[0xD8] = (opcode) {"CLD", 0, 0, 2, op_CLD, am_implied};
-    st->opcodes[0xB8] = (opcode) {"CLV", 0, 0, 2, op_CLV, am_implied};
-    st->opcodes[0x38] = (opcode) {"SEC", 0, 0, 2, op_SEC, am_implied};
-    st->opcodes[0x78] = (opcode) {"SEI", 0, 0, 2, op_SEI, am_implied};
-    st->opcodes[0xF8] = (opcode) {"SED", 0, 0, 2, op_SED, am_implied};
+    st->opcodes[0x18] = (opcode) {"CLC", 0, 0, 2, op_CLC, AM_IMPLIED};
+    st->opcodes[0x58] = (opcode) {"CLI", 0, 0, 2, op_CLI, AM_IMPLIED};
+    st->opcodes[0xD8] = (opcode) {"CLD", 0, 0, 2, op_CLD, AM_IMPLIED};
+    st->opcodes[0xB8] = (opcode) {"CLV", 0, 0, 2, op_CLV, AM_IMPLIED};
+    st->opcodes[0x38] = (opcode) {"SEC", 0, 0, 2, op_SEC, AM_IMPLIED};
+    st->opcodes[0x78] = (opcode) {"SEI", 0, 0, 2, op_SEI, AM_IMPLIED};
+    st->opcodes[0xF8] = (opcode) {"SED", 0, 0, 2, op_SED, AM_IMPLIED};
 
-    st->opcodes[0xEA] = (opcode) {"NOP", 0, 0, 2, NULL, am_implied};
+    st->opcodes[0xEA] = (opcode) {"NOP", 0, 0, 2, NULL, AM_IMPLIED};
 }
 
 int cpu_step(cpu_state *st, bool verbose) {
@@ -506,39 +506,39 @@ int cpu_step(cpu_state *st, bool verbose) {
     uint16_t pre_indexing = 0;
     op_param param;
     switch (op->am) {
-        case am_implied:
+        case AM_IMPLIED:
             param.addr = 0;
             break;
-        case am_immediate:
+        case AM_IMMEDIATE:
             param.immediate_value = mm_read(st->mm, st->pc++);
             break;
-        case am_zp:
+        case AM_ZP:
             zp_addr = mm_read(st->mm, st->pc++);
             if (op->reg2) {
                 zp_addr += *op->reg2;
             }
             param.addr = zp_addr;
             break;
-        case am_absolute:
+        case AM_ABSOLUTE:
             pre_indexing = param.addr = mm_read_word(st->mm, st->pc);
             st->pc += 2;
             if (op->reg2) {
                 param.addr += *op->reg2;
             }
             break;
-        case am_indirect_word:
+        case AM_INDIRECT_WORD:
             param.addr = mm_read_word(st->mm, mm_read_word(st->mm, st->pc));
             st->pc += 2;
             break;
-        case am_indirect_x:
+        case AM_INDIRECT_X:
             zp_addr = mm_read(st->mm, st->pc++) + st->x;
             param.addr = mm_read_word(st->mm, zp_addr);
             break;
-        case am_indirect_y:
+        case AM_INDIRECT_Y:
             pre_indexing = mm_read_word(st->mm, mm_read(st->mm, st->pc++));
             param.addr = pre_indexing + st->y;
             break;
-        case am_relative:
+        case AM_RELATIVE:
             param.relative_addr = mm_read(st->mm, st->pc++);
             break;
     }
@@ -553,31 +553,31 @@ int cpu_step(cpu_state *st, bool verbose) {
     if (verbose) {
         printf(" %s", op->name);
         switch (op->am) {
-            case am_implied:
+            case AM_IMPLIED:
                 break;
-            case am_immediate:
+            case AM_IMMEDIATE:
                 printf(" #$%02x", param.immediate_value);
                 break;
-            case am_zp:
+            case AM_ZP:
                 printf(" $%02x", param.addr);
                 break;
-            case am_absolute:
+            case AM_ABSOLUTE:
                 printf(" $%04x", param.addr);
                 break;
-            case am_indirect_word:
+            case AM_INDIRECT_WORD:
                 printf(" ($%04x)", param.addr);
                 break;
-            case am_indirect_x:
+            case AM_INDIRECT_X:
                 printf(" ($%02x,X)", param.addr);
                 break;
-            case am_indirect_y:
+            case AM_INDIRECT_Y:
                 printf(" ($%02x),Y", param.addr);
                 break;
-            case am_relative:
+            case AM_RELATIVE:
                 printf(" %d", param.relative_addr);
                 break;
         }
-        if (op->am == am_zp || op->am == am_absolute) {
+        if (op->am == AM_ZP || op->am == AM_ABSOLUTE) {
             if (op->reg2 == &st->x) {
                 printf(",X");
             } else if (op->reg2 == &st->y) {
