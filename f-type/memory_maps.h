@@ -1,7 +1,7 @@
 #ifndef memory_maps_h
 #define memory_maps_h
 
-#include <stdio.h>
+#include <stdint.h>
 
 #define SIZE_WRAM 0x800
 #define SIZE_PRG_ROM 0x8000

@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #include "memory_maps.h"
 
 // ADDRESS I/O //
