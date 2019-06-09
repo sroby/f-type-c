@@ -2,18 +2,18 @@
 
 // ADDRESS I/O //
 
-uint8_t read_wram(memory_map *mm, int offset) {
+static uint8_t read_wram(memory_map *mm, int offset) {
     return mm->wram[offset];
 }
-void write_wram(memory_map *mm, int offset, uint8_t value) {
+static void write_wram(memory_map *mm, int offset, uint8_t value) {
     mm->wram[offset] = value;
 }
 
-uint8_t read_prg_rom(memory_map *mm, int offset) {
+static uint8_t read_prg_rom(memory_map *mm, int offset) {
     return mm->prg_rom[offset];
 }
 
-uint8_t always_vblank(memory_map *mm, int offset) {
+static uint8_t always_vblank(memory_map *mm, int offset) {
     return 0xFF;
 }
 
