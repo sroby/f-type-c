@@ -497,7 +497,7 @@ int cpu_step(cpu_state *st, bool verbose) {
     uint8_t inst = mm_read(st->mm, st->pc++);
     const opcode *op = &st->opcodes[inst];
     if (!op->name) {
-        printf("Invalid opcode %d", inst);
+        printf("Invalid opcode %d\n", inst);
         return -1;
     }
     
