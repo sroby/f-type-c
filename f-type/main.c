@@ -68,10 +68,10 @@ int main(int argc, const char * argv[]) {
     printf("Mirroring: %s\n", (mirroring ? "Vertical" : "Horizontal"));
     fclose(rom_file);
     
-    memory_map mm;
+    MemoryMap mm;
     memory_map_cpu_init(&mm, prg_rom);
     
-    cpu_state st;
+    CPUState st;
     cpu_init(&st, &mm);
     
     int total_t = cpu_reset(&st);
