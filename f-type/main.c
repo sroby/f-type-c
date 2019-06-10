@@ -6,7 +6,8 @@
 #include "cpu.h"
 
 int main(int argc, const char * argv[]) {
-    const bool verbose = *getenv("VERBOSE") - '0';
+    const char *const verb_char = getenv("VERBOSE");
+    const bool verbose = verb_char ? *verb_char - '0' : false;
     
     if (argc != 2) {
         printf("Usage: %s rom.nes\n", argv[0]);
