@@ -31,27 +31,27 @@ typedef enum {
     AM_INDIRECT_X,
     AM_INDIRECT_Y,
     AM_RELATIVE
-} addressing_mode;
+} AddressingMode;
 
 
 typedef union {
     uint16_t addr;
     uint8_t immediate_value;
     int8_t relative_addr;
-} op_param;
+} OpParam;
 
-typedef struct cpu_state cpu_state;
-typedef struct opcode opcode;
-struct opcode {
+typedef struct CPUState CPUState;
+typedef struct Opcode Opcode;
+struct Opcode {
     const char *name;
     uint8_t *reg1;
     uint8_t *reg2;
     int cycles;
-    void (*func)(cpu_state *, const opcode *, op_param);
-    addressing_mode am;
+    void (*func)(CPUState *, const Opcode *, OpParam);
+    AddressingMode am;
 };
 
-struct cpu_state {
+struct CPUState {
     // General purpose registers
     uint8_t a;
     uint8_t x;
@@ -65,19 +65,19 @@ struct cpu_state {
     // Cycle counter for current execution
     int t;
     // Opcode lookup table
-    opcode opcodes[0x100];
+    Opcode opcodes[0x100];
     // Memory map
-    memory_map *mm;
+    MemoryMap *mm;
 };
 
-void cpu_init(cpu_state *, memory_map *);
+void cpu_init(CPUState *, MemoryMap *);
 
-int cpu_step(cpu_state *, bool);
+int cpu_step(CPUState *, bool);
 
-int cpu_irq(cpu_state *);
-int cpu_nmi(cpu_state *);
-int cpu_reset(cpu_state *);
+int cpu_irq(CPUState *);
+int cpu_nmi(CPUState *);
+int cpu_reset(CPUState *);
 
-void cpu_debug_print_state(cpu_state *);
+void cpu_debug_print_state(CPUState *);
 
 #endif /* cpu_h */
