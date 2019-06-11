@@ -576,7 +576,7 @@ int cpu_step(CPUState *st, bool verbose) {
                 printf(" ($%02x),Y", param.addr);
                 break;
             case AM_RELATIVE:
-                printf(" %d", param.relative_addr);
+                printf(" %+d", param.relative_addr);
                 break;
         }
         if (op->am == AM_ZP || op->am == AM_ABSOLUTE) {
