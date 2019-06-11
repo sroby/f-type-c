@@ -1,5 +1,13 @@
 #include "cpu.h"
 
+// MISC. //
+
+static void apply_page_boundary_penalty(CPUState *st, uint16_t a, uint16_t b) {
+    if ((a << 4) != (b << 4)) {
+        (st->t)++;
+    }
+}
+
 // P.STATUS REGISTER //
 
 static bool get_p_flag(CPUState *st, int flag) {
@@ -41,12 +49,6 @@ static uint8_t stack_pull(CPUState *st) {
 static uint16_t stack_pull_word(CPUState *st) {
     uint16_t value = (uint16_t)stack_pull(st) << 8;
     return value + (uint16_t)stack_pull(st);
-}
-
-static void apply_page_boundary_penalty(CPUState *st, uint16_t a, uint16_t b) {
-    if ((a << 4) != (b << 4)) {
-        (st->t)++;
-    }
 }
 
 // INTERRUPT HANDLING //
