@@ -47,7 +47,7 @@ struct Opcode {
     uint8_t *reg1;
     uint8_t *reg2;
     int cycles;
-    void (*func)(CPUState *, const Opcode *, OpParam);
+    void (*func)(CPUState *st, const Opcode *opcode, OpParam param);
     AddressingMode am;
 };
 
@@ -70,14 +70,14 @@ struct CPUState {
     MemoryMap *mm;
 };
 
-void cpu_init(CPUState *, MemoryMap *);
+void cpu_init(CPUState *st, MemoryMap *mm);
 
-int cpu_step(CPUState *, bool);
+int cpu_step(CPUState *st, bool verbose);
 
-int cpu_irq(CPUState *);
-int cpu_nmi(CPUState *);
-int cpu_reset(CPUState *);
+int cpu_irq(CPUState *st);
+int cpu_nmi(CPUState *st);
+int cpu_reset(CPUState *st);
 
-void cpu_debug_print_state(CPUState *);
+void cpu_debug_print_state(CPUState *st);
 
 #endif /* cpu_h */
