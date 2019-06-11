@@ -9,8 +9,8 @@
 typedef struct MemoryMap MemoryMap;
 
 typedef struct {
-    uint8_t (*read_func)(MemoryMap *, int);
-    void (*write_func)(MemoryMap *, int, uint8_t);
+    uint8_t (*read_func)(MemoryMap *mm, int offset);
+    void (*write_func)(MemoryMap *mm, int offset, uint8_t value);
     int offset;
 } MemoryAddress;
 
@@ -21,12 +21,12 @@ struct MemoryMap {
     MemoryAddress addrs[0x10000];
 };
 
-void memory_map_cpu_init(MemoryMap *, const uint8_t *);
+void memory_map_cpu_init(MemoryMap *mm, const uint8_t *prg_rom);
 
-uint8_t mm_read(MemoryMap *, uint16_t);
-uint16_t mm_read_word(MemoryMap *, uint16_t);
+uint8_t mm_read(MemoryMap *mm, uint16_t addr);
+uint16_t mm_read_word(MemoryMap *mm, uint16_t addr);
 
-void mm_write(MemoryMap *, uint16_t, uint8_t);
-void mm_write_word(MemoryMap *, uint16_t, uint16_t);
+void mm_write(MemoryMap *mm, uint16_t addr, uint8_t value);
+void mm_write_word(MemoryMap *mm, uint16_t addr, uint16_t value);
 
 #endif /* memory_maps_h */
