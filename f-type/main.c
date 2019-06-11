@@ -71,19 +71,19 @@ int main(int argc, const char * argv[]) {
     MemoryMap mm;
     memory_map_cpu_init(&mm, prg_rom);
     
-    CPUState st;
-    cpu_init(&st, &mm);
+    CPUState cpu;
+    cpu_init(&cpu, &mm);
     
-    int total_t = cpu_reset(&st);
+    int total_t = cpu_reset(&cpu);
     do {
         if (verbose) {
-            cpu_debug_print_state(&st);
+            cpu_debug_print_state(&cpu);
         }
-        total_t += cpu_step(&st, verbose);
-    } while(st.pc != 0x8057);
+        total_t += cpu_step(&cpu, verbose);
+    } while(cpu.pc != 0x8057);
     
     if (verbose) {
-        cpu_debug_print_state(&st);
+        cpu_debug_print_state(&cpu);
     }
     printf("Ended in %d cycles\n", total_t);
     
