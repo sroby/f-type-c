@@ -33,11 +33,10 @@ typedef enum {
     AM_RELATIVE
 } AddressingMode;
 
-
 typedef union {
     uint16_t addr;
-    uint8_t immediate_value;
-    int8_t relative_addr;
+    uint8_t immediate_value[2];
+    int8_t relative_addr[2];
 } OpParam;
 
 typedef struct CPUState CPUState;
