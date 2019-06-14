@@ -67,16 +67,16 @@ struct CPUState {
     Opcode opcodes[0x100];
     // Memory map
     MemoryMap *mm;
+    // Print CPU trace
+    bool verbose;
 };
 
 void cpu_init(CPUState *cpu, MemoryMap *mm);
 
-int cpu_step(CPUState *cpu, bool verbose);
+int cpu_step(CPUState *cpu);
 
 int cpu_irq(CPUState *cpu);
 int cpu_nmi(CPUState *cpu);
 int cpu_reset(CPUState *cpu);
-
-void cpu_debug_print_state(CPUState *cpu);
 
 #endif /* cpu_h */
