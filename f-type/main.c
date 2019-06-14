@@ -73,18 +73,13 @@ int main(int argc, const char * argv[]) {
     
     CPUState cpu;
     cpu_init(&cpu, &mm);
-    
+    cpu.verbose = verbose;
+
     int total_t = cpu_reset(&cpu);
     do {
-        if (verbose) {
-            cpu_debug_print_state(&cpu);
-        }
-        total_t += cpu_step(&cpu, verbose);
+        total_t += cpu_step(&cpu);
     } while(cpu.pc != 0x8057);
     
-    if (verbose) {
-        cpu_debug_print_state(&cpu);
-    }
     printf("Ended in %d cycles\n", total_t);
     
     if (chr_rom) {

@@ -68,7 +68,7 @@ static int interrupt(CPUState *cpu, bool b_flag, uint16_t ivt_addr) {
 
 static uint8_t get_param_value(CPUState *cpu, const Opcode *op, OpParam param) {
     if (op->am == AM_IMMEDIATE) {
-        return param.immediate_value;
+        return param.immediate_value[0];
     }
     return mm_read(cpu->mm, param.addr);
 }
@@ -241,7 +241,7 @@ static void cond_branch(CPUState *cpu, OpParam param, int flag, bool value) {
         return;
     }
     cpu->t++;
-    uint16_t new_pc = cpu->pc + param.relative_addr;
+    uint16_t new_pc = cpu->pc + param.relative_addr[0];
     apply_page_boundary_penalty(cpu, cpu->pc, new_pc);
     cpu->pc = new_pc;
 }
@@ -295,6 +295,21 @@ static void op_SEI(CPUState *cpu, const Opcode *op, OpParam param) {
 }
 static void op_SED(CPUState *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_D, true);
+}
+
+// DEBUG //
+
+static void cpu_debug_print_state(CPUState *cpu) {
+    printf("PC=%04x A=%02x X=%02x Y=%02x P=%02x[",
+           cpu->pc, cpu->a, cpu->x, cpu->y, cpu->p);
+    for (int i = 0; i < 8; i++) {
+        printf("%c", (cpu->p & (1 << i) ? "czidb-vn"[i] : '.'));
+    }
+    printf("] S=%02x{", cpu->s);
+    for (int i = 0xff; i > cpu->s; i--) {
+        printf(" %02x", cpu->mm->wram[0x100 + i]);
+    }
+    printf(" }\n");
 }
 
 // PUBLIC FUNCTIONS //
@@ -494,7 +509,7 @@ void cpu_init(CPUState *cpu, MemoryMap *mm) {
     cpu->opcodes[0xEA] = (Opcode) {"NOP", 0, 0, 2, NULL, AM_IMPLIED};
 }
 
-int cpu_step(CPUState *cpu, bool verbose) {
+int cpu_step(CPUState *cpu) {
     // Fetch next instruction
     uint8_t inst = mm_read(cpu->mm, cpu->pc++);
     const Opcode *op = &cpu->opcodes[inst];
@@ -512,7 +527,7 @@ int cpu_step(CPUState *cpu, bool verbose) {
             param.addr = 0;
             break;
         case AM_IMMEDIATE:
-            param.immediate_value = mm_read(cpu->mm, cpu->pc++);
+            param.immediate_value[0] = mm_read(cpu->mm, cpu->pc++);
             break;
         case AM_ZP:
             zp_addr = mm_read(cpu->mm, cpu->pc++);
@@ -541,7 +556,7 @@ int cpu_step(CPUState *cpu, bool verbose) {
             param.addr = pre_indexing + cpu->y;
             break;
         case AM_RELATIVE:
-            param.relative_addr = mm_read(cpu->mm, cpu->pc++);
+            param.relative_addr[0] = mm_read(cpu->mm, cpu->pc++);
             break;
     }
     
@@ -552,13 +567,14 @@ int cpu_step(CPUState *cpu, bool verbose) {
         cpu->t = op->cycles;
     }
     
-    if (verbose) {
+    if (cpu->verbose) {
+        cpu_debug_print_state(cpu);
         printf(" %s", op->name);
         switch (op->am) {
             case AM_IMPLIED:
                 break;
             case AM_IMMEDIATE:
-                printf(" #$%02x", param.immediate_value);
+                printf(" #$%02x", param.immediate_value[0]);
                 break;
             case AM_ZP:
                 printf(" $%02x", param.addr);
@@ -576,7 +592,7 @@ int cpu_step(CPUState *cpu, bool verbose) {
                 printf(" ($%02x),Y", param.addr);
                 break;
             case AM_RELATIVE:
-                printf(" %+d", param.relative_addr);
+                printf(" %+d", param.relative_addr[0]);
                 break;
         }
         if (op->am == AM_ZP || op->am == AM_ABSOLUTE) {
@@ -611,14 +627,3 @@ int cpu_reset(CPUState *cpu) {
     return interrupt(cpu, true, IVT_RESET);
 }
 
-void cpu_debug_print_state(CPUState *cpu) {
-    printf("PC=%04x A=%02x X=%02x Y=%02x P=%02x[", cpu->pc, cpu->a, cpu->x, cpu->y, cpu->p);
-    for (int i = 0; i < 8; i++) {
-        printf("%c", (cpu->p & (1 << i) ? "czidb-vn"[i] : '.'));
-    }
-    printf("] S=%02x{", cpu->s);
-    for (int i = 0xff; i > cpu->s; i--) {
-        printf(" %02x", cpu->mm->wram[0x100 + i]);
-    }
-    printf(" }\n");
-}

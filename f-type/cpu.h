@@ -33,11 +33,10 @@ typedef enum {
     AM_RELATIVE
 } AddressingMode;
 
-
 typedef union {
     uint16_t addr;
-    uint8_t immediate_value;
-    int8_t relative_addr;
+    uint8_t immediate_value[2];
+    int8_t relative_addr[2];
 } OpParam;
 
 typedef struct CPUState CPUState;
@@ -68,16 +67,16 @@ struct CPUState {
     Opcode opcodes[0x100];
     // Memory map
     MemoryMap *mm;
+    // Print CPU trace
+    bool verbose;
 };
 
 void cpu_init(CPUState *cpu, MemoryMap *mm);
 
-int cpu_step(CPUState *cpu, bool verbose);
+int cpu_step(CPUState *cpu);
 
 int cpu_irq(CPUState *cpu);
 int cpu_nmi(CPUState *cpu);
 int cpu_reset(CPUState *cpu);
-
-void cpu_debug_print_state(CPUState *cpu);
 
 #endif /* cpu_h */
