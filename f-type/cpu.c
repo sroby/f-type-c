@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "cpu.h"
 #include "memory_maps.h"
 
@@ -310,11 +312,7 @@ void cpu_init(CPUState *cpu, MemoryMap *mm) {
     cpu->pc = 0;
     cpu->t = 0;
     cpu->mm = mm;
-    
-    // Initialize name on all opcodes so we can detect illegal usage
-    for (int i = 0; i < 0x100; i++) {
-        cpu->opcodes[i].name = NULL;
-    }
+    memset(cpu->opcodes, 0, sizeof(Opcode) * 0x100);
     
     uint8_t *a = &cpu->a;
     uint8_t *x = &cpu->x;
