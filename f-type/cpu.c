@@ -56,7 +56,9 @@ static uint16_t stack_pull_word(CPUState *cpu) {
 
 static void interrupt(CPUState *cpu, bool b_flag, uint16_t ivt_addr) {
     set_p_flag(cpu, P_B, b_flag);
-    if (ivt_addr != IVT_RESET) {
+    if (ivt_addr == IVT_RESET) {
+        cpu->s -= 3;
+    } else {
         stack_push_word(cpu, cpu->pc);
         stack_push(cpu, cpu->p);
     }
@@ -226,7 +228,7 @@ static void op_JMP(CPUState *cpu, const Opcode *op, OpParam param) {
 }
 
 static void op_JSR(CPUState *cpu, const Opcode *op, OpParam param) {
-    stack_push_word(cpu, cpu->pc);
+    stack_push_word(cpu, cpu->pc - 1);
     cpu->pc = param.addr;
 }
 
@@ -236,7 +238,7 @@ static void op_RTI(CPUState *cpu, const Opcode *op, OpParam param) {
 }
 
 static void op_RTS(CPUState *cpu, const Opcode *op, OpParam param) {
-    cpu->pc = stack_pull_word(cpu); // + 1 ??
+    cpu->pc = stack_pull_word(cpu) + 1;
 }
 
 static void cond_branch(CPUState *cpu, OpParam param, int flag, bool value) {
@@ -274,7 +276,7 @@ static void op_BEQ(CPUState *cpu, const Opcode *op, OpParam param) {
 }
 
 static void op_BRK(CPUState *cpu, const Opcode *op, OpParam param) {
-    cpu->pc++;
+    cpu->pc++; // Puts PC one extra byte further, for some reason
     interrupt(cpu, true, IVT_IRQ);
 }
 
@@ -303,8 +305,7 @@ static void op_SED(CPUState *cpu, const Opcode *op, OpParam param) {
 // PUBLIC FUNCTIONS //
 
 void cpu_init(CPUState *cpu, MemoryMap *mm) {
-    cpu->a = cpu->x = cpu->y = 0;
-    cpu->s = 0xff;
+    cpu->a = cpu->x = cpu->y = cpu->s = 0;
     cpu->p = 1 << P__;
     cpu->pc = 0;
     cpu->t = 0;
