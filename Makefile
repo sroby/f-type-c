@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-O3 -Wall -Werror
 
 TARGET=ftype
-SRCS=f-type/main.c f-type/cpu.c f-type/memory_maps.c
+SRCS=f-type/main.c f-type/cpu.c f-type/memory_maps.c f-type/ppu.c f-type/machine.c
 
 all: $(TARGET)
 

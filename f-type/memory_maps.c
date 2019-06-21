@@ -1,53 +1,172 @@
-#include <stddef.h>
+#include <string.h>
 
 #include "memory_maps.h"
+#include "ppu.h"
+#include "machine.h"
 
-// ADDRESS I/O //
+static void init_common(MemoryMap *mm) {
+    mm->last_read = 0;
+    memset(mm->addrs, 0, sizeof(MemoryAddress) * 0x10000);
+}
+
+// CPU MEMORY MAP ACCESSES //
 
 static uint8_t read_wram(MemoryMap *mm, int offset) {
-    return mm->wram[offset];
+    MemoryMapCPUInternal *internal = mm->internal;
+    return internal->wram[offset];
 }
 static void write_wram(MemoryMap *mm, int offset, uint8_t value) {
-    mm->wram[offset] = value;
+    MemoryMapCPUInternal *internal = mm->internal;
+    internal->wram[offset] = value;
 }
 
 static uint8_t read_prg_rom(MemoryMap *mm, int offset) {
-    return mm->prg_rom[offset];
+    MemoryMapCPUInternal *internal = mm->internal;
+    return internal->prg_rom[offset];
 }
 
-static uint8_t always_vblank(MemoryMap *mm, int offset) {
-    return 0xFF;
+static uint8_t read_ppu_register(MemoryMap *mm, int offset) {
+    MemoryMapCPUInternal *internal = mm->internal;
+    return ppu_read_register(internal->ppu, offset);
+}
+static void write_ppu_register(MemoryMap *mm, int offset, uint8_t value) {
+    MemoryMapCPUInternal *internal = mm->internal;
+    ppu_write_register(internal->ppu, offset, value);
+}
+
+static void write_apu_register(MemoryMap *mm, int offset, uint8_t value) {
+    if (offset == 0x14 && value != 0x40) {
+        MemoryMapCPUInternal *internal = mm->internal;
+        uint8_t page[0x100];
+        uint16_t page_addr = (uint16_t)value << 8;
+        for (int i = 0; i < 0x100; i++) {
+            page[i] = mm_read(mm, page_addr + i);
+        }
+        ppu_write_oam_dma(internal->ppu, page);
+    }
+}
+
+// PPU MEMORY MAP ACCESSES //
+
+static uint8_t read_chr_rom(MemoryMap *mm, int offset) {
+    MemoryMapPPUInternal *internal = mm->internal;
+    return internal->chr_rom[offset];
+}
+
+static uint8_t read_nametables(MemoryMap *mm, int offset) {
+    MemoryMapPPUInternal *internal = mm->internal;
+    return internal->nt_layout[offset / SIZE_NAMETABLE]
+                              [offset % SIZE_NAMETABLE];
+}
+
+static void write_nametables(MemoryMap *mm, int offset, uint8_t value) {
+    MemoryMapPPUInternal *internal = mm->internal;
+    internal->nt_layout[offset / SIZE_NAMETABLE]
+                       [offset % SIZE_NAMETABLE] = value;
+}
+
+static uint8_t read_background_colors(MemoryMap *mm, int offset) {
+    MemoryMapPPUInternal *internal = mm->internal;
+    return internal->background_colors[offset];
+}
+
+static void write_background_colors(MemoryMap *mm, int offset, uint8_t value) {
+    MemoryMapPPUInternal *internal = mm->internal;
+    internal->background_colors[offset] = value;
+}
+
+static uint8_t read_palettes(MemoryMap *mm, int offset) {
+    MemoryMapPPUInternal *internal = mm->internal;
+    return internal->palettes[offset];
+}
+
+static void write_palettes(MemoryMap *mm, int offset, uint8_t value) {
+    MemoryMapPPUInternal *internal = mm->internal;
+    internal->palettes[offset] = value;
 }
 
 // PUBLIC FUNCTIONS //
 
-void memory_map_cpu_init(MemoryMap *mm, const uint8_t *prg_rom) {
-    mm->last_read = 0;
-    mm->prg_rom = prg_rom;
+void memory_map_cpu_init(MemoryMap *mm, MemoryMapCPUInternal *internal,
+                         const Cartridge *cart, PPUState *ppu) {
+    init_common(mm);
     
-    int i;
-    
-    // Wipe the WRAM
-    for (i = 0; i < SIZE_WRAM; i++) {
-        mm->wram[i] = 0;
-    }
+    mm->internal = internal;
+    internal->ppu = ppu;
+    internal->prg_rom = cart->prg_rom;
+    memset(internal->wram, 0, SIZE_WRAM);
     
     // Populate the address map
-    // 0000-1FFF: WRAM (2kB repeated multiple times)
+    int i;
+    // 0000-1FFF: WRAM (2kB, repeated)
+    for (i = 0; i < SIZE_WRAM; i++) {
+        mm->addrs[i] = (MemoryAddress)
+            {read_wram, write_wram, i % SIZE_WRAM};
+    }
+    // 2000-3FFF: PPU registers (8, repeated)
     for (i = 0; i < 0x2000; i++) {
-        mm->addrs[i] = (MemoryAddress) {read_wram, write_wram, i % SIZE_WRAM};
+        mm->addrs[i + 0x2000] = (MemoryAddress)
+            {read_ppu_register, write_ppu_register, i % 8};
     }
-    // 2000-7FFF: TODO, make it all open bus for now
-    for (i = 0x2000; i < 0x8000; i++) {
-        mm->addrs[i] = (MemoryAddress) {NULL, NULL, 0};
+    // 4000-4017: APU registers (24)
+    for (i = 0; i < 0x18; i++) {
+        mm->addrs[i + 0x4000] = (MemoryAddress)
+            {NULL, write_apu_register, i};
     }
-    // 8000-FFFF: PRG ROM (32kB)
-    for (i = 0; i < 0x8000; i++) {
-        mm->addrs[i + 0x8000] = (MemoryAddress) {read_prg_rom, NULL, i};
+    // 4018-7FFF: Cartridge I/O, unused for regular NROM so open bus for now
+    // 8000-FFFF: PRG ROM (32kB, repeated if 16kB)
+    for (i = 0; i < SIZE_PRG_ROM; i++) {
+        mm->addrs[i + 0x8000] = (MemoryAddress)
+            {read_prg_rom, NULL, i % cart->prg_rom_size};
     }
+}
+
+void memory_map_ppu_init(MemoryMap *mm, MemoryMapPPUInternal *internal,
+                         const Cartridge *cart) {
+    init_common(mm);
+    mm->internal = internal;
     
-    // Have $2002 (PPUSTATUS) always return all true for now, so we can go past the vblank check
-    mm->addrs[0x2002] = (MemoryAddress) { always_vblank, NULL, 0};
+    // Only supports CHR ROM for now
+    internal->chr_rom = cart->chr_rom;
+    
+    // Wipe the various memory structures
+    memset(internal->nametables[0], 0, SIZE_NAMETABLE);
+    memset(internal->nametables[1], 0, SIZE_NAMETABLE);
+    memset(internal->background_colors, 0, 4);
+    memset(internal->palettes, 0, 8 * 3);
+    
+    // Define nametable memory layout
+    internal->nt_layout[0] = internal->nametables[0];
+    internal->nt_layout[1] = internal->nametables[cart->mirroring ? 1 : 0];
+    internal->nt_layout[2] = internal->nametables[cart->mirroring ? 0 : 1];
+    internal->nt_layout[3] = internal->nametables[1];
+    
+    // Populate the address map
+    int i, j;
+    // 0000-1FFF: CHR ROM
+    for (i = 0; i < 0x2000; i++) {
+        mm->addrs[i] = (MemoryAddress) {read_chr_rom, NULL, i};
+    }
+    // 2000-3EFF: Nametables
+    for (i = 0; i < 0x1EFF; i++) {
+        mm->addrs[i + 0x2000] = (MemoryAddress)
+            {read_nametables, write_nametables, i % (SIZE_NAMETABLE * 4)};
+    }
+    // 3F00-3FFF: Palettes
+    for (i = 0x3F00; i < 0x4000; i += 0x20) {
+        for (j = 0; j < 8; j++) {
+            mm->addrs[i + (j * 0x04)] = (MemoryAddress)
+                {read_background_colors, write_background_colors, j % 4};
+        }
+        for (j = 0; j < 24; j++) {
+            mm->addrs[i + (j / 3 * 4) + (j % 3) + 1] = (MemoryAddress)
+                {read_palettes, write_palettes, j};
+        }
+    }
+    // 4000-FFFF: Invalid range, mirrors the above
+    for (i = 0x4000; i < 0x10000; i++) {
+        mm->addrs[i] = mm->addrs[i - 0x4000];
+    }
 }
 
 uint8_t mm_read(MemoryMap *mm, uint16_t addr) {

@@ -63,7 +63,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "${PROJECT_DIR}/smb.nes"
+            argument = "${PROJECT_DIR}/smb.nes ${PROJECT_DIR}/../nes/SMBDIS.map"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

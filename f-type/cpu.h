@@ -1,11 +1,7 @@
 #ifndef cpu_h
 #define cpu_h
 
-#include <stdio.h>
-#include <stdbool.h>
-#include <stdlib.h>
-
-#include "memory_maps.h"
+#include "common.h"
 
 // P flags
 #define P_C 0 // Carry
@@ -22,6 +18,11 @@
 #define IVT_RESET 0xFFFC
 #define IVT_IRQ   0xFFFE
 
+// Forward declarations
+typedef struct CPUState CPUState;
+typedef struct Opcode Opcode;
+typedef struct MemoryMap MemoryMap;
+
 typedef enum {
     AM_IMPLIED,
     AM_IMMEDIATE,
@@ -33,21 +34,18 @@ typedef enum {
     AM_RELATIVE
 } AddressingMode;
 
-
 typedef union {
     uint16_t addr;
     uint8_t immediate_value;
     int8_t relative_addr;
 } OpParam;
 
-typedef struct CPUState CPUState;
-typedef struct Opcode Opcode;
 struct Opcode {
     const char *name;
     uint8_t *reg1;
     uint8_t *reg2;
     int cycles;
-    void (*func)(CPUState *cpu, const Opcode *opcode, OpParam param);
+    void (*func)(CPUState *, const Opcode *, OpParam);
     AddressingMode am;
 };
 
@@ -62,21 +60,23 @@ struct CPUState {
     uint8_t p;
     // Program counter
     uint16_t pc;
-    // Cycle counter for current execution
-    int t;
-    // Opcode lookup table
-    Opcode opcodes[0x100];
+    // Total cycle counter
+    uint64_t t;
     // Memory map
     MemoryMap *mm;
+    // Opcode lookup table
+    Opcode opcodes[0x100];
 };
 
 void cpu_init(CPUState *cpu, MemoryMap *mm);
 
 int cpu_step(CPUState *cpu, bool verbose);
 
-int cpu_irq(CPUState *cpu);
-int cpu_nmi(CPUState *cpu);
-int cpu_reset(CPUState *cpu);
+void cpu_irq(CPUState *cpu);
+void cpu_nmi(CPUState *cpu);
+void cpu_reset(CPUState *cpu);
+
+void cpu_external_t_increment(CPUState *cpu, int amount);
 
 void cpu_debug_print_state(CPUState *cpu);
 

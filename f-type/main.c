@@ -1,16 +1,15 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include "common.h"
 #include <string.h>
-#include <stdbool.h>
 
-#include "cpu.h"
+#include "machine.h"
+#include "memory_maps.h"
 
-int main(int argc, const char * argv[]) {
+int main(int argc, const char *argv[]) {
     const char *const verb_char = getenv("VERBOSE");
     const bool verbose = verb_char ? *verb_char - '0' : false;
     
-    if (argc != 2) {
-        printf("Usage: %s rom.nes\n", argv[0]);
+    if (argc < 2) {
+        printf("Usage: %s rom.nes [debug.map]\n", argv[0]);
         return 1;
     }
     
@@ -30,66 +29,68 @@ int main(int argc, const char * argv[]) {
         return 1;
     }
     
-    int prg_size = header[4] * 16;
-    printf("PRG ROM: %dKB\n", prg_size);
-    if (prg_size <= 0) {
-        printf("Unexpected size for PRG ROM\n");
+    Cartridge cart;
+    
+    int size = header[4] * 16;
+    printf("PRG ROM: %dKB\n", size);
+    if (size <= 0) {
+        printf("Unexpected zero size for PRG ROM\n");
         return 1;
     }
-    prg_size *= 1024;
-    uint8_t *prg_rom = malloc(prg_size < SIZE_PRG_ROM ? SIZE_PRG_ROM : prg_size);
-    if (fread(prg_rom, prg_size, 1, rom_file) < 1) {
+    cart.prg_rom_size = size * 1024;
+    cart.prg_rom = malloc(cart.prg_rom_size);
+    if (fread(cart.prg_rom, cart.prg_rom_size, 1, rom_file) < 1) {
         printf("Error reading PRG ROM\n");
         return 1;
     }
-    if (prg_size < SIZE_PRG_ROM) {
-        // Duplicate the rom if it's just 16kB
-        memcpy(prg_rom + prg_size, prg_rom, prg_size);
-    }
     
-    int chr_size = header[5] * 8;
-    printf("CHR ROM: %dKB\n", chr_size);
-    chr_size *= 1024;
-    uint8_t *chr_rom = NULL;
-    if (chr_size >= 0) {
-        chr_rom = malloc(chr_size);
-        if (fread(chr_rom, chr_size, 1, rom_file) < 1) {
+    size = header[5] * 8;
+    printf("CHR ROM: %dKB\n", size);
+    cart.chr_rom_size = size * 1024;
+    if (cart.chr_rom_size > 0) {
+        cart.chr_rom = malloc(cart.chr_rom_size);
+        if (fread(cart.chr_rom, cart.chr_rom_size, 1, rom_file) < 1) {
             printf("Error reading CHR ROM\n");
             return 1;
         }
+    } else {
+        cart.chr_rom = NULL;
     }
-    int mapper = ((header[6] & 0b11110000) >> 4) + (header[7] & 0b11110000);
-    printf("Mapper: %d\n", mapper);
-    if (mapper) {
-        printf("Only mapper 0 is supported so far\n");
+    
+    cart.mapper = ((header[6] & 0b11110000) >> 4) + (header[7] & 0b11110000);
+    printf("Mapper: %d\n", cart.mapper);
+    if (cart.mapper) {
+        printf("Only NROM (aka. iNES mapper 0) is supported so far\n");
         return 1;
     }
-    bool mirroring = header[6] & 1;
-    printf("Mirroring: %s\n", (mirroring ? "Vertical" : "Horizontal"));
+    
+    cart.mirroring = header[6] & 1;
+    printf("Mirroring: %s\n", (cart.mirroring ? "Vertical" : "Horizontal"));
     fclose(rom_file);
     
-    MemoryMap mm;
-    memory_map_cpu_init(&mm, prg_rom);
-    
-    CPUState cpu;
-    cpu_init(&cpu, &mm);
-    
-    int total_t = cpu_reset(&cpu);
-    do {
-        if (verbose) {
-            cpu_debug_print_state(&cpu);
+    DebugMap *dbg_map = NULL;
+    if (argc >= 3) {
+        dbg_map = malloc(sizeof(DebugMap) * 2000); // TODO: figure out size
+        FILE *map_file = fopen(argv[2], "r");
+        int i = 0;
+        while (fscanf(map_file, "%255s @ %4hx", dbg_map[i].label,
+                      &(dbg_map[i].addr)) == 2) {
+            i++;
         }
-        total_t += cpu_step(&cpu, verbose);
-    } while(cpu.pc != 0x8057);
-    
-    if (verbose) {
-        cpu_debug_print_state(&cpu);
+        dbg_map[i + 1].label[0] = 0;
+        printf("Read %d entries from %s\n", i, argv[2]);
+        fclose(map_file);
     }
-    printf("Ended in %d cycles\n", total_t);
     
-    if (chr_rom) {
-        free(chr_rom);
+    machine_loop(&cart, dbg_map, verbose);
+        
+    if (dbg_map) {
+        free(dbg_map);
     }
-    free(prg_rom);
+    if (cart.chr_rom) {
+        free(cart.chr_rom);
+    }
+    free(cart.prg_rom);
+    
     return 0;
 }

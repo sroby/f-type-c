@@ -1,10 +1,11 @@
 #include "cpu.h"
+#include "memory_maps.h"
 
 // MISC. //
 
 static void apply_page_boundary_penalty(CPUState *cpu, uint16_t a, uint16_t b) {
-    if ((a << 4) != (b << 4)) {
-        (cpu->t)++;
+    if ((a >> 8) != (b >> 8)) {
+        cpu->t++;
     }
 }
 
@@ -38,8 +39,8 @@ static void stack_push(CPUState *cpu, uint8_t value) {
     (cpu->s)--;
 }
 static void stack_push_word(CPUState *cpu, uint16_t value) {
-    stack_push(cpu, value & 0xff);
     stack_push(cpu, value >> 8);
+    stack_push(cpu, value & 0xff);
 }
 
 static uint8_t stack_pull(CPUState *cpu) {
@@ -47,21 +48,21 @@ static uint8_t stack_pull(CPUState *cpu) {
     return mm_read(cpu->mm, get_stack_addr(cpu));
 }
 static uint16_t stack_pull_word(CPUState *cpu) {
-    uint16_t value = (uint16_t)stack_pull(cpu) << 8;
-    return value + (uint16_t)stack_pull(cpu);
+    uint16_t lower = stack_pull(cpu);
+    return lower + ((uint16_t)stack_pull(cpu) << 8);
 }
 
 // INTERRUPT HANDLING //
 
-static int interrupt(CPUState *cpu, bool b_flag, uint16_t ivt_addr) {
+static void interrupt(CPUState *cpu, bool b_flag, uint16_t ivt_addr) {
     set_p_flag(cpu, P_B, b_flag);
-    set_p_flag(cpu, P_I, true);
     if (ivt_addr != IVT_RESET) {
         stack_push_word(cpu, cpu->pc);
         stack_push(cpu, cpu->p);
     }
+    set_p_flag(cpu, P_I, true);
     cpu->pc = mm_read_word(cpu->mm, ivt_addr);
-    return 7;
+    cpu->t += 7;
 }
 
 // OPCODES //
@@ -174,7 +175,8 @@ static void op_DE(CPUState *cpu, const Opcode *op, OpParam param) {
     apply_p_nz(cpu, --(*op->reg1));
 }
 
-static void shift_left(CPUState *cpu, const Opcode *op, OpParam param, uint8_t carry) {
+static void shift_left(CPUState *cpu, const Opcode *op, OpParam param,
+                       uint8_t carry) {
     if (op->reg1) {
         set_p_flag(cpu, P_C, *op->reg1 & (1 << 7));
         *op->reg1 <<= 1;
@@ -196,7 +198,8 @@ static void op_ROL(CPUState *cpu, const Opcode *op, OpParam param) {
     shift_left(cpu, op, param, (get_p_flag(cpu, P_C) ? 1 : 0));
 }
 
-static void shift_right(CPUState *cpu, const Opcode *op, OpParam param, uint8_t carry) {
+static void shift_right(CPUState *cpu, const Opcode *op, OpParam param,
+                        uint8_t carry) {
     if (op->reg1) {
         set_p_flag(cpu, P_C, *op->reg1 & 1);
         *op->reg1 >>= 1;
@@ -228,7 +231,7 @@ static void op_JSR(CPUState *cpu, const Opcode *op, OpParam param) {
 }
 
 static void op_RTI(CPUState *cpu, const Opcode *op, OpParam param) {
-    cpu->s = stack_pull(cpu) & ~((1 << P_B) + (1 << P__));
+    cpu->p = stack_pull(cpu) & ~((1 << P_B) + (1 << P__));
     cpu->pc = stack_pull_word(cpu);
 }
 
@@ -272,7 +275,7 @@ static void op_BEQ(CPUState *cpu, const Opcode *op, OpParam param) {
 
 static void op_BRK(CPUState *cpu, const Opcode *op, OpParam param) {
     cpu->pc++;
-    cpu->t += interrupt(cpu, true, IVT_IRQ);
+    interrupt(cpu, true, IVT_IRQ);
 }
 
 static void op_CLC(CPUState *cpu, const Opcode *op, OpParam param) {
@@ -305,7 +308,6 @@ void cpu_init(CPUState *cpu, MemoryMap *mm) {
     cpu->p = 1 << P__;
     cpu->pc = 0;
     cpu->t = 0;
-    
     cpu->mm = mm;
     
     // Initialize name on all opcodes so we can detect illegal usage
@@ -442,29 +444,29 @@ void cpu_init(CPUState *cpu, MemoryMap *mm) {
     cpu->opcodes[0xCA] = (Opcode) {"DEX", x, 0, 2, op_DE, AM_IMPLIED};
     cpu->opcodes[0x88] = (Opcode) {"DEY", y, 0, 2, op_DE, AM_IMPLIED};
     
-    cpu->opcodes[0x0A] = (Opcode) {"ASL A", a, 0, 2, op_ASL, AM_IMPLIED};
+    cpu->opcodes[0x0A] = (Opcode) {"ASL", a, 0, 2, op_ASL, AM_IMPLIED};
     cpu->opcodes[0x06] = (Opcode) {"ASL", 0, 0, 5, op_ASL, AM_ZP};
     cpu->opcodes[0x16] = (Opcode) {"ASL", 0, x, 6, op_ASL, AM_ZP};
     cpu->opcodes[0x0E] = (Opcode) {"ASL", 0, 0, 6, op_ASL, AM_ABSOLUTE};
     cpu->opcodes[0x1E] = (Opcode) {"ASL", 0, x, 7, op_ASL, AM_ABSOLUTE};
     
-    cpu->opcodes[0x0A] = (Opcode) {"LSR A", a, 0, 2, op_LSR, AM_IMPLIED};
-    cpu->opcodes[0x06] = (Opcode) {"LSR", 0, 0, 5, op_LSR, AM_ZP};
-    cpu->opcodes[0x16] = (Opcode) {"LSR", 0, x, 6, op_LSR, AM_ZP};
-    cpu->opcodes[0x0E] = (Opcode) {"LSR", 0, 0, 6, op_LSR, AM_ABSOLUTE};
-    cpu->opcodes[0x1E] = (Opcode) {"LSR", 0, x, 7, op_LSR, AM_ABSOLUTE};
+    cpu->opcodes[0x4A] = (Opcode) {"LSR", a, 0, 2, op_LSR, AM_IMPLIED};
+    cpu->opcodes[0x46] = (Opcode) {"LSR", 0, 0, 5, op_LSR, AM_ZP};
+    cpu->opcodes[0x56] = (Opcode) {"LSR", 0, x, 6, op_LSR, AM_ZP};
+    cpu->opcodes[0x4E] = (Opcode) {"LSR", 0, 0, 6, op_LSR, AM_ABSOLUTE};
+    cpu->opcodes[0x5E] = (Opcode) {"LSR", 0, x, 7, op_LSR, AM_ABSOLUTE};
     
-    cpu->opcodes[0x0A] = (Opcode) {"ROL A", a, 0, 2, op_ROL, AM_IMPLIED};
-    cpu->opcodes[0x06] = (Opcode) {"ROL", 0, 0, 5, op_ROL, AM_ZP};
-    cpu->opcodes[0x16] = (Opcode) {"ROL", 0, x, 6, op_ROL, AM_ZP};
-    cpu->opcodes[0x0E] = (Opcode) {"ROL", 0, 0, 6, op_ROL, AM_ABSOLUTE};
-    cpu->opcodes[0x1E] = (Opcode) {"ROL", 0, x, 7, op_ROL, AM_ABSOLUTE};
+    cpu->opcodes[0x2A] = (Opcode) {"ROL", a, 0, 2, op_ROL, AM_IMPLIED};
+    cpu->opcodes[0x26] = (Opcode) {"ROL", 0, 0, 5, op_ROL, AM_ZP};
+    cpu->opcodes[0x36] = (Opcode) {"ROL", 0, x, 6, op_ROL, AM_ZP};
+    cpu->opcodes[0x2E] = (Opcode) {"ROL", 0, 0, 6, op_ROL, AM_ABSOLUTE};
+    cpu->opcodes[0x3E] = (Opcode) {"ROL", 0, x, 7, op_ROL, AM_ABSOLUTE};
     
-    cpu->opcodes[0x0A] = (Opcode) {"ROR A", a, 0, 2, op_ROR, AM_IMPLIED};
-    cpu->opcodes[0x06] = (Opcode) {"ROR", 0, 0, 5, op_ROR, AM_ZP};
-    cpu->opcodes[0x16] = (Opcode) {"ROR", 0, x, 6, op_ROR, AM_ZP};
-    cpu->opcodes[0x0E] = (Opcode) {"ROR", 0, 0, 6, op_ROR, AM_ABSOLUTE};
-    cpu->opcodes[0x1E] = (Opcode) {"ROR", 0, x, 7, op_ROR, AM_ABSOLUTE};
+    cpu->opcodes[0x6A] = (Opcode) {"ROR", a, 0, 2, op_ROR, AM_IMPLIED};
+    cpu->opcodes[0x66] = (Opcode) {"ROR", 0, 0, 5, op_ROR, AM_ZP};
+    cpu->opcodes[0x76] = (Opcode) {"ROR", 0, x, 6, op_ROR, AM_ZP};
+    cpu->opcodes[0x6E] = (Opcode) {"ROR", 0, 0, 6, op_ROR, AM_ABSOLUTE};
+    cpu->opcodes[0x7E] = (Opcode) {"ROR", 0, x, 7, op_ROR, AM_ABSOLUTE};
     
     cpu->opcodes[0x4C] = (Opcode) {"JMP", 0, 0, 3, op_JMP, AM_ABSOLUTE};
     cpu->opcodes[0x6C] = (Opcode) {"JMP", 0, 0, 5, op_JMP, AM_INDIRECT_WORD};
@@ -495,88 +497,92 @@ void cpu_init(CPUState *cpu, MemoryMap *mm) {
 }
 
 int cpu_step(CPUState *cpu, bool verbose) {
+    if (verbose) {
+        printf("$%04x ", cpu->pc);
+    }
+    
     // Fetch next instruction
     uint8_t inst = mm_read(cpu->mm, cpu->pc++);
     const Opcode *op = &cpu->opcodes[inst];
     if (!op->name) {
-        printf("Invalid Opcode %d\n", inst);
-        return -1;
+        printf("Invalid Opcode 0x%02x\n", inst);
+        return inst;
     }
     
     // Fetch parameter, if any
-    uint8_t zp_addr;
-    uint16_t pre_indexing = 0;
-    OpParam param;
+    OpParam p1, p2;
+    p1.addr = p2.addr = 0;
     switch (op->am) {
         case AM_IMPLIED:
-            param.addr = 0;
             break;
         case AM_IMMEDIATE:
-            param.immediate_value = mm_read(cpu->mm, cpu->pc++);
+            p1.immediate_value = p2.immediate_value = mm_read(cpu->mm,
+                                                              cpu->pc++);
             break;
         case AM_ZP:
-            zp_addr = mm_read(cpu->mm, cpu->pc++);
+            p1.immediate_value = p2.immediate_value = mm_read(cpu->mm,
+                                                              cpu->pc++);
             if (op->reg2) {
-                zp_addr += *op->reg2;
+                p2.immediate_value += *op->reg2;
             }
-            param.addr = zp_addr;
+            p2.addr = p2.immediate_value;
             break;
         case AM_ABSOLUTE:
-            pre_indexing = param.addr = mm_read_word(cpu->mm, cpu->pc);
+            p1.addr = p2.addr = mm_read_word(cpu->mm, cpu->pc);
             cpu->pc += 2;
             if (op->reg2) {
-                param.addr += *op->reg2;
+                p2.addr += *op->reg2;
             }
             break;
         case AM_INDIRECT_WORD:
-            param.addr = mm_read_word(cpu->mm, mm_read_word(cpu->mm, cpu->pc));
+            p1.addr = mm_read_word(cpu->mm, cpu->pc);
             cpu->pc += 2;
+            p2.addr = mm_read_word(cpu->mm, p1.addr);
             break;
         case AM_INDIRECT_X:
-            zp_addr = mm_read(cpu->mm, cpu->pc++) + cpu->x;
-            param.addr = mm_read_word(cpu->mm, zp_addr);
+            p1.immediate_value = mm_read(cpu->mm, cpu->pc++);
+            p2.immediate_value = p1.immediate_value + cpu->x;
+            p2.addr = mm_read_word(cpu->mm, p2.immediate_value);
             break;
         case AM_INDIRECT_Y:
-            pre_indexing = mm_read_word(cpu->mm, mm_read(cpu->mm, cpu->pc++));
-            param.addr = pre_indexing + cpu->y;
+            p1.immediate_value = mm_read(cpu->mm, cpu->pc++);
+            p2.addr = mm_read_word(cpu->mm, p1.immediate_value) + cpu->y;
             break;
         case AM_RELATIVE:
-            param.relative_addr = mm_read(cpu->mm, cpu->pc++);
+            p1.relative_addr = p2.relative_addr = mm_read(cpu->mm, cpu->pc++);
             break;
     }
     
     if (op->cycles < 0) {
-        cpu->t = abs(op->cycles);
-        apply_page_boundary_penalty(cpu, pre_indexing, param.addr);
-    } else {
-        cpu->t = op->cycles;
+        apply_page_boundary_penalty(cpu, p1.addr, p2.addr);
     }
+    cpu->t += abs(op->cycles);
     
     if (verbose) {
-        printf(" %s", op->name);
+        printf("%s", op->name);
         switch (op->am) {
             case AM_IMPLIED:
                 break;
             case AM_IMMEDIATE:
-                printf(" #$%02x", param.immediate_value);
+                printf(" #$%02x", p1.immediate_value);
                 break;
             case AM_ZP:
-                printf(" $%02x", param.addr);
+                printf(" $%02x", p1.immediate_value);
                 break;
             case AM_ABSOLUTE:
-                printf(" $%04x", param.addr);
+                printf(" $%04x", p1.addr);
                 break;
             case AM_INDIRECT_WORD:
-                printf(" ($%04x)", param.addr);
+                printf(" ($%04x)", p1.addr);
                 break;
             case AM_INDIRECT_X:
-                printf(" ($%02x,X)", param.addr);
+                printf(" ($%02x,X)", p1.immediate_value);
                 break;
             case AM_INDIRECT_Y:
-                printf(" ($%02x),Y", param.addr);
+                printf(" ($%02x),Y", p1.immediate_value);
                 break;
             case AM_RELATIVE:
-                printf(" %+d", param.relative_addr);
+                printf(" %+d", p1.relative_addr);
                 break;
         }
         if (op->am == AM_ZP || op->am == AM_ABSOLUTE) {
@@ -590,35 +596,43 @@ int cpu_step(CPUState *cpu, bool verbose) {
     }
     
     if (op->func) {
-        (*op->func)(cpu, op, param);
+        (*op->func)(cpu, op, p2);
     }
     
-    return cpu->t;
+    return 0x100;
 }
 
-int cpu_irq(CPUState *cpu) {
-    if (get_p_flag(cpu, P_I)) {
-        return 0;
+void cpu_irq(CPUState *cpu) {
+    if (!get_p_flag(cpu, P_I)) {
+        interrupt(cpu, false, IVT_IRQ);
     }
-    return interrupt(cpu, false, IVT_IRQ);
 }
 
-int cpu_nmi(CPUState *cpu) {
-    return interrupt(cpu, false, IVT_NMI);
+void cpu_nmi(CPUState *cpu) {
+    interrupt(cpu, false, IVT_NMI);
 }
 
-int cpu_reset(CPUState *cpu) {
-    return interrupt(cpu, true, IVT_RESET);
+void cpu_reset(CPUState *cpu) {
+    interrupt(cpu, true, IVT_RESET);
+}
+
+void cpu_external_t_increment(CPUState *cpu, int amount) {
+    if (cpu->t % 2) {
+        cpu->t++;
+    }
+    cpu->t += amount;
 }
 
 void cpu_debug_print_state(CPUState *cpu) {
-    printf("PC=%04x A=%02x X=%02x Y=%02x P=%02x[", cpu->pc, cpu->a, cpu->x, cpu->y, cpu->p);
+    printf("PC=%04x A=%02x X=%02x Y=%02x P=%02x[",
+           cpu->pc, cpu->a, cpu->x, cpu->y, cpu->p);
     for (int i = 0; i < 8; i++) {
         printf("%c", (cpu->p & (1 << i) ? "czidb-vn"[i] : '.'));
     }
     printf("] S=%02x{", cpu->s);
+    MemoryMapCPUInternal *internal = cpu->mm->internal;
     for (int i = 0xff; i > cpu->s; i--) {
-        printf(" %02x", cpu->mm->wram[0x100 + i]);
+        printf(" %02x", internal->wram[0x100 + i]);
     }
     printf(" }\n");
 }
