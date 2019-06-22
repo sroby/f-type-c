@@ -4,6 +4,8 @@
 #include "common.h"
 #include "SDL.h"
 
+#define AXIS_DEADZONE 0x3fff
+
 // Forward declarations
 typedef struct PPUState PPUState;
 
@@ -11,6 +13,7 @@ typedef struct Window {
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_JoystickID js[2];
+    bool js_use_axis[2];
 } Window;
 
 int window_init(Window *wnd);
