@@ -39,9 +39,9 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
     ppu->scanline = 0;
 }
 
-void ppu_scanline(PPUState *ppu) {
+bool ppu_scanline(PPUState *ppu) {
     if (ppu->scanline == 0) {
-        ppu->status &= ~(STATUS_VBLANK + STATUS_SPRITE0_HIT +
+        ppu->status &= ~(STATUS_VBLANK | STATUS_SPRITE0_HIT |
                          STATUS_SPRITE_OVERFLOW);
     } else if (ppu->scanline < 240) {
         // Very temporary sprite 0 hit check, just to get that out of the way
@@ -58,6 +58,7 @@ void ppu_scanline(PPUState *ppu) {
     
     ppu->scanline = (ppu->scanline + 1) % 262;
     ppu->t++;
+    return !ppu->scanline;
 }
 
 uint8_t ppu_read_register(PPUState *ppu, int reg) {
@@ -85,7 +86,7 @@ void ppu_write_register(PPUState *ppu, int reg, uint8_t value) {
         case PPUCTRL:
             old_ctrl = ppu->ctrl;
             ppu->ctrl = value;
-            if (old_ctrl ^ CTRL_NMI_ON_VBLANK &&
+            if (!(old_ctrl & CTRL_NMI_ON_VBLANK) &&
                 value & CTRL_NMI_ON_VBLANK &&
                 ppu->status & STATUS_VBLANK) {
                 cpu_nmi(ppu->cpu);

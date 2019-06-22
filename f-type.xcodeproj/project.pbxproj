@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F4858D7722BCE2BC0043C2EF /* libSDL2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = F4858D7622BCE2BC0043C2EF /* libSDL2.dylib */; };
+		F4858D7A22BCECB70043C2EF /* window.c in Sources */ = {isa = PBXBuildFile; fileRef = F4858D7922BCECB70043C2EF /* window.c */; };
 		F4EEF80622AA050A00B38C9F /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = F4EEF80522AA050A00B38C9F /* main.c */; };
 		F4EEF81022AA054300B38C9F /* memory_maps.c in Sources */ = {isa = PBXBuildFile; fileRef = F4EEF80D22AA054300B38C9F /* memory_maps.c */; };
 		F4EEF81122AA054300B38C9F /* cpu.c in Sources */ = {isa = PBXBuildFile; fileRef = F4EEF80E22AA054300B38C9F /* cpu.c */; };
@@ -28,6 +30,9 @@
 
 /* Begin PBXFileReference section */
 		F4858D5E22B84A860043C2EF /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
+		F4858D7622BCE2BC0043C2EF /* libSDL2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libSDL2.dylib; path = ../../../../usr/local/lib/libSDL2.dylib; sourceTree = "<group>"; };
+		F4858D7822BCECB70043C2EF /* window.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = window.h; sourceTree = "<group>"; };
+		F4858D7922BCECB70043C2EF /* window.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = window.c; sourceTree = "<group>"; };
 		F4EEF80222AA050A00B38C9F /* f-type */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "f-type"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4EEF80522AA050A00B38C9F /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		F4EEF80C22AA054300B38C9F /* memory_maps.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = memory_maps.h; sourceTree = "<group>"; };
@@ -45,17 +50,27 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F4858D7722BCE2BC0043C2EF /* libSDL2.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		F4858D7522BCE2BC0043C2EF /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F4858D7622BCE2BC0043C2EF /* libSDL2.dylib */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		F4EEF7F922AA050A00B38C9F = {
 			isa = PBXGroup;
 			children = (
 				F4EEF80422AA050A00B38C9F /* f-type */,
 				F4EEF80322AA050A00B38C9F /* Products */,
+				F4858D7522BCE2BC0043C2EF /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -70,16 +85,18 @@
 		F4EEF80422AA050A00B38C9F /* f-type */ = {
 			isa = PBXGroup;
 			children = (
+				F4858D5E22B84A860043C2EF /* common.h */,
 				F4EEF80E22AA054300B38C9F /* cpu.c */,
 				F4EEF80F22AA054300B38C9F /* cpu.h */,
+				F4EEF81622AC842C00B38C9F /* machine.c */,
+				F4EEF81522AC842C00B38C9F /* machine.h */,
+				F4EEF80522AA050A00B38C9F /* main.c */,
 				F4EEF80D22AA054300B38C9F /* memory_maps.c */,
 				F4EEF80C22AA054300B38C9F /* memory_maps.h */,
-				F4EEF80522AA050A00B38C9F /* main.c */,
-				F4EEF81222AC83AA00B38C9F /* ppu.h */,
 				F4EEF81322AC83AA00B38C9F /* ppu.c */,
-				F4EEF81522AC842C00B38C9F /* machine.h */,
-				F4EEF81622AC842C00B38C9F /* machine.c */,
-				F4858D5E22B84A860043C2EF /* common.h */,
+				F4EEF81222AC83AA00B38C9F /* ppu.h */,
+				F4858D7922BCECB70043C2EF /* window.c */,
+				F4858D7822BCECB70043C2EF /* window.h */,
 			);
 			path = "f-type";
 			sourceTree = "<group>";
@@ -144,6 +161,7 @@
 				F4EEF80622AA050A00B38C9F /* main.c in Sources */,
 				F4EEF81022AA054300B38C9F /* memory_maps.c in Sources */,
 				F4EEF81722AC842C00B38C9F /* machine.c in Sources */,
+				F4858D7A22BCECB70043C2EF /* window.c in Sources */,
 				F4EEF81422AC83AA00B38C9F /* ppu.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -266,6 +284,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				HEADER_SEARCH_PATHS = /usr/local/include/SDL2;
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				OTHER_CFLAGS = "-D_THREAD_SAFE";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -274,6 +295,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				HEADER_SEARCH_PATHS = /usr/local/include/SDL2;
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				OTHER_CFLAGS = "-D_THREAD_SAFE";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;

@@ -34,15 +34,34 @@ static void write_ppu_register(MemoryMap *mm, int offset, uint8_t value) {
     ppu_write_register(internal->ppu, offset, value);
 }
 
-static void write_apu_register(MemoryMap *mm, int offset, uint8_t value) {
-    if (offset == 0x14 && value != 0x40) {
-        MemoryMapCPUInternal *internal = mm->internal;
-        uint8_t page[0x100];
-        uint16_t page_addr = (uint16_t)value << 8;
-        for (int i = 0; i < 0x100; i++) {
-            page[i] = mm_read(mm, page_addr + i);
+static void write_oam_dma(MemoryMap *mm, int offset, uint8_t value) {
+    if (value == 0x40) {
+        return; // Avoid a (very unlikely) infinite loop
+    }
+    MemoryMapCPUInternal *internal = mm->internal;
+    uint8_t page[0x100];
+    uint16_t page_addr = (uint16_t)value << 8;
+    for (int i = 0; i < 0x100; i++) {
+        page[i] = mm_read(mm, page_addr + i);
+    }
+    ppu_write_oam_dma(internal->ppu, page);
+}
+
+static uint8_t read_controllers(MemoryMap *mm, int offset) {
+    MemoryMapCPUInternal *internal = mm->internal;
+    uint8_t value = mm->last_read & 0b11100000;
+    if (internal->controller_bit < 8) {
+        if (internal->controllers[offset] & (1 << internal->controller_bit++)) {
+            value++;
         }
-        ppu_write_oam_dma(internal->ppu, page);
+    }
+    return value;
+}
+
+static void write_controller_latch(MemoryMap *mm, int offset, uint8_t value) {
+    if (value & 1) {
+        MemoryMapCPUInternal *internal = mm->internal;
+        internal->controller_bit = 0;
     }
 }
 
@@ -95,24 +114,29 @@ void memory_map_cpu_init(MemoryMap *mm, MemoryMapCPUInternal *internal,
     internal->ppu = ppu;
     internal->prg_rom = cart->prg_rom;
     memset(internal->wram, 0, SIZE_WRAM);
+    internal->controllers[0] = internal->controllers[1] = 0;
+    internal->controller_bit = 8;
     
     // Populate the address map
     int i;
     // 0000-1FFF: WRAM (2kB, repeated)
     for (i = 0; i < SIZE_WRAM; i++) {
-        mm->addrs[i] = (MemoryAddress)
-            {read_wram, write_wram, i % SIZE_WRAM};
+        mm->addrs[i] = (MemoryAddress) {read_wram, write_wram, i % SIZE_WRAM};
     }
     // 2000-3FFF: PPU registers (8, repeated)
     for (i = 0; i < 0x2000; i++) {
         mm->addrs[i + 0x2000] = (MemoryAddress)
             {read_ppu_register, write_ppu_register, i % 8};
     }
-    // 4000-4017: APU registers (24)
-    for (i = 0; i < 0x18; i++) {
-        mm->addrs[i + 0x4000] = (MemoryAddress)
-            {NULL, write_apu_register, i};
-    }
+    // 4000-4017: APU registers, not implemented for now,
+    //            except overlapping non-APU functionality below:
+    // 4014: OAM DMA register
+    mm->addrs[0x4014].write_func = write_oam_dma;
+    // 4016-4017: Controller I/O
+    mm->addrs[0x4016] = (MemoryAddress)
+        {read_controllers, write_controller_latch, 0};
+    mm->addrs[0x4017] = (MemoryAddress)
+        {read_controllers, NULL, 1};
     // 4018-7FFF: Cartridge I/O, unused for regular NROM so open bus for now
     // 8000-FFFF: PRG ROM (32kB, repeated if 16kB)
     for (i = 0; i < SIZE_PRG_ROM; i++) {

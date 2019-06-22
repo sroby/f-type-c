@@ -1,8 +1,14 @@
 CC=gcc
-CFLAGS=-O3 -Wall -Werror
+CFLAGS=-O3 -Wall -Werror `sdl2-config --cflags --libs`
 
 TARGET=ftype
-SRCS=f-type/main.c f-type/cpu.c f-type/memory_maps.c f-type/ppu.c f-type/machine.c
+SRCS= \
+	f-type/cpu.c \
+	f-type/machine.c \
+	f-type/main.c \
+	f-type/memory_maps.c \
+	f-type/ppu.c \
+	f-type/window.c
 
 all: $(TARGET)
 

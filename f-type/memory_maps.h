@@ -9,6 +9,16 @@
 #define SIZE_CHR_ROM 0x2000
 #define SIZE_NAMETABLE 0x400
 
+// Bit fields
+#define BUTTON_A 1
+#define BUTTON_B (1 << 1)
+#define BUTTON_SELECT (1 << 2)
+#define BUTTON_START (1 << 3)
+#define BUTTON_UP (1 << 4)
+#define BUTTON_DOWN (1 << 5)
+#define BUTTON_LEFT (1 << 6)
+#define BUTTON_RIGHT (1 << 7)
+
 // Forward declarations
 typedef struct MemoryMap MemoryMap;
 typedef struct PPUState PPUState;
@@ -30,6 +40,8 @@ typedef struct {
     PPUState *ppu;
     const uint8_t *prg_rom;
     uint8_t wram[SIZE_WRAM];
+    uint8_t controllers[2];
+    int controller_bit;
 } MemoryMapCPUInternal;
 
 typedef struct {

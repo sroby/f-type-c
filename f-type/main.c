@@ -2,12 +2,9 @@
 #include <string.h>
 
 #include "machine.h"
-#include "memory_maps.h"
+#include "window.h"
 
 int main(int argc, const char *argv[]) {
-    const char *const verb_char = getenv("VERBOSE");
-    const bool verbose = verb_char ? *verb_char - '0' : false;
-    
     if (argc < 2) {
         printf("Usage: %s rom.nes [debug.map]\n", argv[0]);
         return 1;
@@ -82,7 +79,15 @@ int main(int argc, const char *argv[]) {
         fclose(map_file);
     }
     
-    machine_loop(&cart, dbg_map, verbose);
+    Window wnd;
+    int error_code = window_init(&wnd);
+    if (error_code) {
+        return error_code;
+    }
+    
+    machine_loop(&cart, dbg_map, &wnd);
+    
+    window_cleanup(&wnd);
         
     if (dbg_map) {
         free(dbg_map);

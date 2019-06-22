@@ -67,7 +67,7 @@ struct PPUState {
 
 void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu);
 
-void ppu_scanline(PPUState *ppu);
+bool ppu_scanline(PPUState *ppu);
 
 uint8_t ppu_read_register(PPUState *ppu, int reg);
 void ppu_write_register(PPUState *ppu, int reg, uint8_t value);

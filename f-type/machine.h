@@ -7,6 +7,9 @@
 #define T_MULTI 3
 #define T_SCANLINE_PER_CPU 341 // 113.666 * 3
 
+// Forward decalarations
+typedef struct Window Window;
+
 typedef struct {
     uint16_t addr;
     char label[256];
@@ -21,6 +24,6 @@ typedef struct Cartridge {
     bool mirroring;
 } Cartridge;
 
-void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, bool verbose);
+void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd);
 
 #endif /* system_h */
