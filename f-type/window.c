@@ -60,11 +60,15 @@ int window_init(Window *wnd) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+    wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
+                                     SDL_TEXTUREACCESS_STREAMING, 256, 240);
     
     return 0;
 }
 
 void window_cleanup(Window *wnd) {
+    SDL_DestroyTexture(wnd->texture);
     SDL_DestroyRenderer(wnd->renderer);
     SDL_DestroyWindow(wnd->window);
     
@@ -79,8 +83,10 @@ void window_cleanup(Window *wnd) {
 }
 
 void window_update_screen(Window *wnd, const PPUState *ppu) {
-    // TODO, obviously
+    SDL_UpdateTexture(wnd->texture, NULL, ppu->screen,
+                      256 * sizeof(uint32_t));
     SDL_RenderClear(wnd->renderer);
+    SDL_RenderCopy(wnd->renderer, wnd->texture, NULL, NULL);
     SDL_RenderPresent(wnd->renderer);
 }
 

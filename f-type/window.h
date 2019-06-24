@@ -12,6 +12,7 @@ typedef struct PPUState PPUState;
 typedef struct Window {
     SDL_Window *window;
     SDL_Renderer *renderer;
+    SDL_Texture *texture;
     SDL_JoystickID js[2];
     bool js_use_axis[2];
 } Window;

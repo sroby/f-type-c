@@ -63,6 +63,8 @@ struct PPUState {
     
     uint64_t t;
     int scanline;
+    
+    uint32_t screen[256 * 240];
 };
 
 void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu);

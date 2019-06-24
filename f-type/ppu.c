@@ -4,6 +4,29 @@
 #include "cpu.h"
 #include "memory_maps.h"
 
+// This is the palette from the PC10/Vs. RGB PPU, in ARGB8888 format
+static const uint32_t palette[] = {
+    0x606060, 0x002080, 0x0000C0, 0x6040C0,
+    0x800060, 0xA00060, 0xA02000, 0x804000,
+    0x604000, 0x204000, 0x006020, 0x008000,
+    0x004040, 0x000000, 0x000000, 0x000000,
+    
+    0xA0A0A0, 0x0060C0, 0x0040E0, 0x8000E0,
+    0xA000E0, 0xE00080, 0xE00000, 0xC06000,
+    0x806000, 0x208000, 0x008000, 0x00A060,
+    0x008080, 0x000000, 0x000000, 0x000000,
+    
+    0xE0E0E0, 0x60A0E0, 0x8080E0, 0xC060E0,
+    0xE000E0, 0xE060E0, 0xE08000, 0xE0A000,
+    0xC0C000, 0x60C000, 0x00E000, 0x40E0C0,
+    0x00E0E0, 0x000000, 0x000000, 0x000000,
+    
+    0xE0E0E0, 0xA0C0E0, 0xC0A0E0, 0xE0A0E0,
+    0xE080E0, 0xE0A0A0, 0xE0C080, 0xE0E040,
+    0xE0E060, 0xA0E040, 0x80E060, 0x40E0C0,
+    0x80C0E0, 0x000000, 0x000000, 0x000000,
+};
+
 static bool has_addr_latch(PPUState *ppu, uint8_t value) {
     if (ppu->addr_latch_is_set) {
         return true;
@@ -40,13 +63,22 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
 }
 
 bool ppu_scanline(PPUState *ppu) {
+    MemoryMapPPUInternal *internal = ppu->mm->internal;
+    
     if (ppu->scanline == 0) {
         ppu->status &= ~(STATUS_VBLANK | STATUS_SPRITE0_HIT |
                          STATUS_SPRITE_OVERFLOW);
-    } else if (ppu->scanline < 240) {
+    }
+    if (ppu->scanline < 240) {
         // Very temporary sprite 0 hit check, just to get that out of the way
         if (ppu->oam[0] == ppu->scanline) {
             ppu->status |= STATUS_SPRITE0_HIT;
+        }
+        
+        int line_offset = ppu->scanline * 256;
+        for (int i = 0; i < 256; i++) {
+            ppu->screen[line_offset + i] =
+                palette[internal->background_colors[0]];
         }
     }
     if (ppu->scanline == 240) {
