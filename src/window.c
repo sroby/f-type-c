@@ -3,11 +3,12 @@
 #include "memory_maps.h"
 
 static int identify_js(Window *wnd, SDL_JoystickID which) {
-    if (wnd->js[0] == which) {
-        return 0;
-    }
-    if (wnd->js[1] == which) {
-        return 1;
+    for (int i = 0; i < 2; i++) {
+        if (wnd->js[i]) {
+            if (SDL_JoystickInstanceID(wnd->js[i]) == which) {
+                return i;
+            }
+        }
     }
     return -1;
 }
@@ -24,7 +25,7 @@ int window_init(Window *wnd) {
     
     // Attempt to open up to 2 controllers
     wnd->js_use_axis[0] = wnd->js_use_axis[1] = false;
-    wnd->js[0] = wnd->js[1] = -1;
+    wnd->js[0] = wnd->js[1] = NULL;
     int n_js = SDL_NumJoysticks();
     if (n_js < 0) {
         printf("%s\n", SDL_GetError());
@@ -33,9 +34,9 @@ int window_init(Window *wnd) {
     for (int i = 0; i < n_js; i++) {
         SDL_Joystick *js = SDL_JoystickOpen(i);
         if (js) {
+            wnd->js[assigned_js++] = js;
             printf("Assigned \"%s\" as controller #%d\n",
-                   SDL_JoystickName(js), assigned_js + 1);
-            wnd->js[assigned_js++] = SDL_JoystickInstanceID(js);
+                   SDL_JoystickName(js), assigned_js);
             if (assigned_js >= 2) {
                 break;
             }
@@ -63,7 +64,11 @@ int window_init(Window *wnd) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
                                      SDL_TEXTUREACCESS_STREAMING, 256, 240);
-    
+    if (!wnd->texture) {
+        printf("%s\n", SDL_GetError());
+        return 1;
+    }
+
     return 0;
 }
 
@@ -72,11 +77,10 @@ void window_cleanup(Window *wnd) {
     SDL_DestroyRenderer(wnd->renderer);
     SDL_DestroyWindow(wnd->window);
     
-    if (wnd->js[0] >= 0) {
-        SDL_JoystickClose(SDL_JoystickFromInstanceID(wnd->js[0]));
-    }
-    if (wnd->js[1] >= 0) {
-        SDL_JoystickClose(SDL_JoystickFromInstanceID(wnd->js[1]));
+    for (int i = 0; i < 2; i++) {
+        if (wnd->js[i]) {
+            SDL_JoystickClose(wnd->js[i]);
+        }
     }
 
     SDL_Quit();
