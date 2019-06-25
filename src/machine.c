@@ -77,7 +77,7 @@ void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
         
         // Delay next frame
         while (SDL_GetPerformanceCounter() < start_tick + (frame * ticks_per_frame)) {
-            //SDL_Delay(1);
+            SDL_Delay(1);
         }
         frame++;
     } while (!quitting);
