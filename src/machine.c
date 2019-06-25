@@ -24,8 +24,13 @@ void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
 
     cpu_reset(&cpu);
 
+    uint64_t ticks_per_frame =
+        (float)SDL_GetPerformanceFrequency() / 60.09914261;
+    
     // Main loop
     bool quitting = false;
+    int frame = 0;
+    uint64_t start_tick = SDL_GetPerformanceCounter();
     do {
         // Advance one frame
         bool done = false;
@@ -70,8 +75,11 @@ void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
             quitting = true;
         }
         
-        // TODO: Delay next frame
-        // Currently relying on vsync to slow down things for now
+        // Delay next frame
+        while (SDL_GetPerformanceCounter() < start_tick + (frame * ticks_per_frame)) {
+            //SDL_Delay(1);
+        }
+        frame++;
     } while (!quitting);
     
     printf("Ended after %llu frames\n", ppu.t / 262);

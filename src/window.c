@@ -56,11 +56,12 @@ int window_init(Window *wnd) {
         return 1;
     }
     wnd->renderer = SDL_CreateRenderer(wnd->window, -1,
-                                       SDL_RENDERER_PRESENTVSYNC);
+                                       /*SDL_RENDERER_PRESENTVSYNC*/0);
     if (!wnd->renderer) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
+    SDL_RenderSetLogicalSize(wnd->renderer, 320, 240);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
                                      SDL_TEXTUREACCESS_STREAMING, 256, 240);
@@ -134,11 +135,9 @@ bool window_process_events(Window *wnd, uint8_t *controllers) {
                         controllers[cid] |= BUTTON_DOWN;
                     }
                 }
-#ifdef DEBUG
-                printf("P%d A%d:%d => %d\n", cid + 1,
+                /*printf("P%d A%d:%d => %d\n", cid + 1,
                        event.jaxis.axis, event.jaxis.value,
-                       controllers[cid]);
-#endif
+                       controllers[cid]);*/
                 break;
             case SDL_JOYBUTTONDOWN:
             case SDL_JOYBUTTONUP:
@@ -160,11 +159,9 @@ bool window_process_events(Window *wnd, uint8_t *controllers) {
                         break;
                     }
                 }
-#ifdef DEBUG
-                printf("P%d B%d:%d => %d\n", cid + 1,
+                /*printf("P%d B%d:%d => %d\n", cid + 1,
                        event.jbutton.button, event.jbutton.state,
-                       controllers[cid]);
-#endif
+                       controllers[cid]);*/
                 break;
             case SDL_QUIT:
                 return true;
