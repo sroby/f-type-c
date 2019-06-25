@@ -50,7 +50,8 @@ int window_init(Window *wnd) {
     
     // Create window and renderer
     wnd->window = SDL_CreateWindow("f-type", SDL_WINDOWPOS_UNDEFINED,
-                                   SDL_WINDOWPOS_UNDEFINED, 320, 240, 0);
+                                   SDL_WINDOWPOS_UNDEFINED, 292, 224,
+                                   SDL_WINDOW_ALLOW_HIGHDPI);
     if (!wnd->window) {
         printf("%s\n", SDL_GetError());
         return 1;
@@ -61,7 +62,7 @@ int window_init(Window *wnd) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
-    SDL_RenderSetLogicalSize(wnd->renderer, 320, 240);
+    SDL_RenderSetLogicalSize(wnd->renderer, 292, 224);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
                                      SDL_TEXTUREACCESS_STREAMING, 256, 240);
@@ -88,10 +89,11 @@ void window_cleanup(Window *wnd) {
 }
 
 void window_update_screen(Window *wnd, const PPUState *ppu) {
+    static const SDL_Rect screen_visible_area = {0, 8, 256, 224};
     SDL_UpdateTexture(wnd->texture, NULL, ppu->screen,
                       256 * sizeof(uint32_t));
     SDL_RenderClear(wnd->renderer);
-    SDL_RenderCopy(wnd->renderer, wnd->texture, NULL, NULL);
+    SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area, NULL);
     SDL_RenderPresent(wnd->renderer);
 }
 
