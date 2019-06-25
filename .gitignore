@@ -1,2 +1,5 @@
 # Avoid accidentally committing ROMs
 *.nes
+
+# Binary
+f-type
