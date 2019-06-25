@@ -68,7 +68,7 @@
 		F4EEF7F922AA050A00B38C9F = {
 			isa = PBXGroup;
 			children = (
-				F4EEF80422AA050A00B38C9F /* f-type */,
+				F4EEF80422AA050A00B38C9F /* src */,
 				F4EEF80322AA050A00B38C9F /* Products */,
 				F4858D7522BCE2BC0043C2EF /* Frameworks */,
 			);
@@ -82,7 +82,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		F4EEF80422AA050A00B38C9F /* f-type */ = {
+		F4EEF80422AA050A00B38C9F /* src */ = {
 			isa = PBXGroup;
 			children = (
 				F4858D5E22B84A860043C2EF /* common.h */,
@@ -98,7 +98,7 @@
 				F4858D7922BCECB70043C2EF /* window.c */,
 				F4858D7822BCECB70043C2EF /* window.h */,
 			);
-			path = "f-type";
+			path = src;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
