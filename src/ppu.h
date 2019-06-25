@@ -23,6 +23,16 @@
 #define STATUS_SPRITE_OVERFLOW (1 << 5)
 #define STATUS_SPRITE0_HIT (1 << 6)
 #define STATUS_VBLANK (1 << 7)
+// OAM_ATTR 0-1: Palette
+// OAM_ATTR 2-4: Unused
+#define OAM_ATTR_UNDER_BG (1 << 5)
+#define OAM_ATTR_FLIP_H (1 << 6)
+#define OAM_ATTR_FLIP_V (1 << 7)
+
+#define OAM_Y 0
+#define OAM_PATTERN 1
+#define OAM_ATTRS 2
+#define OAM_X 3
 
 // Registers
 #define PPUCTRL 0

@@ -5,7 +5,7 @@
 #include "memory_maps.h"
 
 // This is the palette from the PC10/Vs. RGB PPU, in ARGB8888 format
-static const uint32_t palette[] = {
+static const uint32_t colors[] = {
     0x606060, 0x002080, 0x0000C0, 0x6040C0,
     0x800060, 0xA00060, 0xA02000, 0x804000,
     0x604000, 0x204000, 0x006020, 0x008000,
@@ -65,28 +65,83 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
 bool ppu_scanline(PPUState *ppu) {
     MemoryMapPPUInternal *internal = ppu->mm->internal;
     
+    // Scanlines 0-19: Vblank period
     if (ppu->scanline == 0) {
-        ppu->status &= ~(STATUS_VBLANK | STATUS_SPRITE0_HIT |
-                         STATUS_SPRITE_OVERFLOW);
-    }
-    if (ppu->scanline < 240) {
-        // Very temporary sprite 0 hit check, just to get that out of the way
-        if (ppu->oam[0] == ppu->scanline) {
-            ppu->status |= STATUS_SPRITE0_HIT;
-        }
-        
-        int line_offset = ppu->scanline * 256;
-        for (int i = 0; i < 256; i++) {
-            ppu->screen[line_offset + i] =
-                palette[internal->background_colors[0]];
-        }
-    }
-    if (ppu->scanline == 240) {
         ppu->status |= STATUS_VBLANK;
         if (ppu->ctrl & CTRL_NMI_ON_VBLANK) {
             cpu_nmi(ppu->cpu);
         }
     }
+    
+    // Scanline 20: Pre-rendering
+    else if (ppu->scanline == 20) {
+        ppu->status &= ~(STATUS_SPRITE0_HIT | STATUS_SPRITE_OVERFLOW);
+    }
+    
+    // Scanlines 21-260: Rendering (240 lines)
+    else if (ppu->scanline >= 21 && ppu->scanline <= 260) {
+        int line = ppu->scanline - 21;
+        int line_offset = line * 256;
+        
+        // Very temporary sprite 0 hit check, just to get that out of the way
+        if (ppu->oam[0] == ppu->scanline) {
+            ppu->status |= STATUS_SPRITE0_HIT;
+        }
+        
+        // Fill the line with the current background colour
+        for (int i = 0; i < 256; i++) {
+            ppu->screen[line_offset + i] =
+                colors[internal->background_colors[0]];
+        }
+        
+        if (line) {
+            // Fetch up to 8 suitable sprites
+            const uint8_t *sprites[8];
+            int n_sprites = 0;
+            for (int i = 0; i < 64; i++) {
+                int pos_y = ppu->oam[i * 4] + 1;
+                if (pos_y <= line && pos_y + 7 >= line) {
+                    sprites[n_sprites++] = ppu->oam + (i * 4);
+                }
+                if (n_sprites >= 8) {
+                    break;
+                }
+            }
+            
+            // Render those sprites
+            for (int i = 0; i < n_sprites; i++) {
+                int palette = sprites[i][OAM_ATTRS] & 0b11;
+                int row = line - sprites[i][OAM_Y] - 1;
+                if (sprites[i][OAM_ATTRS] & OAM_ATTR_FLIP_V) {
+                    row = 7 - row;
+                }
+                uint16_t addr = ((uint16_t)sprites[i][OAM_PATTERN] << 4) | row;
+                if (ppu->status & CTRL_PT_SPRITES) {
+                    addr |= (1 << 12);
+                }
+                // Get the sprite's row in the pattern table
+                uint8_t b0 = mm_read(ppu->mm, addr);
+                uint8_t b1 = mm_read(ppu->mm, addr | (1 << 3));
+                bool flip = sprites[i][OAM_ATTRS] & OAM_ATTR_FLIP_H;
+                for (int j = 0; j < 8; j++) {
+                    int pos = (int)sprites[i][OAM_X] + j;
+                    if (pos < 256) {
+                        int jj = (flip ? j : 7 - j);
+                        int palette_index = (b0 & (1 << jj) ? 1 : 0) +
+                                            (b1 & (1 << jj) ? 2 : 0);
+                        if (palette_index) {
+                            ppu->screen[line_offset + pos] =
+                                colors[internal->palettes[12 + 3 * palette +
+                                                          palette_index - 1]];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Scanline 261: Post-rendering
+    // (nothing to do here)
     
     ppu->scanline = (ppu->scanline + 1) % 262;
     ppu->t++;
