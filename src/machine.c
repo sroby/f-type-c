@@ -28,10 +28,14 @@ void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
         (float)SDL_GetPerformanceFrequency() / 60.09914261;
     
     // Main loop
-    bool quitting = false;
     int frame = 0;
     uint64_t start_tick = SDL_GetPerformanceCounter();
-    do {
+    while(true) {
+        // Process events
+        if (window_process_events(wnd, cpu_mm_i.controllers)) {
+            break;
+        }
+        
         // Advance one frame
         bool done = false;
         do {
@@ -53,9 +57,7 @@ void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
                 }
             }
             // Run next CPU instruction
-            if (cpu_step(&cpu, verbose && !is_endless_loop) < 0x100) {
-                break;
-            }
+            cpu_step(&cpu, verbose && !is_endless_loop);
             // Check for PPU scanline, and possibly end of frame
             while (ppu.t * T_SCANLINE_PER_CPU < cpu.t * T_MULTI) {
                 if (verbose) {
@@ -69,18 +71,13 @@ void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
         
         // Render the frame
         window_update_screen(wnd, &ppu);
-        
-        // Process events
-        if (window_process_events(wnd, cpu_mm_i.controllers)) {
-            quitting = true;
-        }
-        
+
         // Delay next frame
         while (SDL_GetPerformanceCounter() < start_tick + (frame * ticks_per_frame)) {
-            SDL_Delay(1);
+            
         }
         frame++;
-    } while (!quitting);
+    }
     
-    printf("Ended after %llu frames\n", ppu.t / 262);
+    printf("Ended after %d frames\n", frame);
 }
