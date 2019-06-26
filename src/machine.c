@@ -24,8 +24,7 @@ void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
 
     cpu_reset(&cpu);
 
-    uint64_t ticks_per_frame =
-        (float)SDL_GetPerformanceFrequency() / 60.09914261;
+    uint64_t ticks_per_frame = SDL_GetPerformanceFrequency() * 10000 / 600988;
     
     // Main loop
     int frame = 0;
