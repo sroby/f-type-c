@@ -29,12 +29,18 @@ void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
     
     // Main loop
     int frame = 0;
-    uint64_t start_tick = SDL_GetPerformanceCounter();
+    uint64_t next_frame = SDL_GetPerformanceCounter();
     while(true) {
         // Process events
         if (window_process_events(wnd, cpu_mm_i.controllers)) {
             break;
         }
+        
+        if (SDL_GetPerformanceCounter() < next_frame) {
+            SDL_Delay(1);
+            continue;
+        }
+        next_frame += ticks_per_frame;
         
         // Advance one frame
         bool done = false;
@@ -71,11 +77,6 @@ void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
         
         // Render the frame
         window_update_screen(wnd, &ppu);
-
-        // Delay next frame
-        while (SDL_GetPerformanceCounter() < start_tick + (frame * ticks_per_frame)) {
-            
-        }
         frame++;
     }
     
