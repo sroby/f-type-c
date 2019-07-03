@@ -45,7 +45,7 @@ typedef struct {
 } MemoryMapCPUInternal;
 
 typedef struct {
-    const uint8_t *chr_rom;
+    uint8_t *chr_memory;
     uint8_t nametables[2][SIZE_NAMETABLE];
     uint8_t *nt_layout[4];
     uint8_t background_colors[4];

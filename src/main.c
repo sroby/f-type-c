@@ -43,15 +43,18 @@ int main(int argc, const char *argv[]) {
     
     size = header[5] * 8;
     printf("CHR ROM: %dKB\n", size);
-    cart.chr_rom_size = size * 1024;
-    if (cart.chr_rom_size > 0) {
-        cart.chr_rom = malloc(cart.chr_rom_size);
-        if (fread(cart.chr_rom, cart.chr_rom_size, 1, rom_file) < 1) {
+    cart.chr_is_ram = !size;
+    if (cart.chr_is_ram) {
+        cart.chr_memory_size = 0x2000;
+        cart.chr_memory = malloc(cart.chr_memory_size);
+        memset(cart.chr_memory, 0, cart.chr_memory_size);
+    } else {
+        cart.chr_memory_size = size * 1024;
+        cart.chr_memory = malloc(cart.chr_memory_size);
+        if (fread(cart.chr_memory, cart.chr_memory_size, 1, rom_file) < 1) {
             printf("Error reading CHR ROM\n");
             return 1;
         }
-    } else {
-        cart.chr_rom = NULL;
     }
     
     cart.mapper = ((header[6] & 0b11110000) >> 4) + (header[7] & 0b11110000);
@@ -92,9 +95,7 @@ int main(int argc, const char *argv[]) {
     if (dbg_map) {
         free(dbg_map);
     }
-    if (cart.chr_rom) {
-        free(cart.chr_rom);
-    }
+    free(cart.chr_memory);
     free(cart.prg_rom);
     
     return 0;

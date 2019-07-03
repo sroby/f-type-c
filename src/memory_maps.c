@@ -67,9 +67,13 @@ static void write_controller_latch(MemoryMap *mm, int offset, uint8_t value) {
 
 // PPU MEMORY MAP ACCESSES //
 
-static uint8_t read_chr_rom(MemoryMap *mm, int offset) {
+static uint8_t read_chr_memory(MemoryMap *mm, int offset) {
     MemoryMapPPUInternal *internal = mm->internal;
-    return internal->chr_rom[offset];
+    return internal->chr_memory[offset];
+}
+static void write_chr_memory(MemoryMap *mm, int offset, uint8_t value) {
+    MemoryMapPPUInternal *internal = mm->internal;
+    internal->chr_memory[offset] = value;
 }
 
 static uint8_t read_nametables(MemoryMap *mm, int offset) {
@@ -77,7 +81,6 @@ static uint8_t read_nametables(MemoryMap *mm, int offset) {
     return internal->nt_layout[offset / SIZE_NAMETABLE]
                               [offset % SIZE_NAMETABLE];
 }
-
 static void write_nametables(MemoryMap *mm, int offset, uint8_t value) {
     MemoryMapPPUInternal *internal = mm->internal;
     internal->nt_layout[offset / SIZE_NAMETABLE]
@@ -88,7 +91,6 @@ static uint8_t read_background_colors(MemoryMap *mm, int offset) {
     MemoryMapPPUInternal *internal = mm->internal;
     return internal->background_colors[offset];
 }
-
 static void write_background_colors(MemoryMap *mm, int offset, uint8_t value) {
     MemoryMapPPUInternal *internal = mm->internal;
     internal->background_colors[offset] = value;
@@ -98,7 +100,6 @@ static uint8_t read_palettes(MemoryMap *mm, int offset) {
     MemoryMapPPUInternal *internal = mm->internal;
     return internal->palettes[offset];
 }
-
 static void write_palettes(MemoryMap *mm, int offset, uint8_t value) {
     MemoryMapPPUInternal *internal = mm->internal;
     internal->palettes[offset] = value;
@@ -149,9 +150,7 @@ void memory_map_ppu_init(MemoryMap *mm, MemoryMapPPUInternal *internal,
                          const Cartridge *cart) {
     init_common(mm);
     mm->internal = internal;
-    
-    // Only supports CHR ROM for now
-    internal->chr_rom = cart->chr_rom;
+    internal->chr_memory = cart->chr_memory;
     
     // Wipe the various memory structures
     memset(internal->nametables[0], 0, SIZE_NAMETABLE);
@@ -169,7 +168,8 @@ void memory_map_ppu_init(MemoryMap *mm, MemoryMapPPUInternal *internal,
     int i, j;
     // 0000-1FFF: CHR ROM
     for (i = 0; i < 0x2000; i++) {
-        mm->addrs[i] = (MemoryAddress) {read_chr_rom, NULL, i};
+        mm->addrs[i] = (MemoryAddress)
+            {read_chr_memory, (cart->chr_is_ram ? write_chr_memory : NULL), i};
     }
     // 2000-3EFF: Nametables
     for (i = 0; i < 0x1EFF; i++) {

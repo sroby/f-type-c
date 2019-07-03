@@ -18,8 +18,9 @@ typedef struct {
 typedef struct Cartridge {
     uint8_t *prg_rom;
     int prg_rom_size;
-    uint8_t *chr_rom;
-    int chr_rom_size;
+    uint8_t *chr_memory;
+    int chr_memory_size;
+    bool chr_is_ram;
     int mapper;
     bool mirroring;
 } Cartridge;
