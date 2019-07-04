@@ -62,6 +62,9 @@ static void render_sprites(PPUState *ppu, int n_sprites,
     }
     const bool clip = !(ppu->mask & MASK_NOCLIP_SPRITES);
     const int line = ppu->scanline - 21;
+    const bool tall = ppu->ctrl & CTRL_8x16_SPRITES;
+    const int height = (tall ? 16 : 8);
+    bool bank = ppu->ctrl & CTRL_PT_SPRITES;
     for (int i = n_sprites - 1; i >= 0; i--) {
         const uint8_t *sprite = sprites[i];
         if ((bool)(sprite[OAM_ATTRS] & OAM_ATTR_UNDER_BG) == front) {
@@ -69,10 +72,19 @@ static void render_sprites(PPUState *ppu, int n_sprites,
         }
         uint16_t row = line - sprite[OAM_Y] - 1;
         if (sprite[OAM_ATTRS] & OAM_ATTR_FLIP_V) {
-            row = 7 - row;
+            row = height - row - 1;
         }
-        uint16_t pt_addr = ((uint16_t)sprite[OAM_PATTERN] << 4) | row;
-        if (ppu->ctrl & CTRL_PT_SPRITES) {
+        uint8_t pt = sprite[OAM_PATTERN];
+        if (tall) {
+            bank = pt & 1;
+            if (row >= 8) {
+                pt |= 1;
+            } else {
+                pt &= ~1;
+            }
+        }
+        uint16_t pt_addr = ((uint16_t)pt << 4) | (row % 8);
+        if (bank) {
             pt_addr |= (1 << 12);
         }
         int palette = (sprite[OAM_ATTRS] & 0b11) + 4;
@@ -150,11 +162,12 @@ bool ppu_scanline(PPUState *ppu) {
         
         // Fetch up to 8 suitable sprites
         const uint8_t *sprites[8];
+        const int sprite_height = (ppu->ctrl & CTRL_8x16_SPRITES ? 16 : 8);
         int n_sprites = 0;
         if (line && ppu->mask & MASK_RENDER_SPRITES) {
             for (int i = 0; i < 64; i++) {
                 int pos_y = ppu->oam[i * 4] + 1;
-                if (pos_y <= line && pos_y + 7 >= line) {
+                if (pos_y <= line && (pos_y + sprite_height - 1) >= line) {
                     if (n_sprites >= 8) {
                         ppu->status |= STATUS_SPRITE_OVERFLOW;
                         break;
