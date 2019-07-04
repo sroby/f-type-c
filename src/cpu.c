@@ -184,13 +184,13 @@ static void shift_left(CPUState *cpu, const Opcode *op, OpParam param,
     if (op->reg1) {
         set_p_flag(cpu, P_C, *op->reg1 & (1 << 7));
         *op->reg1 <<= 1;
-        *op->reg1 += carry;
+        *op->reg1 |= carry;
         apply_p_nz(cpu, *op->reg1);
     } else {
         uint8_t value = get_param_value(cpu, op, param);
         set_p_flag(cpu, P_C, value & (1 << 7));
         value <<= 1;
-        value += carry;
+        value |= carry;
         mm_write(cpu->mm, param.addr, value);
         apply_p_nz(cpu, value);
     }
@@ -207,13 +207,13 @@ static void shift_right(CPUState *cpu, const Opcode *op, OpParam param,
     if (op->reg1) {
         set_p_flag(cpu, P_C, *op->reg1 & 1);
         *op->reg1 >>= 1;
-        *op->reg1 += carry;
+        *op->reg1 |= carry;
         apply_p_nz(cpu, *op->reg1);
     } else {
         uint8_t value = get_param_value(cpu, op, param);
         set_p_flag(cpu, P_C, value & 1);
         value >>= 1;
-        value += carry;
+        value |= carry;
         mm_write(cpu->mm, param.addr, value);
         apply_p_nz(cpu, value);
     }
