@@ -48,11 +48,18 @@ int window_init(Window *wnd, const char *filename) {
         printf("No controllers were found, will continue without input\n");
     }
     
+    Uint32 window_flags = SDL_WINDOW_ALLOW_HIGHDPI;
+#ifdef DEBUG
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
+#else
+    window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+#endif
+    
     // Create window and renderer
     wnd->window = SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED,
                                              SDL_WINDOWPOS_UNDEFINED,
                                              WIDTH_ADJUSTED, HEIGHT_CROPPED,
-                                             SDL_WINDOW_ALLOW_HIGHDPI);
+                                             window_flags);
     if (!wnd->window) {
         printf("%s\n", SDL_GetError());
         return 1;
@@ -63,7 +70,6 @@ int window_init(Window *wnd, const char *filename) {
         return 1;
     }
     SDL_RenderSetLogicalSize(wnd->renderer, WIDTH_ADJUSTED, HEIGHT_CROPPED);
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
     wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
                                      SDL_TEXTUREACCESS_STREAMING,
                                      WIDTH, HEIGHT);
@@ -71,6 +77,8 @@ int window_init(Window *wnd, const char *filename) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
+    
+    SDL_ShowCursor(SDL_DISABLE);
 
     return 0;
 }
