@@ -27,6 +27,64 @@ static const uint32_t colors[] = {
     0x80C0E0, 0x000000, 0x000000, 0x000000,
 };
 
+static bool render_pattern_row(PPUState *ppu, uint16_t pt_addr, int pos_x,
+                        int palette, bool flip_h, bool clip) {
+    MemoryMapPPUInternal *internal = ppu->mm->internal;
+    const int line = ppu->scanline - 21;
+    uint8_t b0 = mm_read(ppu->mm, pt_addr);
+    uint8_t b1 = mm_read(ppu->mm, pt_addr | (1 << 3));
+    if (!b0 && !b1) {
+        return false;
+    }
+    for (int j = 0; j < 8; j++) {
+        int pos = pos_x + j;
+        if (pos < 0 || (clip && pos < 8)) {
+            continue;
+        }
+        if (pos > 255) {
+            break;
+        }
+        int jj = (flip_h ? j : 7 - j);
+        int palette_index = (b0 & (1 << jj) ? 1 : 0) +
+                            (b1 & (1 << jj) ? 2 : 0);
+        if (palette_index) {
+            ppu->screen[line * WIDTH + pos] =
+                colors[internal->palettes[palette * 3 + palette_index - 1]];
+        }
+    }
+    return true;
+}
+
+static void render_sprites(PPUState *ppu, int n_sprites,
+                           const uint8_t **sprites, bool front) {
+    if (!n_sprites) {
+        return;
+    }
+    const bool clip = !(ppu->mask & MASK_NOCLIP_SPRITES);
+    const int line = ppu->scanline - 21;
+    for (int i = n_sprites - 1; i >= 0; i--) {
+        const uint8_t *sprite = sprites[i];
+        if ((bool)(sprite[OAM_ATTRS] & OAM_ATTR_UNDER_BG) == front) {
+            continue;
+        }
+        uint16_t row = line - sprite[OAM_Y] - 1;
+        if (sprite[OAM_ATTRS] & OAM_ATTR_FLIP_V) {
+            row = 7 - row;
+        }
+        uint16_t pt_addr = ((uint16_t)sprite[OAM_PATTERN] << 4) | row;
+        if (ppu->ctrl & CTRL_PT_SPRITES) {
+            pt_addr |= (1 << 12);
+        }
+        int palette = (sprite[OAM_ATTRS] & 0b11) + 4;
+        bool flip_h = sprite[OAM_ATTRS] & OAM_ATTR_FLIP_H;
+        if (render_pattern_row(ppu, pt_addr, sprite[OAM_X], palette, flip_h,
+                               clip) &&
+            sprite == ppu->oam) {
+            ppu->status |= STATUS_SPRITE0_HIT;
+        }
+    }
+}
+
 static bool has_addr_latch(PPUState *ppu, uint8_t value) {
     if (ppu->addr_latch_is_set) {
         return true;
@@ -53,7 +111,7 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
     
     ppu->ctrl = ppu->mask = ppu->status = 0;
     
-    ppu->reg_latch = ppu->addr_latch = 0;
+    ppu->reg_latch = ppu->ppudata_latch = ppu->addr_latch = 0;
     ppu->addr_latch_is_set = false;
     
     ppu->scroll_x = ppu->scroll_y = 0;
@@ -75,73 +133,97 @@ bool ppu_scanline(PPUState *ppu) {
     
     // Scanline 20: Pre-rendering
     else if (ppu->scanline == 20) {
-        ppu->status &= ~(STATUS_SPRITE0_HIT | STATUS_SPRITE_OVERFLOW);
+        ppu->status &= ~(STATUS_VBLANK |
+                         STATUS_SPRITE0_HIT |
+                         STATUS_SPRITE_OVERFLOW);
     }
     
     // Scanlines 21-260: Rendering (240 lines)
     else if (ppu->scanline >= 21 && ppu->scanline <= 260) {
-        int line = ppu->scanline - 21;
-        int line_offset = line * 256;
-        
-        // Very temporary sprite 0 hit check, just to get that out of the way
-        if (ppu->oam[0] == ppu->scanline) {
-            ppu->status |= STATUS_SPRITE0_HIT;
-        }
+        const int line = ppu->scanline - 21;
         
         // Fill the line with the current background colour
-        for (int i = 0; i < 256; i++) {
-            ppu->screen[line_offset + i] =
+        for (int i = 0; i < WIDTH; i++) {
+            ppu->screen[line * WIDTH + i] =
                 colors[internal->background_colors[0]];
         }
         
-        if (line) {
-            // Fetch up to 8 suitable sprites
-            const uint8_t *sprites[8];
-            int n_sprites = 0;
+        // Fetch up to 8 suitable sprites
+        const uint8_t *sprites[8];
+        int n_sprites = 0;
+        if (line && ppu->mask & MASK_RENDER_SPRITES) {
             for (int i = 0; i < 64; i++) {
                 int pos_y = ppu->oam[i * 4] + 1;
                 if (pos_y <= line && pos_y + 7 >= line) {
-                    sprites[n_sprites++] = ppu->oam + (i * 4);
-                }
-                if (n_sprites >= 8) {
-                    break;
-                }
-            }
-            
-            // Render those sprites
-            for (int i = 0; i < n_sprites; i++) {
-                int palette = sprites[i][OAM_ATTRS] & 0b11;
-                int row = line - sprites[i][OAM_Y] - 1;
-                if (sprites[i][OAM_ATTRS] & OAM_ATTR_FLIP_V) {
-                    row = 7 - row;
-                }
-                uint16_t addr = ((uint16_t)sprites[i][OAM_PATTERN] << 4) | row;
-                if (ppu->status & CTRL_PT_SPRITES) {
-                    addr |= (1 << 12);
-                }
-                // Get the sprite's row in the pattern table
-                uint8_t b0 = mm_read(ppu->mm, addr);
-                uint8_t b1 = mm_read(ppu->mm, addr | (1 << 3));
-                bool flip = sprites[i][OAM_ATTRS] & OAM_ATTR_FLIP_H;
-                for (int j = 0; j < 8; j++) {
-                    int pos = (int)sprites[i][OAM_X] + j;
-                    if (pos < 256) {
-                        int jj = (flip ? j : 7 - j);
-                        int palette_index = (b0 & (1 << jj) ? 1 : 0) +
-                                            (b1 & (1 << jj) ? 2 : 0);
-                        if (palette_index) {
-                            ppu->screen[line_offset + pos] =
-                                colors[internal->palettes[12 + 3 * palette +
-                                                          palette_index - 1]];
-                        }
+                    if (n_sprites >= 8) {
+                        ppu->status |= STATUS_SPRITE_OVERFLOW;
+                        break;
                     }
+                    sprites[n_sprites++] = ppu->oam + (i * 4);
                 }
             }
         }
+        render_sprites(ppu, n_sprites, sprites, false);
+        
+        // Render background
+        if (ppu->mask & MASK_RENDER_BACKGROUND) {
+            bool clip = !(ppu->mask & MASK_NOCLIP_BACKGROUND);
+            uint16_t nt_page = ppu->ctrl & 0b11;
+            int nt_x = ppu->scroll_x / 8;
+            int screen_x = -(ppu->scroll_x % 8);
+            uint16_t row = (ppu->scroll_y + line) % 8;
+            int nt_y = (ppu->scroll_y + line) / 8;
+            if (nt_y >= HEIGHT_NT) {
+                nt_y -= HEIGHT_NT;
+                nt_page ^= 2;
+            }
+            int at = 0x100;
+            while (screen_x < WIDTH) {
+                if (nt_x >= WIDTH_NT) {
+                    nt_x -= WIDTH_NT;
+                    nt_page ^= 1;
+                }
+                uint16_t nt_page_addr = 0x2000 + nt_page * 0x400;
+                uint16_t nt_addr = nt_page_addr + nt_x + nt_y * WIDTH_NT;
+                uint16_t pt_addr = ((uint16_t)mm_read(ppu->mm, nt_addr) << 4) |
+                                   row;
+                if (ppu->ctrl & CTRL_PT_BACKGROUND) {
+                    pt_addr |= (1 << 12);
+                }
+
+                // Find the palette in the attribute table
+                if (at == 0x100 || !(nt_x % 4)) {
+                    at = mm_read(ppu->mm,
+                            nt_page_addr + 0x3C0 + nt_x / 4 + nt_y / 4 * 8);
+                }
+                int palette;
+                // There's probably a better way to do this
+                if (nt_x % 4 < 2) {
+                    if (nt_y % 4 < 2) {
+                        palette = at & 0b11;
+                    } else {
+                        palette = (at & 0b110000) >> 4;
+                    }
+                } else {
+                    if (nt_y % 4 < 2) {
+                        palette = (at & 0b1100) >> 2;
+                    } else {
+                        palette = at >> 6;
+                    }
+                }
+                
+                render_pattern_row(ppu, pt_addr, screen_x, palette, false,
+                                   clip);
+                nt_x++;
+                screen_x += 8;
+            }
+        }
+        
+        render_sprites(ppu, n_sprites, sprites, true);
     }
     
     // Scanline 261: Post-rendering
-    // (nothing to do here)
+    // (this is a wasted line that does nothing)
     
     ppu->scanline = (ppu->scanline + 1) % 262;
     ppu->t++;
@@ -159,7 +241,8 @@ uint8_t ppu_read_register(PPUState *ppu, int reg) {
             ppu->reg_latch = ppu->oam[ppu->oam_addr];
             break;
         case PPUDATA:
-            ppu->reg_latch = mm_read(ppu->mm, ppu->mm_addr);
+            ppu->reg_latch = ppu->ppudata_latch;
+            ppu->ppudata_latch = mm_read(ppu->mm, ppu->mm_addr);
             increment_mm_addr(ppu);
             break;
     }

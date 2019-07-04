@@ -4,7 +4,8 @@
 #include "common.h"
 
 // Bit fields
-// CTRL 0-1: Base nametable address
+#define CTRL_SCROLL_PAGE_X 1
+#define CTRL_SCROLL_PAGE_Y (1 << 1)
 #define CTRL_ADDR_INC_32 (1 << 2)
 #define CTRL_PT_SPRITES (1 << 3)
 #define CTRL_PT_BACKGROUND (1 << 4)
@@ -29,6 +30,7 @@
 #define OAM_ATTR_FLIP_H (1 << 6)
 #define OAM_ATTR_FLIP_V (1 << 7)
 
+// OAM property offsets
 #define OAM_Y 0
 #define OAM_PATTERN 1
 #define OAM_ATTRS 2
@@ -43,6 +45,14 @@
 #define PPUSCROLL 5
 #define PPUADDR 6
 #define PPUDATA 7
+
+// Screen dimensions
+#define WIDTH 256
+#define WIDTH_NT 32
+#define WIDTH_ADJUSTED 292
+#define HEIGHT 240
+#define HEIGHT_NT 30
+#define HEIGHT_CROPPED 224
 
 // Forward declarations
 typedef struct CPUState CPUState;
@@ -66,15 +76,20 @@ struct PPUState {
 
     // Latches
     uint8_t reg_latch;
+    uint8_t ppudata_latch;
     uint8_t addr_latch;
     bool addr_latch_is_set;
     
-    uint8_t scroll_x, scroll_y;
+    // Screen 0,0 position
+    uint8_t scroll_x;
+    uint8_t scroll_y;
     
+    // Cycle and scanline counters
     uint64_t t;
     int scanline;
     
-    uint32_t screen[256 * 240];
+    // Raw screen data, in ARGB8888 format
+    uint32_t screen[WIDTH * HEIGHT];
 };
 
 void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu);

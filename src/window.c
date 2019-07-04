@@ -50,22 +50,23 @@ int window_init(Window *wnd) {
     
     // Create window and renderer
     wnd->window = SDL_CreateWindow("f-type", SDL_WINDOWPOS_UNDEFINED,
-                                   SDL_WINDOWPOS_UNDEFINED, 292, 224,
-                                   SDL_WINDOW_ALLOW_HIGHDPI);
+                                             SDL_WINDOWPOS_UNDEFINED,
+                                             WIDTH_ADJUSTED, HEIGHT_CROPPED,
+                                             SDL_WINDOW_ALLOW_HIGHDPI);
     if (!wnd->window) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
-    wnd->renderer = SDL_CreateRenderer(wnd->window, -1,
-                                       /*SDL_RENDERER_PRESENTVSYNC*/0);
+    wnd->renderer = SDL_CreateRenderer(wnd->window, -1, 0);
     if (!wnd->renderer) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
-    SDL_RenderSetLogicalSize(wnd->renderer, 292, 224);
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+    SDL_RenderSetLogicalSize(wnd->renderer, WIDTH_ADJUSTED, HEIGHT_CROPPED);
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
     wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
-                                     SDL_TEXTUREACCESS_STREAMING, 256, 240);
+                                     SDL_TEXTUREACCESS_STREAMING,
+                                     WIDTH, HEIGHT);
     if (!wnd->texture) {
         printf("%s\n", SDL_GetError());
         return 1;
@@ -89,9 +90,10 @@ void window_cleanup(Window *wnd) {
 }
 
 void window_update_screen(Window *wnd, const PPUState *ppu) {
-    static const SDL_Rect screen_visible_area = {0, 8, 256, 224};
+    static const SDL_Rect screen_visible_area =
+        {0, (HEIGHT - HEIGHT_CROPPED) / 2, WIDTH, HEIGHT_CROPPED};
     SDL_UpdateTexture(wnd->texture, NULL, ppu->screen,
-                      256 * sizeof(uint32_t));
+                      WIDTH * sizeof(uint32_t));
     SDL_RenderClear(wnd->renderer);
     SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area, NULL);
     SDL_RenderPresent(wnd->renderer);
