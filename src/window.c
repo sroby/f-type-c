@@ -15,7 +15,7 @@ static int identify_js(Window *wnd, SDL_JoystickID which) {
 
 // PUBLIC FUNCTIONS //
 
-int window_init(Window *wnd) {
+int window_init(Window *wnd, const char *filename) {
     // Init SDL
     int error_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
     if (error_code) {
@@ -49,7 +49,7 @@ int window_init(Window *wnd) {
     }
     
     // Create window and renderer
-    wnd->window = SDL_CreateWindow("f-type", SDL_WINDOWPOS_UNDEFINED,
+    wnd->window = SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED,
                                              SDL_WINDOWPOS_UNDEFINED,
                                              WIDTH_ADJUSTED, HEIGHT_CROPPED,
                                              SDL_WINDOW_ALLOW_HIGHDPI);

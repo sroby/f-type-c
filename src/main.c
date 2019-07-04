@@ -1,5 +1,6 @@
 #include "common.h"
 #include <string.h>
+#include <libgen.h>
 
 #include "machine.h"
 #include "window.h"
@@ -83,7 +84,8 @@ int main(int argc, const char *argv[]) {
     }
     
     Window wnd;
-    int error_code = window_init(&wnd);
+    char *fn = strdup(argv[1]);
+    int error_code = window_init(&wnd, basename(fn));
     if (error_code) {
         return error_code;
     }
@@ -92,6 +94,7 @@ int main(int argc, const char *argv[]) {
     
     window_cleanup(&wnd);
         
+    free(fn);
     if (dbg_map) {
         free(dbg_map);
     }

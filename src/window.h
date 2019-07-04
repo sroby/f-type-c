@@ -17,7 +17,7 @@ typedef struct Window {
     bool js_use_axis[2];
 } Window;
 
-int window_init(Window *wnd);
+int window_init(Window *wnd, const char *filename);
 void window_cleanup(Window *wnd);
 
 void window_update_screen(Window *wnd, const PPUState *ppu);
