@@ -94,13 +94,12 @@ void memory_map_cpu_init(MemoryMap *mm, Cartridge *cart, PPUState *ppu) {
     data->controller_bit = 8;
     
     // Populate the address map
-    int i;
     // 0000-1FFF: WRAM (2kB, repeated)
-    for (i = 0; i < SIZE_WRAM; i++) {
+    for (int i = 0; i < SIZE_WRAM; i++) {
         mm->addrs[i] = (MemoryAddress) {read_wram, write_wram, i % SIZE_WRAM};
     }
     // 2000-3FFF: PPU registers (8, repeated)
-    for (i = 0; i < 0x2000; i++) {
+    for (int i = 0; i < 0x2000; i++) {
         mm->addrs[i + 0x2000] = (MemoryAddress)
             {read_ppu_register, write_ppu_register, i % 8};
     }
@@ -134,20 +133,19 @@ void memory_map_ppu_init(MemoryMap *mm, Cartridge *cart) {
     data->nt_layout[3] = data->nametables[1];
     
     // Populate the address map
-    int i, j;
     // 0000-1FFF: Cartridge I/O, defined by the mapper's init
     // 2000-3EFF: Nametables
-    for (i = 0; i < 0x1EFF; i++) {
+    for (int i = 0; i < 0x1EFF; i++) {
         mm->addrs[i + 0x2000] = (MemoryAddress)
             {read_nametables, write_nametables, i % (SIZE_NAMETABLE * 4)};
     }
     // 3F00-3FFF: Palettes
-    for (i = 0x3F00; i < 0x4000; i += 0x20) {
-        for (j = 0; j < 8; j++) {
+    for (int i = 0x3F00; i < 0x4000; i += 0x20) {
+        for (int j = 0; j < 8; j++) {
             mm->addrs[i + (j * 0x04)] = (MemoryAddress)
                 {read_background_colors, write_background_colors, j % 4};
         }
-        for (j = 0; j < 24; j++) {
+        for (int j = 0; j < 24; j++) {
             mm->addrs[i + (j / 3 * 4) + (j % 3) + 1] = (MemoryAddress)
                 {read_palettes, write_palettes, j};
         }
