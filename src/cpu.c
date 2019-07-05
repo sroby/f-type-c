@@ -313,7 +313,7 @@ void cpu_init(CPUState *cpu, MemoryMap *mm) {
     cpu->pc = 0;
     cpu->t = 0;
     cpu->mm = mm;
-    memset(cpu->opcodes, 0, sizeof(Opcode) * 0x100);
+    memset(cpu->opcodes, 0, sizeof(cpu->opcodes));
     
     uint8_t *a = &cpu->a;
     uint8_t *x = &cpu->x;

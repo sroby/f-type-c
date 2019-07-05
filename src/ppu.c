@@ -119,7 +119,7 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
     ppu->mm = mm;
     ppu->mm_addr = 0;
     
-    memset(ppu->oam, 0, 0x100);
+    memset(ppu->oam, 0, sizeof(ppu->oam));
     ppu->oam_addr = 0;
     
     ppu->ctrl = ppu->mask = ppu->status = 0;

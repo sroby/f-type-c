@@ -9,7 +9,7 @@
 static void init_common(MemoryMap *mm, Cartridge *cart) {
     mm->last_read = 0;
     mm->cart = cart;
-    memset(mm->addrs, 0, sizeof(MemoryAddress) * 0x10000);
+    memset(mm->addrs, 0, sizeof(mm->addrs));
 }
 
 // CPU MEMORY MAP ACCESSES //
@@ -89,7 +89,7 @@ void memory_map_cpu_init(MemoryMap *mm, Cartridge *cart, PPUState *ppu) {
     MemoryMapCPUData *data = &mm->data.cpu;
     
     data->ppu = ppu;
-    memset(data->wram, 0, SIZE_WRAM);
+    memset(data->wram, 0, sizeof(data->wram));
     data->controllers[0] = data->controllers[1] = 0;
     data->controller_bit = 8;
     
@@ -123,8 +123,8 @@ void memory_map_ppu_init(MemoryMap *mm, Cartridge *cart) {
     // Wipe the various memory structures
     memset(data->nametables[0], 0, SIZE_NAMETABLE);
     memset(data->nametables[1], 0, SIZE_NAMETABLE);
-    memset(data->background_colors, 0, 4);
-    memset(data->palettes, 0, 8 * 3);
+    memset(data->background_colors, 0, sizeof(data->background_colors));
+    memset(data->palettes, 0, sizeof(data->background_colors));
     
     // Define nametable memory layout
     data->nt_layout[0] = data->nametables[0];
