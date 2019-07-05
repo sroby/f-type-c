@@ -1,6 +1,7 @@
 #include "window.h"
-#include "ppu.h"
+
 #include "memory_maps.h"
+#include "ppu.h"
 
 static int identify_js(Window *wnd, SDL_JoystickID which) {
     for (int i = 0; i < 2; i++) {

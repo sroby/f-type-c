@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "ppu.h"
+
 #include "cpu.h"
 #include "memory_maps.h"
 
