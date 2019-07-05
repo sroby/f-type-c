@@ -54,6 +54,7 @@ int window_init(Window *wnd, const char *filename) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
 #else
     window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    SDL_ShowCursor(SDL_DISABLE);
 #endif
     
     // Create window and renderer
@@ -78,8 +79,6 @@ int window_init(Window *wnd, const char *filename) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
-    
-    SDL_ShowCursor(SDL_DISABLE);
 
     return 0;
 }
