@@ -7,7 +7,7 @@
 typedef struct MemoryMap MemoryMap;
 
 typedef union MapperData {
-    int uxrom_bank;
+    int bank;
 } MapperData;
 
 typedef struct Cartridge {
@@ -24,7 +24,7 @@ typedef struct Cartridge {
 typedef struct MapperInfo {
     int ines_id;
     const char *name;
-    void (*init_func)(Cartridge *, MemoryMap *, MemoryMap *);
+    void (*init_func)(MemoryMap *, MemoryMap *);
 } MapperInfo;
 
 bool mapper_check_support(int mapper_id, const char **name);
