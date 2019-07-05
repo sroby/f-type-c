@@ -29,6 +29,6 @@ typedef struct MapperInfo {
 
 bool mapper_check_support(int mapper_id, const char **name);
 
-bool cart_init(Cartridge *cart, MemoryMap *cpu_mm, MemoryMap *ppu_mm);
+bool mapper_init(Cartridge *cart, MemoryMap *cpu_mm, MemoryMap *ppu_mm);
 
 #endif /* mappers_h */

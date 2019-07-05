@@ -80,7 +80,7 @@ bool mapper_check_support(int mapper_id, const char **name) {
     return false;
 }
 
-bool cart_init(Cartridge *cart, MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+bool mapper_init(Cartridge *cart, MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     for (int i = 0; i < mappers_len; i++) {
         if (mappers[i].ines_id == cart->mapper_id) {
             (*mappers[i].init_func)(cart, cpu_mm, ppu_mm);

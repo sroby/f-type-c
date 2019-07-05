@@ -18,7 +18,7 @@ void machine_loop(Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
     ppu_init(&ppu, &ppu_mm, &cpu);
     memory_map_cpu_init(&cpu_mm, cart, &ppu);
     memory_map_ppu_init(&ppu_mm, cart);
-    cart_init(cart, &cpu_mm, &ppu_mm);
+    mapper_init(cart, &cpu_mm, &ppu_mm);
 
     const char *const verb_char = getenv("VERBOSE");
     const bool verbose = verb_char ? *verb_char - '0' : false;
