@@ -1,7 +1,8 @@
 #include "common.h"
-#include <string.h>
 #include <libgen.h>
+#include <string.h>
 
+#include "cartridge.h"
 #include "machine.h"
 #include "window.h"
 
@@ -58,10 +59,12 @@ int main(int argc, const char *argv[]) {
         }
     }
     
-    cart.mapper = ((header[6] & 0b11110000) >> 4) + (header[7] & 0b11110000);
-    printf("Mapper: %d\n", cart.mapper);
-    if (cart.mapper) {
-        printf("Only NROM (aka. iNES mapper 0) is supported so far\n");
+    cart.mapper_id = (header[6] >> 4) + (header[7] & 0b11110000);
+    const char *mapper_name = "Unidentified";
+    bool supported = mapper_check_support(cart.mapper_id, &mapper_name);
+    printf("Mapper: %d (%s)\n", cart.mapper_id, mapper_name);
+    if (!supported) {
+        printf("Unsupported mapper ID\n");
         return 1;
     }
     

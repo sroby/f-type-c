@@ -3,6 +3,7 @@ CFLAGS=-O3 -Wall -Werror `sdl2-config --cflags --libs`
 
 TARGET=f-type
 SRCS= \
+	src/cartridge.c \
 	src/cpu.c \
 	src/machine.c \
 	src/main.c \

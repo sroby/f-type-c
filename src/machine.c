@@ -1,12 +1,14 @@
 #include <string.h>
 
 #include "machine.h"
-#include "window.h"
-#include "cpu.h"
-#include "ppu.h"
-#include "memory_maps.h"
 
-void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
+#include "cartridge.h"
+#include "cpu.h"
+#include "memory_maps.h"
+#include "ppu.h"
+#include "window.h"
+
+void machine_loop(Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
     // Create and initialize the hardware
     CPUState cpu;
     PPUState ppu;
@@ -18,6 +20,7 @@ void machine_loop(const Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
     ppu_init(&ppu, &ppu_mm, &cpu);
     memory_map_cpu_init(&cpu_mm, &cpu_mm_i, cart, &ppu);
     memory_map_ppu_init(&ppu_mm, &ppu_mm_i, cart);
+    cart_init(cart, &cpu_mm, &ppu_mm);
 
     const char *const verb_char = getenv("VERBOSE");
     const bool verbose = verb_char ? *verb_char - '0' : false;

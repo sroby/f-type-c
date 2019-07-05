@@ -1,11 +1,14 @@
 #include <string.h>
 
 #include "memory_maps.h"
-#include "ppu.h"
-#include "machine.h"
 
-static void init_common(MemoryMap *mm) {
+#include "cartridge.h"
+#include "machine.h"
+#include "ppu.h"
+
+static void init_common(MemoryMap *mm, Cartridge *cart) {
     mm->last_read = 0;
+    mm->cart = cart;
     memset(mm->addrs, 0, sizeof(MemoryAddress) * 0x10000);
 }
 
@@ -18,11 +21,6 @@ static uint8_t read_wram(MemoryMap *mm, int offset) {
 static void write_wram(MemoryMap *mm, int offset, uint8_t value) {
     MemoryMapCPUInternal *internal = mm->internal;
     internal->wram[offset] = value;
-}
-
-static uint8_t read_prg_rom(MemoryMap *mm, int offset) {
-    MemoryMapCPUInternal *internal = mm->internal;
-    return internal->prg_rom[offset];
 }
 
 static uint8_t read_ppu_register(MemoryMap *mm, int offset) {
@@ -67,15 +65,6 @@ static void write_controller_latch(MemoryMap *mm, int offset, uint8_t value) {
 
 // PPU MEMORY MAP ACCESSES //
 
-static uint8_t read_chr_memory(MemoryMap *mm, int offset) {
-    MemoryMapPPUInternal *internal = mm->internal;
-    return internal->chr_memory[offset];
-}
-static void write_chr_memory(MemoryMap *mm, int offset, uint8_t value) {
-    MemoryMapPPUInternal *internal = mm->internal;
-    internal->chr_memory[offset] = value;
-}
-
 static uint8_t read_nametables(MemoryMap *mm, int offset) {
     MemoryMapPPUInternal *internal = mm->internal;
     return internal->nt_layout[offset / SIZE_NAMETABLE]
@@ -108,12 +97,11 @@ static void write_palettes(MemoryMap *mm, int offset, uint8_t value) {
 // PUBLIC FUNCTIONS //
 
 void memory_map_cpu_init(MemoryMap *mm, MemoryMapCPUInternal *internal,
-                         const Cartridge *cart, PPUState *ppu) {
-    init_common(mm);
+                         Cartridge *cart, PPUState *ppu) {
+    init_common(mm, cart);
     
     mm->internal = internal;
     internal->ppu = ppu;
-    internal->prg_rom = cart->prg_rom;
     memset(internal->wram, 0, SIZE_WRAM);
     internal->controllers[0] = internal->controllers[1] = 0;
     internal->controller_bit = 8;
@@ -138,19 +126,14 @@ void memory_map_cpu_init(MemoryMap *mm, MemoryMapCPUInternal *internal,
         {read_controllers, write_controller_latch, 0};
     mm->addrs[0x4017] = (MemoryAddress)
         {read_controllers, NULL, 1};
-    // 4018-7FFF: Cartridge I/O, unused for regular NROM so open bus for now
-    // 8000-FFFF: PRG ROM (32kB, repeated if 16kB)
-    for (i = 0; i < SIZE_PRG_ROM; i++) {
-        mm->addrs[i + 0x8000] = (MemoryAddress)
-            {read_prg_rom, NULL, i % cart->prg_rom_size};
-    }
+    // 4018-401F: Unused
+    // 4020-FFFF: Cartridge I/O, defined by the mapper's init
 }
 
 void memory_map_ppu_init(MemoryMap *mm, MemoryMapPPUInternal *internal,
-                         const Cartridge *cart) {
-    init_common(mm);
+                         Cartridge *cart) {
+    init_common(mm, cart);
     mm->internal = internal;
-    internal->chr_memory = cart->chr_memory;
     
     // Wipe the various memory structures
     memset(internal->nametables[0], 0, SIZE_NAMETABLE);
@@ -166,11 +149,7 @@ void memory_map_ppu_init(MemoryMap *mm, MemoryMapPPUInternal *internal,
     
     // Populate the address map
     int i, j;
-    // 0000-1FFF: CHR ROM
-    for (i = 0; i < 0x2000; i++) {
-        mm->addrs[i] = (MemoryAddress)
-            {read_chr_memory, (cart->chr_is_ram ? write_chr_memory : NULL), i};
-    }
+    // 0000-1FFF: Cartridge I/O, defined by the mapper's init
     // 2000-3EFF: Nametables
     for (i = 0; i < 0x1EFF; i++) {
         mm->addrs[i + 0x2000] = (MemoryAddress)
@@ -187,10 +166,7 @@ void memory_map_ppu_init(MemoryMap *mm, MemoryMapPPUInternal *internal,
                 {read_palettes, write_palettes, j};
         }
     }
-    // 4000-FFFF: Invalid range, mirrors the above
-    for (i = 0x4000; i < 0x10000; i++) {
-        mm->addrs[i] = mm->addrs[i - 0x4000];
-    }
+    // 4000-FFFF: Invalid range
 }
 
 uint8_t mm_read(MemoryMap *mm, uint16_t addr) {
