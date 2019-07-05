@@ -30,31 +30,34 @@ typedef struct {
     int offset;
 } MemoryAddress;
 
-struct MemoryMap {
-    uint8_t last_read;
-    void *internal;
-    Cartridge *cart;
-    MemoryAddress addrs[0x10000];
-};
-
 typedef struct {
     PPUState *ppu;
     uint8_t wram[SIZE_WRAM];
     uint8_t controllers[2];
     int controller_bit;
-} MemoryMapCPUInternal;
+} MemoryMapCPUData;
 
 typedef struct {
     uint8_t nametables[2][SIZE_NAMETABLE];
     uint8_t *nt_layout[4];
     uint8_t background_colors[4];
     uint8_t palettes[8 * 3];
-} MemoryMapPPUInternal;
+} MemoryMapPPUData;
 
-void memory_map_cpu_init(MemoryMap *mm, MemoryMapCPUInternal *i,
-                         Cartridge *cart, PPUState *ppu);
-void memory_map_ppu_init(MemoryMap *mm, MemoryMapPPUInternal *i,
-                         Cartridge *cart);
+typedef union {
+    MemoryMapCPUData cpu;
+    MemoryMapPPUData ppu;
+} MemoryMapData;
+
+struct MemoryMap {
+    uint8_t last_read;
+    MemoryMapData data;
+    Cartridge *cart;
+    MemoryAddress addrs[0x10000];
+};
+
+void memory_map_cpu_init(MemoryMap *mm, Cartridge *cart, PPUState *ppu);
+void memory_map_ppu_init(MemoryMap *mm, Cartridge *cart);
 
 uint8_t mm_read(MemoryMap *mm, uint16_t addr);
 uint16_t mm_read_word(MemoryMap *mm, uint16_t addr);

@@ -30,7 +30,7 @@ static const uint32_t colors[] = {
 
 static bool render_pattern_row(PPUState *ppu, uint16_t pt_addr, int pos_x,
                         int palette, bool flip_h, bool clip) {
-    MemoryMapPPUInternal *internal = ppu->mm->internal;
+    uint8_t *palettes = ppu->mm->data.ppu.palettes;
     const int line = ppu->scanline - 21;
     uint8_t b0 = mm_read(ppu->mm, pt_addr);
     uint8_t b1 = mm_read(ppu->mm, pt_addr | (1 << 3));
@@ -50,7 +50,7 @@ static bool render_pattern_row(PPUState *ppu, uint16_t pt_addr, int pos_x,
                             (b1 & (1 << jj) ? 2 : 0);
         if (palette_index) {
             ppu->screen[line * WIDTH + pos] =
-                colors[internal->palettes[palette * 3 + palette_index - 1]];
+                colors[palettes[palette * 3 + palette_index - 1]];
         }
     }
     return true;
@@ -134,8 +134,6 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
 }
 
 bool ppu_scanline(PPUState *ppu) {
-    MemoryMapPPUInternal *internal = ppu->mm->internal;
-    
     // Scanlines 0-19: Vblank period
     if (ppu->scanline == 0) {
         ppu->status |= STATUS_VBLANK;
@@ -156,9 +154,9 @@ bool ppu_scanline(PPUState *ppu) {
         const int line = ppu->scanline - 21;
         
         // Fill the line with the current background colour
+        uint32_t bg_color = colors[ppu->mm->data.ppu.background_colors[0]];
         for (int i = 0; i < WIDTH; i++) {
-            ppu->screen[line * WIDTH + i] =
-                colors[internal->background_colors[0]];
+            ppu->screen[line * WIDTH + i] = bg_color;
         }
         
         // Fetch up to 8 suitable sprites

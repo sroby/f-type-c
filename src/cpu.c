@@ -630,9 +630,8 @@ void cpu_debug_print_state(CPUState *cpu) {
         printf("%c", (cpu->p & (1 << i) ? "czidb-vn"[i] : '.'));
     }
     printf("] S=%02x{", cpu->s);
-    MemoryMapCPUInternal *internal = cpu->mm->internal;
     for (int i = 0xff; i > cpu->s; i--) {
-        printf(" %02x", internal->wram[0x100 + i]);
+        printf(" %02x", cpu->mm->data.cpu.wram[0x100 + i]);
     }
     printf(" }\n");
 }

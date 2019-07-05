@@ -13,13 +13,11 @@ void machine_loop(Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
     CPUState cpu;
     PPUState ppu;
     MemoryMap cpu_mm, ppu_mm;
-    MemoryMapCPUInternal cpu_mm_i;
-    MemoryMapPPUInternal ppu_mm_i;
     
     cpu_init(&cpu, &cpu_mm);
     ppu_init(&ppu, &ppu_mm, &cpu);
-    memory_map_cpu_init(&cpu_mm, &cpu_mm_i, cart, &ppu);
-    memory_map_ppu_init(&ppu_mm, &ppu_mm_i, cart);
+    memory_map_cpu_init(&cpu_mm, cart, &ppu);
+    memory_map_ppu_init(&ppu_mm, cart);
     cart_init(cart, &cpu_mm, &ppu_mm);
 
     const char *const verb_char = getenv("VERBOSE");
@@ -35,7 +33,7 @@ void machine_loop(Cartridge *cart, const DebugMap *dbg_map, Window *wnd) {
     uint64_t next_frame = SDL_GetPerformanceCounter();
     while(true) {
         // Process events
-        if (window_process_events(wnd, cpu_mm_i.controllers)) {
+        if (window_process_events(wnd, cpu_mm.data.cpu.controllers)) {
             break;
         }
         

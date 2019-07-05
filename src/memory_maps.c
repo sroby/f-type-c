@@ -15,41 +15,36 @@ static void init_common(MemoryMap *mm, Cartridge *cart) {
 // CPU MEMORY MAP ACCESSES //
 
 static uint8_t read_wram(MemoryMap *mm, int offset) {
-    MemoryMapCPUInternal *internal = mm->internal;
-    return internal->wram[offset];
+    return mm->data.cpu.wram[offset];
 }
 static void write_wram(MemoryMap *mm, int offset, uint8_t value) {
-    MemoryMapCPUInternal *internal = mm->internal;
-    internal->wram[offset] = value;
+    mm->data.cpu.wram[offset] = value;
 }
 
 static uint8_t read_ppu_register(MemoryMap *mm, int offset) {
-    MemoryMapCPUInternal *internal = mm->internal;
-    return ppu_read_register(internal->ppu, offset);
+    return ppu_read_register(mm->data.cpu.ppu, offset);
 }
 static void write_ppu_register(MemoryMap *mm, int offset, uint8_t value) {
-    MemoryMapCPUInternal *internal = mm->internal;
-    ppu_write_register(internal->ppu, offset, value);
+    ppu_write_register(mm->data.cpu.ppu, offset, value);
 }
 
 static void write_oam_dma(MemoryMap *mm, int offset, uint8_t value) {
     if (value == 0x40) {
         return; // Avoid a (very unlikely) infinite loop
     }
-    MemoryMapCPUInternal *internal = mm->internal;
     uint8_t page[0x100];
     uint16_t page_addr = (uint16_t)value << 8;
     for (int i = 0; i < 0x100; i++) {
         page[i] = mm_read(mm, page_addr + i);
     }
-    ppu_write_oam_dma(internal->ppu, page);
+    ppu_write_oam_dma(mm->data.cpu.ppu, page);
 }
 
 static uint8_t read_controllers(MemoryMap *mm, int offset) {
-    MemoryMapCPUInternal *internal = mm->internal;
     uint8_t value = mm->last_read & 0b11100000;
-    if (internal->controller_bit < 8) {
-        if (internal->controllers[offset] & (1 << internal->controller_bit++)) {
+    if (mm->data.cpu.controller_bit < 8) {
+        if (mm->data.cpu.controllers[offset] &
+            (1 << mm->data.cpu.controller_bit++)) {
             value++;
         }
     }
@@ -58,53 +53,45 @@ static uint8_t read_controllers(MemoryMap *mm, int offset) {
 
 static void write_controller_latch(MemoryMap *mm, int offset, uint8_t value) {
     if (value & 1) {
-        MemoryMapCPUInternal *internal = mm->internal;
-        internal->controller_bit = 0;
+        mm->data.cpu.controller_bit = 0;
     }
 }
 
 // PPU MEMORY MAP ACCESSES //
 
 static uint8_t read_nametables(MemoryMap *mm, int offset) {
-    MemoryMapPPUInternal *internal = mm->internal;
-    return internal->nt_layout[offset / SIZE_NAMETABLE]
-                              [offset % SIZE_NAMETABLE];
+    return mm->data.ppu.nt_layout[offset / SIZE_NAMETABLE]
+                                 [offset % SIZE_NAMETABLE];
 }
 static void write_nametables(MemoryMap *mm, int offset, uint8_t value) {
-    MemoryMapPPUInternal *internal = mm->internal;
-    internal->nt_layout[offset / SIZE_NAMETABLE]
-                       [offset % SIZE_NAMETABLE] = value;
+    mm->data.ppu.nt_layout[offset / SIZE_NAMETABLE]
+                          [offset % SIZE_NAMETABLE] = value;
 }
 
 static uint8_t read_background_colors(MemoryMap *mm, int offset) {
-    MemoryMapPPUInternal *internal = mm->internal;
-    return internal->background_colors[offset];
+    return mm->data.ppu.background_colors[offset];
 }
 static void write_background_colors(MemoryMap *mm, int offset, uint8_t value) {
-    MemoryMapPPUInternal *internal = mm->internal;
-    internal->background_colors[offset] = value;
+    mm->data.ppu.background_colors[offset] = value;
 }
 
 static uint8_t read_palettes(MemoryMap *mm, int offset) {
-    MemoryMapPPUInternal *internal = mm->internal;
-    return internal->palettes[offset];
+    return mm->data.ppu.palettes[offset];
 }
 static void write_palettes(MemoryMap *mm, int offset, uint8_t value) {
-    MemoryMapPPUInternal *internal = mm->internal;
-    internal->palettes[offset] = value;
+    mm->data.ppu.palettes[offset] = value;
 }
 
 // PUBLIC FUNCTIONS //
 
-void memory_map_cpu_init(MemoryMap *mm, MemoryMapCPUInternal *internal,
-                         Cartridge *cart, PPUState *ppu) {
+void memory_map_cpu_init(MemoryMap *mm, Cartridge *cart, PPUState *ppu) {
     init_common(mm, cart);
+    MemoryMapCPUData *data = &mm->data.cpu;
     
-    mm->internal = internal;
-    internal->ppu = ppu;
-    memset(internal->wram, 0, SIZE_WRAM);
-    internal->controllers[0] = internal->controllers[1] = 0;
-    internal->controller_bit = 8;
+    data->ppu = ppu;
+    memset(data->wram, 0, SIZE_WRAM);
+    data->controllers[0] = data->controllers[1] = 0;
+    data->controller_bit = 8;
     
     // Populate the address map
     int i;
@@ -130,22 +117,21 @@ void memory_map_cpu_init(MemoryMap *mm, MemoryMapCPUInternal *internal,
     // 4020-FFFF: Cartridge I/O, defined by the mapper's init
 }
 
-void memory_map_ppu_init(MemoryMap *mm, MemoryMapPPUInternal *internal,
-                         Cartridge *cart) {
+void memory_map_ppu_init(MemoryMap *mm, Cartridge *cart) {
     init_common(mm, cart);
-    mm->internal = internal;
+    MemoryMapPPUData *data = &mm->data.ppu;
     
     // Wipe the various memory structures
-    memset(internal->nametables[0], 0, SIZE_NAMETABLE);
-    memset(internal->nametables[1], 0, SIZE_NAMETABLE);
-    memset(internal->background_colors, 0, 4);
-    memset(internal->palettes, 0, 8 * 3);
+    memset(data->nametables[0], 0, SIZE_NAMETABLE);
+    memset(data->nametables[1], 0, SIZE_NAMETABLE);
+    memset(data->background_colors, 0, 4);
+    memset(data->palettes, 0, 8 * 3);
     
     // Define nametable memory layout
-    internal->nt_layout[0] = internal->nametables[0];
-    internal->nt_layout[1] = internal->nametables[cart->mirroring ? 1 : 0];
-    internal->nt_layout[2] = internal->nametables[cart->mirroring ? 0 : 1];
-    internal->nt_layout[3] = internal->nametables[1];
+    data->nt_layout[0] = data->nametables[0];
+    data->nt_layout[1] = data->nametables[cart->mirroring ? 1 : 0];
+    data->nt_layout[2] = data->nametables[cart->mirroring ? 0 : 1];
+    data->nt_layout[3] = data->nametables[1];
     
     // Populate the address map
     int i, j;
