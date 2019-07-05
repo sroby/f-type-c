@@ -100,7 +100,7 @@ void memory_map_cpu_init(MemoryMap *mm, Cartridge *cart, PPUState *ppu) {
     }
     // 2000-3FFF: PPU registers (8, repeated)
     for (int i = 0; i < 0x2000; i++) {
-        mm->addrs[i + 0x2000] = (MemoryAddress)
+        mm->addrs[0x2000 + i] = (MemoryAddress)
             {read_ppu_register, write_ppu_register, i % 8};
     }
     // 4000-4017: APU registers, not implemented for now,
@@ -132,7 +132,7 @@ void memory_map_ppu_init(MemoryMap *mm, Cartridge *cart) {
     // 0000-1FFF: Cartridge I/O, defined by the mapper's init
     // 2000-3EFF: Nametables
     for (int i = 0; i < 0x1EFF; i++) {
-        mm->addrs[i + 0x2000] = (MemoryAddress)
+        mm->addrs[0x2000 + i] = (MemoryAddress)
             {read_nametables, write_nametables, i % (SIZE_NAMETABLE * 4)};
     }
     // 3F00-3FFF: Palettes
