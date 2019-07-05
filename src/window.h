@@ -7,6 +7,7 @@
 #define AXIS_DEADZONE 0x3fff
 
 // Forward declarations
+typedef struct Machine Machine;
 typedef struct PPUState PPUState;
 
 typedef struct Window {
@@ -20,7 +21,6 @@ typedef struct Window {
 int window_init(Window *wnd, const char *filename);
 void window_cleanup(Window *wnd);
 
-void window_update_screen(Window *wnd, const PPUState *ppu);
-bool window_process_events(Window *wnd, uint8_t *controllers);
+void window_loop(Window *wnd, Machine *vm);
 
 #endif /* window_h */

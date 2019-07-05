@@ -1,7 +1,16 @@
 #include "window.h"
 
+#include "machine.h"
 #include "memory_maps.h"
 #include "ppu.h"
+
+// Button assignments
+// Hardcoded to PS4 controller (and 8bitdo's "macOS mode") for now
+// A, B, Select, Start, Up, Down, Left, Right
+static const int buttons[] = {1, 0, 4, 6, 11, 12, 13, 14};
+
+static const SDL_Rect screen_visible_area =
+    {0, (HEIGHT - HEIGHT_CROPPED) / 2, WIDTH, HEIGHT_CROPPED};
 
 static int identify_js(Window *wnd, SDL_JoystickID which) {
     for (int i = 0; i < 2; i++) {
@@ -97,87 +106,108 @@ void window_cleanup(Window *wnd) {
     SDL_Quit();
 }
 
-void window_update_screen(Window *wnd, const PPUState *ppu) {
-    static const SDL_Rect screen_visible_area =
-        {0, (HEIGHT - HEIGHT_CROPPED) / 2, WIDTH, HEIGHT_CROPPED};
-    SDL_UpdateTexture(wnd->texture, NULL, ppu->screen,
-                      WIDTH * sizeof(uint32_t));
-    SDL_RenderClear(wnd->renderer);
-    SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area, NULL);
-    SDL_RenderPresent(wnd->renderer);
-}
-
-bool window_process_events(Window *wnd, uint8_t *controllers) {
-    // Button assignments
-    // Hardcoded to PS4 controller (and 8bitdo's "macOS mode") for now
-    // A, B, Select, Start, Up, Down, Left, Right
-    static const int buttons[] = {1, 0, 4, 6, 11, 12, 13, 14};
+void window_loop(Window *wnd, Machine *vm) {
+    const char *const verb_char = getenv("VERBOSE");
+    const bool verbose = verb_char ? *verb_char - '0' : false;
+    const uint64_t ticks_per_frame = SDL_GetPerformanceFrequency() *  10000
+                                                                   / 600988;
+    uint8_t *controllers = vm->cpu_mm.data.cpu.controllers;
     
-    SDL_Event event;
-    int cid;
-    while (SDL_PollEvent(&event)) {
-        switch (event.type) {
-            case SDL_JOYAXISMOTION:
-                if (event.jaxis.axis >= 2) {
-                    break;
-                }
-                cid = identify_js(wnd, event.jaxis.which);
-                if (cid < 0) {
-                    break;
-                }
-                if (!wnd->js_use_axis[cid]) {
-                    if (abs(event.jaxis.value) < AXIS_DEADZONE) {
+    // Main loop
+    int frame = 0;
+    uint64_t next_frame = SDL_GetPerformanceCounter();
+    while(true) {
+        // Process events
+        bool quitting = false;
+        SDL_Event event;
+        int cid;
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_JOYAXISMOTION:
+                    if (event.jaxis.axis >= 2) {
                         break;
                     }
-                    controllers[cid] &= 0b1111;
-                    wnd->js_use_axis[cid] = true;
-                }
-                if (event.jaxis.axis == 0) {
-                    controllers[cid] &= ~(BUTTON_LEFT | BUTTON_RIGHT);
-                    if (event.jaxis.value < -AXIS_DEADZONE) {
-                        controllers[cid] |= BUTTON_LEFT;
-                    } else if (event.jaxis.value > AXIS_DEADZONE) {
-                        controllers[cid] |= BUTTON_RIGHT;
-                    }
-                } else if (event.jaxis.axis == 1) {
-                    controllers[cid] &= ~(BUTTON_UP | BUTTON_DOWN);
-                    if (event.jaxis.value < -AXIS_DEADZONE) {
-                        controllers[cid] |= BUTTON_UP;
-                    } else if (event.jaxis.value > AXIS_DEADZONE) {
-                        controllers[cid] |= BUTTON_DOWN;
-                    }
-                }
-                /*printf("P%d A%d:%d => %d\n", cid + 1,
-                       event.jaxis.axis, event.jaxis.value,
-                       controllers[cid]);*/
-                break;
-            case SDL_JOYBUTTONDOWN:
-            case SDL_JOYBUTTONUP:
-                cid = identify_js(wnd, event.jbutton.which);
-                if (cid < 0) {
-                    break;
-                }
-                for (int i = 0; i < 8; i++) {
-                    if (event.jbutton.button == buttons[i]) {
-                        if (i > 3 && wnd->js_use_axis[cid]) {
-                            controllers[cid] &= 0b1111;
-                            wnd->js_use_axis[cid] = false;
-                        }
-                        if (event.jbutton.state == SDL_PRESSED) {
-                            controllers[cid] |= 1 << i;
-                        } else {
-                            controllers[cid] &= ~(1 << i);
-                        }
+                    cid = identify_js(wnd, event.jaxis.which);
+                    if (cid < 0) {
                         break;
                     }
-                }
-                /*printf("P%d B%d:%d => %d\n", cid + 1,
-                       event.jbutton.button, event.jbutton.state,
-                       controllers[cid]);*/
-                break;
-            case SDL_QUIT:
-                return true;
+                    if (!wnd->js_use_axis[cid]) {
+                        if (abs(event.jaxis.value) < AXIS_DEADZONE) {
+                            break;
+                        }
+                        controllers[cid] &= 0b1111;
+                        wnd->js_use_axis[cid] = true;
+                    }
+                    if (event.jaxis.axis == 0) {
+                        controllers[cid] &= ~(BUTTON_LEFT | BUTTON_RIGHT);
+                        if (event.jaxis.value < -AXIS_DEADZONE) {
+                            controllers[cid] |= BUTTON_LEFT;
+                        } else if (event.jaxis.value > AXIS_DEADZONE) {
+                            controllers[cid] |= BUTTON_RIGHT;
+                        }
+                    } else if (event.jaxis.axis == 1) {
+                        controllers[cid] &= ~(BUTTON_UP | BUTTON_DOWN);
+                        if (event.jaxis.value < -AXIS_DEADZONE) {
+                            controllers[cid] |= BUTTON_UP;
+                        } else if (event.jaxis.value > AXIS_DEADZONE) {
+                            controllers[cid] |= BUTTON_DOWN;
+                        }
+                    }
+                    /*printf("P%d A%d:%d => %d\n", cid + 1,
+                     event.jaxis.axis, event.jaxis.value,
+                     controllers[cid]);*/
+                    break;
+                case SDL_JOYBUTTONDOWN:
+                case SDL_JOYBUTTONUP:
+                    cid = identify_js(wnd, event.jbutton.which);
+                    if (cid < 0) {
+                        break;
+                    }
+                    for (int i = 0; i < 8; i++) {
+                        if (event.jbutton.button == buttons[i]) {
+                            if (i > 3 && wnd->js_use_axis[cid]) {
+                                controllers[cid] &= 0b1111;
+                                wnd->js_use_axis[cid] = false;
+                            }
+                            if (event.jbutton.state == SDL_PRESSED) {
+                                controllers[cid] |= 1 << i;
+                            } else {
+                                controllers[cid] &= ~(1 << i);
+                            }
+                            break;
+                        }
+                    }
+                    /*printf("P%d B%d:%d => %d\n", cid + 1,
+                     event.jbutton.button, event.jbutton.state,
+                     controllers[cid]);*/
+                    break;
+                case SDL_QUIT:
+                    quitting = true;
+            }
         }
+        if (quitting) {
+            break;
+        }
+        
+        // Throttle the execution until we are due for a new frame
+        if (SDL_GetPerformanceCounter() < next_frame) {
+            SDL_Delay(1);
+            continue;
+        }
+        next_frame += ticks_per_frame;
+        
+        // Advance one frame
+        machine_advance_frame(vm, verbose);
+        
+        // Render the frame
+        SDL_UpdateTexture(wnd->texture, NULL, vm->ppu.screen,
+                          WIDTH * sizeof(uint32_t));
+        SDL_RenderClear(wnd->renderer);
+        SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area, NULL);
+        SDL_RenderPresent(wnd->renderer);
+
+        frame++;
     }
-    return false;
+    
+    printf("Ended after %d frames\n", frame);
 }

@@ -93,7 +93,10 @@ int main(int argc, const char *argv[]) {
         return error_code;
     }
     
-    machine_loop(&cart, dbg_map, &wnd);
+    Machine vm;
+    machine_init(&vm, &cart, dbg_map);
+    
+    window_loop(&wnd, &vm);
     
     window_cleanup(&wnd);
         
