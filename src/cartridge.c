@@ -16,6 +16,7 @@ static void generic_write_chr(MemoryMap *mm, int offset, uint8_t value) {
 }
 
 static void generic_init_cpu(MemoryMap *mm) {
+    // 8000-FFFF: PRG ROM (32kB, repeated if 16kB)
     for (int i = 0; i < SIZE_PRG_ROM; i++) {
         mm->addrs[0x8000 + i] = (MemoryAddress)
             {generic_read_prg, NULL, i % mm->cart->prg_rom_size};
@@ -23,6 +24,7 @@ static void generic_init_cpu(MemoryMap *mm) {
 }
 
 static void generic_init_ppu(MemoryMap *mm) {
+    // 0000-1FFF: CHR ROM
     for (int i = 0; i < 0x2000; i++) {
         mm->addrs[i] = (MemoryAddress) {generic_read_chr,
             (mm->cart->chr_is_ram ? generic_write_chr : NULL), i};
@@ -50,6 +52,8 @@ static void UxROM_init(Cartridge *cart, MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     cart->mapper.uxrom_bank = 0;
     
     const int last_bank = cart->prg_rom_size - SIZE_PRG_ROM / 2;
+    // 8000-BFFF: 16kB switchable bank
+    // C000-FFFF: 16kB fixed to the last bank
     for (int i = 0; i < SIZE_PRG_ROM / 2; i++) {
         cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
             {UxROM_read_banked_prg, UxROM_write_bank_select, i};
