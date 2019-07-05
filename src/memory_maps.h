@@ -41,7 +41,7 @@ typedef struct {
     PPUState *ppu;
     uint8_t wram[SIZE_WRAM];
     uint8_t controllers[2];
-    int controller_bit;
+    int controller_bit[2];
 } MemoryMapCPUData;
 
 typedef struct {

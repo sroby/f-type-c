@@ -42,9 +42,9 @@ static void write_oam_dma(MemoryMap *mm, int offset, uint8_t value) {
 
 static uint8_t read_controllers(MemoryMap *mm, int offset) {
     uint8_t value = mm->last_read & 0b11100000;
-    if (mm->data.cpu.controller_bit < 8) {
+    if (mm->data.cpu.controller_bit[offset] < 8) {
         if (mm->data.cpu.controllers[offset] &
-            (1 << mm->data.cpu.controller_bit++)) {
+            (1 << mm->data.cpu.controller_bit[offset]++)) {
             value++;
         }
     }
@@ -53,7 +53,7 @@ static uint8_t read_controllers(MemoryMap *mm, int offset) {
 
 static void write_controller_latch(MemoryMap *mm, int offset, uint8_t value) {
     if (value & 1) {
-        mm->data.cpu.controller_bit = 0;
+        mm->data.cpu.controller_bit[0] = mm->data.cpu.controller_bit[1] = 0;
     }
 }
 
@@ -91,7 +91,7 @@ void memory_map_cpu_init(MemoryMap *mm, Cartridge *cart, PPUState *ppu) {
     data->ppu = ppu;
     memset(data->wram, 0, sizeof(data->wram));
     data->controllers[0] = data->controllers[1] = 0;
-    data->controller_bit = 8;
+    data->controller_bit[0] = data->controller_bit[1] = 8;
     
     // Populate the address map
     // 0000-1FFF: WRAM (2kB, repeated)
