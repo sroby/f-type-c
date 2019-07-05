@@ -1,5 +1,6 @@
 # Avoid accidentally committing ROMs
 *.nes
 
-# Binary
+# Makefile output
 f-type
+f-type.dSYM
