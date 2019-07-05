@@ -1,6 +1,7 @@
 #include "cartridge.h"
 
 #include "memory_maps.h"
+#include "ppu.h"
 
 // GENERIC MAPPER I/O //
 
@@ -38,10 +39,10 @@ static void NROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     generic_init_ppu(ppu_mm);
 }
 
-// MAPPER 2: UxROM (bank switchable PRG ROM) //
+// MAPPER 2: UxROM (bank switchable + fixed PRG ROM) //
 
 static uint8_t UxROM_read_banked_prg(MemoryMap *mm, int offset) {
-    return mm->cart->prg_rom[mm->cart->mapper.bank * 0x4000 + offset];
+    return mm->cart->prg_rom[mm->cart->mapper.bank * SIZE_PRG_ROM / 2 + offset];
 }
 
 static void UxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
@@ -50,7 +51,7 @@ static void UxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
 }
 
 static void UxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    cpu_mm->cart->mapper.bank = 0;
+    UxROM_write_register(cpu_mm, 0, 0);
     
     const int last_bank = cpu_mm->cart->prg_rom_size - SIZE_PRG_ROM / 2;
     // CPU 8000-BFFF: 16kB switchable bank
@@ -76,7 +77,7 @@ static uint8_t CNROM_read_banked_chr(MemoryMap *mm, int offset) {
 }
 
 static void CNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    cpu_mm->cart->mapper.bank = 0;
+    CNROM_write_register(cpu_mm, 0, 0);
     
     // CPU 8000-FFFF: Generic but with a register
     generic_init_cpu(cpu_mm);
@@ -90,12 +91,37 @@ static void CNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     }
 }
 
+// MAPPER 7: AxROM (bank switchable PRG ROM, single nametable toggle) //
+
+static uint8_t AxROM_read_banked_prg(MemoryMap *mm, int offset) {
+    return mm->cart->prg_rom[mm->cart->mapper.bank * SIZE_PRG_ROM + offset];
+}
+
+static void AxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
+    mm->cart->mapper.bank = value & 0b111;
+    mm_ppu_set_nt_mirroring(&mm->data.cpu.ppu->mm->data.ppu,
+                            (value & 0b10000 ? SINGLE_B : SINGLE_A));
+}
+
+static void AxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+    AxROM_write_register(cpu_mm, 0, 0);
+    
+    // CPU 8000-FFFF: Single switchable bank
+    for (int i = 0; i < SIZE_PRG_ROM; i++) {
+        cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
+            {AxROM_read_banked_prg, AxROM_write_register, i};
+    }
+    
+    generic_init_ppu(ppu_mm);
+}
+
 // MAPPER ENUMERATION ARRAY //
 
 static const MapperInfo mappers[] = {
     {0, "NROM", NROM_init},
     {2, "UxROM", UxROM_init},
     {3, "CNROM", CNROM_init},
+    {7, "AxROM", AxROM_init},
 };
 static const size_t mappers_len = sizeof(mappers) / sizeof(MapperInfo);
 

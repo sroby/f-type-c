@@ -24,6 +24,13 @@ typedef struct MemoryMap MemoryMap;
 typedef struct PPUState PPUState;
 typedef struct Cartridge Cartridge;
 
+typedef enum {
+    SINGLE_A = 0,
+    SINGLE_B = 1,
+    HORIZONTAL = 2,
+    VERTICAL = 3,
+} NametableMirroring;
+
 typedef struct {
     uint8_t (*read_func)(MemoryMap *, int);
     void (*write_func)(MemoryMap *, int, uint8_t);
@@ -64,5 +71,7 @@ uint16_t mm_read_word(MemoryMap *mm, uint16_t addr);
 
 void mm_write(MemoryMap *mm, uint16_t addr, uint8_t value);
 void mm_write_word(MemoryMap *mm, uint16_t addr, uint16_t value);
+
+void mm_ppu_set_nt_mirroring(MemoryMapPPUData *data, NametableMirroring m);
 
 #endif /* memory_maps_h */

@@ -86,8 +86,8 @@ static void write_palettes(MemoryMap *mm, int offset, uint8_t value) {
 
 void memory_map_cpu_init(MemoryMap *mm, Cartridge *cart, PPUState *ppu) {
     init_common(mm, cart);
-    MemoryMapCPUData *data = &mm->data.cpu;
     
+    MemoryMapCPUData *data = &mm->data.cpu;
     data->ppu = ppu;
     memset(data->wram, 0, sizeof(data->wram));
     data->controllers[0] = data->controllers[1] = 0;
@@ -118,19 +118,15 @@ void memory_map_cpu_init(MemoryMap *mm, Cartridge *cart, PPUState *ppu) {
 
 void memory_map_ppu_init(MemoryMap *mm, Cartridge *cart) {
     init_common(mm, cart);
+    
     MemoryMapPPUData *data = &mm->data.ppu;
+    mm_ppu_set_nt_mirroring(data, (cart->mirroring ? VERTICAL : HORIZONTAL));
     
     // Wipe the various memory structures
     memset(data->nametables[0], 0, SIZE_NAMETABLE);
     memset(data->nametables[1], 0, SIZE_NAMETABLE);
     memset(data->background_colors, 0, sizeof(data->background_colors));
     memset(data->palettes, 0, sizeof(data->background_colors));
-    
-    // Define nametable memory layout
-    data->nt_layout[0] = data->nametables[0];
-    data->nt_layout[1] = data->nametables[cart->mirroring ? 1 : 0];
-    data->nt_layout[2] = data->nametables[cart->mirroring ? 0 : 1];
-    data->nt_layout[3] = data->nametables[1];
     
     // Populate the address map
     // 0000-1FFF: Cartridge I/O, defined by the mapper's init
@@ -173,4 +169,17 @@ void mm_write(MemoryMap *mm, uint16_t addr, uint8_t value) {
 void mm_write_word(MemoryMap *mm, uint16_t addr, uint16_t value) {
     mm_write(mm, addr, value & 0xff);
     mm_write(mm, addr + 1, value >> 8);
+}
+
+void mm_ppu_set_nt_mirroring(MemoryMapPPUData *data, NametableMirroring m) {
+    static const int layouts[] = {
+        0, 0, 0, 0, // SINGLE_A
+        1, 1, 1, 1, // SINGLE_B
+        0, 0, 1, 1, // HORIZONTAL
+        0, 1, 0, 1, // VERTICAL
+    };
+    const int *layout = layouts + m * 4;
+    for (int i = 0; i < 4; i++) {
+        data->nt_layout[i] = data->nametables[layout[i]];
+    }
 }
