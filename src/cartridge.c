@@ -70,7 +70,7 @@ static void UxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 3: CNROM (bank switchable CHR ROM) //
 
 static void CNROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
-    mm->cart->mapper.bank = value;
+    mm->cart->mapper.bank = value & 0b11;
 }
 
 static uint8_t CNROM_read_banked_chr(MemoryMap *mm, int offset) {
@@ -151,6 +151,28 @@ static void CPROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     }
 }
 
+// MAPPER 34: BNROM (bank switchable PRG ROM) //
+
+static uint8_t BNROM_read_banked_prg(MemoryMap *mm, int offset) {
+    return mm->cart->prg_rom[mm->cart->mapper.bank * SIZE_PRG_ROM + offset];
+}
+
+static void BNROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
+    mm->cart->mapper.bank = value;
+}
+
+static void BNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+    BNROM_write_register(cpu_mm, 0, 0);
+    
+    // CPU 8000-FFFF: Single switchable bank
+    for (int i = 0; i < SIZE_PRG_ROM; i++) {
+        cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
+            {BNROM_read_banked_prg, BNROM_write_register, i};
+    }
+    
+    generic_init_ppu(ppu_mm);
+}
+
 // MAPPER ENUMERATION ARRAY //
 
 static const MapperInfo mappers[] = {
@@ -159,6 +181,7 @@ static const MapperInfo mappers[] = {
     {  3, "CNROM", CNROM_init},
     {  7, "AxROM", AxROM_init},
     { 13, "CPROM", CPROM_init},
+    { 34, "BNROM", BNROM_init},
 };
 static const size_t mappers_len = sizeof(mappers) / sizeof(MapperInfo);
 
