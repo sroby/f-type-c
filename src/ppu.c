@@ -1,5 +1,3 @@
-#include <string.h>
-
 #include "ppu.h"
 
 #include "cpu.h"

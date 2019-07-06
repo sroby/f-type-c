@@ -1,6 +1,5 @@
 #include "common.h"
 #include <libgen.h>
-#include <string.h>
 
 #include "cartridge.h"
 #include "machine.h"

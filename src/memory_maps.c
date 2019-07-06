@@ -1,5 +1,3 @@
-#include <string.h>
-
 #include "memory_maps.h"
 
 #include "cartridge.h"
