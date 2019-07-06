@@ -24,7 +24,6 @@ typedef struct Machine {
     PPUState ppu;
     MemoryMap cpu_mm;
     MemoryMap ppu_mm;
-    Cartridge *cart;
     const DebugMap *dbg_map;
 } Machine;
 
