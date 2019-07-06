@@ -189,14 +189,13 @@ bool mapper_check_support(int mapper_id, const char **name) {
     return false;
 }
 
-bool mapper_init(Cartridge *cart, MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+void mapper_init(Cartridge *cart, MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     memset(&cart->mapper, 0, sizeof(MapperData));
     
     for (int i = 0; i < mappers_len; i++) {
         if (mappers[i].ines_id == cart->mapper_id) {
             (*mappers[i].init_func)(cpu_mm, ppu_mm);
-            return true;
+            break;
         }
     }
-    return false;
 }
