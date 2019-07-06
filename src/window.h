@@ -6,6 +6,8 @@
 
 #define AXIS_DEADZONE 0x3fff
 
+#define QUIT_REQUEST_DELAY 60
+
 // Forward declarations
 typedef struct Machine Machine;
 typedef struct PPUState PPUState;

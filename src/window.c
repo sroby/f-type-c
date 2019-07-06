@@ -115,6 +115,7 @@ void window_loop(Window *wnd, Machine *vm) {
     
     // Main loop
     int frame = 0;
+    int quit_request = 0;
     uint64_t next_frame = SDL_GetPerformanceCounter();
     while(true) {
         // Process events
@@ -181,12 +182,39 @@ void window_loop(Window *wnd, Machine *vm) {
                      event.jbutton.button, event.jbutton.state,
                      controllers[cid]);*/
                     break;
+                case SDL_KEYDOWN:
+                    switch (event.key.keysym.scancode) {
+                        case SDL_SCANCODE_ESCAPE:
+                            if (!quit_request) {
+                                quit_request = frame;
+                            }
+                            break;
+                        default: break;
+                    }
+                    break;
+                case SDL_KEYUP:
+                    switch (event.key.keysym.scancode) {
+                        case SDL_SCANCODE_ESCAPE:
+                            quit_request = 0;
+                            SDL_SetWindowOpacity(wnd->window, 1.0f);
+                            break;
+                        default: break;
+                    }
+                    break;
                 case SDL_QUIT:
                     quitting = true;
             }
         }
         if (quitting) {
             break;
+        }
+        if (quit_request) {
+            int elapsed = frame - quit_request;
+            if (elapsed > QUIT_REQUEST_DELAY) {
+                break;
+            }
+            SDL_SetWindowOpacity(wnd->window, 1.0f - (float)elapsed /
+                                                     (float)QUIT_REQUEST_DELAY);
         }
         
         // Throttle the execution until we are due for a new frame
