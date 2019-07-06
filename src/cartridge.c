@@ -127,21 +127,19 @@ static void CPROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
 static void CPROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     // Expand CHR RAM to 16kB
     Cartridge *cart = cpu_mm->cart;
-    if (cart->chr_is_ram) {
-        cart->chr_memory_size = 0x4000;
-        cart->chr_memory = realloc(cart->chr_memory, cart->chr_memory_size);
-    }
+    cart->chr_is_ram = true;
+    cart->chr_memory_size = 0x4000;
+    cart->chr_memory = realloc(cart->chr_memory, cart->chr_memory_size);
     
     generic_init_cpu(cpu_mm, CPROM_write_register);
     
     // PPU 0000-0FFF: Fixed to the first bank
     // PPU 1000-1FFF: Switchable bank
     for (int i = 0; i < SIZE_CHR_ROM / 2; i++) {
-        ppu_mm->addrs[i] = (MemoryAddress) {generic_read_chr,
-            (cart->chr_is_ram ? generic_write_chr : NULL), i};
+        ppu_mm->addrs[i] = (MemoryAddress)
+            {generic_read_chr, generic_write_chr, i};
         ppu_mm->addrs[SIZE_CHR_ROM / 2 + i] = (MemoryAddress)
-            {CPROM_read_banked_chr,
-             (cart->chr_is_ram ? CPROM_write_banked_chr : NULL), i};
+            {CPROM_read_banked_chr, CPROM_write_banked_chr, i};
     }
 }
 
@@ -165,15 +163,45 @@ static void BNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     generic_init_ppu(ppu_mm);
 }
 
+// MAPPER 66: GxROM (bank switchable PRG ROM and CHR ROM) //
+
+static uint8_t GxROM_read_banked_prg(MemoryMap *mm, int offset) {
+    return mm->cart->prg_rom[(mm->cart->mapper.bank >> 4) * SIZE_PRG_ROM +                           offset];
+}
+
+static void GxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
+    mm->cart->mapper.bank = value & 0b110011;
+}
+
+static uint8_t GxROM_read_banked_chr(MemoryMap *mm, int offset) {
+    return mm->cart->chr_memory[(mm->cart->mapper.bank & 0b1111) *
+                                SIZE_CHR_ROM + offset];
+}
+
+static void GxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+    // CPU 8000-FFFF: Single switchable bank
+    for (int i = 0; i < SIZE_PRG_ROM; i++) {
+        cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
+            {GxROM_read_banked_prg, GxROM_write_register, i};
+    }
+    
+    // PPU 0000-1FFF: Single switchable bank
+    for (int i = 0; i < SIZE_CHR_ROM; i++) {
+        ppu_mm->addrs[i] = (MemoryAddress) {GxROM_read_banked_chr, NULL, i};
+    }
+}
+
 // MAPPER ENUMERATION ARRAY //
 
 static const MapperInfo mappers[] = {
+    // Nintendo discrete logic
     {  0, "NROM" ,  NROM_init},
     {  2, "UxROM", UxROM_init},
     {  3, "CNROM", CNROM_init},
     {  7, "AxROM", AxROM_init},
     { 13, "CPROM", CPROM_init},
     { 34, "BNROM", BNROM_init},
+    { 66, "GxROM", GxROM_init},
 };
 static const size_t mappers_len = sizeof(mappers) / sizeof(MapperInfo);
 
