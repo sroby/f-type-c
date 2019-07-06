@@ -6,10 +6,6 @@
 // Forward declarations
 typedef struct MemoryMap MemoryMap;
 
-typedef union MapperData {
-    int bank;
-} MapperData;
-
 typedef struct Cartridge {
     uint8_t *prg_rom;
     int prg_rom_size;
@@ -18,7 +14,12 @@ typedef struct Cartridge {
     bool chr_is_ram;
     bool mirroring;
     int mapper_id;
-    MapperData mapper;
+    
+    // Generic mapper banking
+    int prg_bank;
+    int prg_bank_size;
+    int chr_bank;
+    int chr_bank_size;
 } Cartridge;
 
 typedef struct MapperInfo {
