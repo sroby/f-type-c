@@ -25,10 +25,10 @@ typedef struct PPUState PPUState;
 typedef struct Cartridge Cartridge;
 
 typedef enum {
-    SINGLE_A = 0,
-    SINGLE_B = 1,
-    HORIZONTAL = 2,
-    VERTICAL = 3,
+    NT_SINGLE_A = 0,
+    NT_SINGLE_B = 1,
+    NT_VERTICAL = 2,
+    NT_HORIZONTAL = 3,
 } NametableMirroring;
 
 typedef struct {

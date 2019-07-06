@@ -118,7 +118,8 @@ void memory_map_ppu_init(MemoryMap *mm, Cartridge *cart) {
     init_common(mm, cart);
     
     MemoryMapPPUData *data = &mm->data.ppu;
-    mm_ppu_set_nt_mirroring(data, (cart->mirroring ? VERTICAL : HORIZONTAL));
+    mm_ppu_set_nt_mirroring(data,
+                            (cart->mirroring ? NT_VERTICAL : NT_HORIZONTAL));
     
     // Wipe the various memory structures
     memset(data->nametables[0], 0, SIZE_NAMETABLE);
@@ -173,8 +174,8 @@ void mm_ppu_set_nt_mirroring(MemoryMapPPUData *data, NametableMirroring m) {
     static const int layouts[] = {
         0, 0, 0, 0, // SINGLE_A
         1, 1, 1, 1, // SINGLE_B
-        0, 0, 1, 1, // HORIZONTAL
         0, 1, 0, 1, // VERTICAL
+        0, 0, 1, 1, // HORIZONTAL
     };
     const int *layout = layouts + m * 4;
     for (int i = 0; i < 4; i++) {

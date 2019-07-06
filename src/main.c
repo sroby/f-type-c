@@ -28,6 +28,8 @@ int main(int argc, const char *argv[]) {
     }
     
     Cartridge cart;
+    cart.sram = NULL;
+    cart.sram_size = 0;
     
     int size = header[4] * 16;
     printf("PRG ROM: %dKB\n", size);
@@ -57,7 +59,8 @@ int main(int argc, const char *argv[]) {
             return 1;
         }
     }
-    
+    fclose(rom_file);
+
     cart.mapper_id = (header[6] >> 4) + (header[7] & 0b11110000);
     const char *mapper_name = "Unidentified";
     bool supported = mapper_check_support(cart.mapper_id, &mapper_name);
@@ -69,7 +72,10 @@ int main(int argc, const char *argv[]) {
     
     cart.mirroring = header[6] & 1;
     printf("Mirroring: %s\n", (cart.mirroring ? "Vertical" : "Horizontal"));
-    fclose(rom_file);
+    
+    cart.has_battery_backup = header[6] & 0b10;
+    printf("Battery-backed SRAM: %s\n",
+           (cart.has_battery_backup ? "Yes" : "No"));
     
     DebugMap *dbg_map = NULL;
     if (argc >= 3) {
@@ -98,7 +104,12 @@ int main(int argc, const char *argv[]) {
     window_loop(&wnd, &vm);
     
     window_cleanup(&wnd);
-        
+    
+    // TODO: Save SRAM
+    if (cart.sram) {
+        free(cart.sram);
+    }
+    
     free(fn);
     if (dbg_map) {
         free(dbg_map);

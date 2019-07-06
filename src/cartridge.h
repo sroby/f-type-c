@@ -3,23 +3,48 @@
 
 #include "common.h"
 
+#define SIZE_SRAM 0x2000
+
 // Forward declarations
 typedef struct MemoryMap MemoryMap;
 
+typedef struct MMC1State {
+    int shift_reg;
+    int shift_pos;
+    bool prg_bank_mode;
+    int chr_bank_0x1000;
+    bool is_a;
+} MMC1State;
+
+typedef union Mapper {
+    MMC1State mmc1;
+} Mapper;
+
 typedef struct Cartridge {
+    // PRG ROM
     uint8_t *prg_rom;
     int prg_rom_size;
+    
+    // CHR ROM/RAM
     uint8_t *chr_memory;
     int chr_memory_size;
     bool chr_is_ram;
+    
+    // SRAM (aka. PRG RAM)
+    uint8_t *sram;
+    int sram_size;
+    bool sram_enabled;
+    bool has_battery_backup;
+    
+    // Memory mapper
     bool mirroring;
     int mapper_id;
-    
-    // Generic mapper banking
+    Mapper mapper;
     int prg_bank;
     int prg_bank_size;
     int chr_bank;
     int chr_bank_size;
+    int sram_bank;
 } Cartridge;
 
 typedef struct MapperInfo {
