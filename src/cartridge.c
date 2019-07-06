@@ -52,8 +52,6 @@ static void UxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
 }
 
 static void UxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    UxROM_write_register(cpu_mm, 0, 0);
-    
     const int last_bank = cpu_mm->cart->prg_rom_size - SIZE_PRG_ROM / 2;
     // CPU 8000-BFFF: Switchable bank
     // CPU C000-FFFF: Fixed to the last bank
@@ -78,8 +76,6 @@ static uint8_t CNROM_read_banked_chr(MemoryMap *mm, int offset) {
 }
 
 static void CNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    CNROM_write_register(cpu_mm, 0, 0);
-    
     generic_init_cpu(cpu_mm, CNROM_write_register);
     
     // PPU 0000-1FFF: Single switchable bank
@@ -101,7 +97,7 @@ static void AxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
 }
 
 static void AxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    AxROM_write_register(cpu_mm, 0, 0);
+    mm_ppu_set_nt_mirroring(&cpu_mm->data.cpu.ppu->mm->data.ppu, SINGLE_A);
     
     // CPU 8000-FFFF: Single switchable bank
     for (int i = 0; i < SIZE_PRG_ROM; i++) {
@@ -129,8 +125,6 @@ static void CPROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
 }
 
 static void CPROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    CPROM_write_register(cpu_mm, 0, 0);
-    
     // Expand CHR RAM to 16kB
     Cartridge *cart = cpu_mm->cart;
     if (cart->chr_is_ram) {
@@ -162,8 +156,6 @@ static void BNROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
 }
 
 static void BNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    BNROM_write_register(cpu_mm, 0, 0);
-    
     // CPU 8000-FFFF: Single switchable bank
     for (int i = 0; i < SIZE_PRG_ROM; i++) {
         cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
@@ -198,6 +190,8 @@ bool mapper_check_support(int mapper_id, const char **name) {
 }
 
 bool mapper_init(Cartridge *cart, MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+    memset(&cart->mapper, 0, sizeof(MapperData));
+    
     for (int i = 0; i < mappers_len; i++) {
         if (mappers[i].ines_id == cart->mapper_id) {
             (*mappers[i].init_func)(cpu_mm, ppu_mm);
