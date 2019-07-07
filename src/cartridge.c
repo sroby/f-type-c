@@ -217,6 +217,98 @@ static void CNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     init_banked_chr(ppu_mm);
 }
 
+// MAPPER 4: Nintendo MMC3 (and MMC6)                               //
+//           (banked+fixed PRG, banked CHR, scanline counter, etc.) //
+
+static void MMC3_update_banks(Cartridge *cart) {
+    MMC3State *mmc = &cart->mapper.mmc3;
+    
+    // PRG ROM
+    const int next_to_last = cart->prg_rom_size / cart->prg_bank_size - 2;
+    if (mmc->bank_select & (1 << 6)) {
+        cart->prg_banks[2] = mmc->banks[6];
+        cart->prg_banks[1] = mmc->banks[7];
+        cart->prg_banks[0] = next_to_last;
+    } else {
+        cart->prg_banks[0] = mmc->banks[6];
+        cart->prg_banks[1] = mmc->banks[7];
+        cart->prg_banks[2] = next_to_last;
+    }
+    
+    // CHR ROM
+    if (mmc->bank_select & (1 << 7)) {
+        cart->chr_banks[4] = mmc->banks[0];
+        cart->chr_banks[5] = mmc->banks[0] + 1;
+        cart->chr_banks[6] = mmc->banks[1];
+        cart->chr_banks[7] = mmc->banks[1] + 1;
+        cart->chr_banks[0] = mmc->banks[2];
+        cart->chr_banks[1] = mmc->banks[3];
+        cart->chr_banks[2] = mmc->banks[4];
+        cart->chr_banks[3] = mmc->banks[5];
+    } else {
+        cart->chr_banks[0] = mmc->banks[0];
+        cart->chr_banks[1] = mmc->banks[0] + 1;
+        cart->chr_banks[2] = mmc->banks[1];
+        cart->chr_banks[3] = mmc->banks[1] + 1;
+        cart->chr_banks[4] = mmc->banks[2];
+        cart->chr_banks[5] = mmc->banks[3];
+        cart->chr_banks[6] = mmc->banks[4];
+        cart->chr_banks[7] = mmc->banks[5];
+    }
+}
+
+static void MMC3_write_register(MemoryMap *mm, int offset, uint8_t value) {
+    Cartridge *cart = mm->cart;
+    MMC3State *mmc = &cart->mapper.mmc3;
+    int bank;
+    offset = offset / 0x2000 * 2 + offset % 2;
+    switch (offset) {
+        case 0: // Bank select
+            cart->mapper.mmc3.bank_select = value;
+            MMC3_update_banks(cart);
+            break;
+        case 1: // Bank data
+            bank = mmc->bank_select & 0b111;
+            if (bank < 2) {
+                value &= ~1;
+            }
+            mmc->banks[bank] = value;
+            MMC3_update_banks(cart);
+            break;
+        case 2: // Mirroring
+            mm_ppu_set_nt_mirroring(&mm->data.cpu.ppu->mm->data.ppu,
+                                    (value & 1 ? NT_HORIZONTAL : NT_VERTICAL));
+            break;
+        // 3: SRAM protect, intentionally not implemented
+        case 4: // IRQ latch
+            mmc->irq_latch = value;
+            break;
+        case 5: // IRQ reload
+            mmc->irq_counter = 0;
+            break;
+        case 6: // IRQ disable
+            mmc->irq_enabled = false;
+            break;
+        case 7: // IRQ enable
+            mmc->irq_enabled = true;
+            break;
+    }
+}
+
+static void MMC3_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+    Cartridge *cart = cpu_mm->cart;
+    cart->prg_bank_size = SIZE_PRG_ROM / 4;
+    cart->chr_bank_size = SIZE_CHR_ROM / 8;
+    memset(&cart->mapper.mmc3, 0, sizeof(MMC3State));
+    
+    // Last bank is fixed to the end
+    cart->prg_banks[3] = cart->prg_rom_size / cart->prg_bank_size - 1;
+    
+    init_banked_prg(cpu_mm, MMC3_write_register);
+    init_banked_chr(ppu_mm);
+    init_sram(cpu_mm, SIZE_SRAM);
+}
+
 // MAPPER 7: AxROM (bank switchable PRG ROM, single page nametable toggle) //
 
 static void AxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
@@ -380,6 +472,7 @@ static const MapperInfo mappers[] = {
     { 66, "GxROM", GxROM_init},
     // Nintendo ASIC
     {  1, "MMC1" ,  MMC1_init},
+    {  4, "MMC3/MMC6", MMC3_init},
     {  9, "MMC2" ,  MMC2_init},
     { 10, "MMC4" ,  MMC4_init},
     {155, "MMC1A", MMC1A_init},
