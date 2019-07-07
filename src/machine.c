@@ -12,7 +12,7 @@ void machine_init(Machine *vm, Cartridge *cart, const DebugMap *dbg_map) {
     cpu_reset(&vm->cpu);
 }
 
-void machine_advance_frame(Machine *vm, bool verbose) {
+bool machine_advance_frame(Machine *vm, bool verbose) {
     bool done = false;
     do {
         // Check for debug label
@@ -32,8 +32,12 @@ void machine_advance_frame(Machine *vm, bool verbose) {
                 i++;
             }
         }
+        
         // Run next CPU instruction
-        cpu_step(&vm->cpu, verbose && !is_endless_loop);
+        if (cpu_step(&vm->cpu, verbose && !is_endless_loop) != 0x100) {
+            return false;
+        }
+        
         // Check for PPU scanline, and possibly end of frame
         while (vm->ppu.t * T_SCANLINE_PER_CPU < vm->cpu.t * T_MULTI) {
             if (verbose) {
@@ -44,4 +48,5 @@ void machine_advance_frame(Machine *vm, bool verbose) {
             }
         }
     } while (!done);
+    return true;
 }

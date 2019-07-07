@@ -225,7 +225,9 @@ void window_loop(Window *wnd, Machine *vm) {
         next_frame += ticks_per_frame;
         
         // Advance one frame
-        machine_advance_frame(vm, verbose);
+        if (!machine_advance_frame(vm, verbose)) {
+            break;
+        }
         
         // Render the frame
         SDL_UpdateTexture(wnd->texture, NULL, vm->ppu.screen,

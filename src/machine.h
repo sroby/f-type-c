@@ -28,6 +28,6 @@ typedef struct Machine {
 } Machine;
 
 void machine_init(Machine *vm, Cartridge *cart, const DebugMap *dbg_map);
-void machine_advance_frame(Machine *vm, bool verbose);
+bool machine_advance_frame(Machine *vm, bool verbose);
 
 #endif /* system_h */
