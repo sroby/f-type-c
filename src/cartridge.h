@@ -16,8 +16,14 @@ typedef struct MMC1State {
     bool is_a;
 } MMC1State;
 
+typedef struct MMC24State {
+    int chr_banks[4];
+    int chr_latches[2];
+} MMC24State;
+
 typedef union Mapper {
     MMC1State mmc1;
+    MMC24State mmc24;
 } Mapper;
 
 typedef struct Cartridge {

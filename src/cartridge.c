@@ -248,6 +248,102 @@ static void AxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     init_fixed_chr(ppu_mm);
 }
 
+// MAPPERS 9-10: Nintendo MMC2 and MMC4                                      //
+//               (banked+fixed PRG, banked CHR with read trigger, mirroring) //
+
+static uint8_t MMC2_read_last_prg(MemoryMap *mm, int offset) {
+    offset += mm->cart->prg_rom_size - mm->cart->prg_bank_size * 4;
+    return mm->cart->prg_rom[offset];
+}
+static uint8_t MMC4_read_last_prg(MemoryMap *mm, int offset) {
+    offset += mm->cart->prg_rom_size - mm->cart->prg_bank_size * 2;
+    return mm->cart->prg_rom[offset];
+}
+
+static void MMC24_write_register(MemoryMap *mm, int offset, uint8_t value) {
+    offset = offset / 0x1000 - 2;
+    switch (offset) {
+        case 0: // Axxx: PRG ROM bank select
+            mm->cart->prg_bank = value & 0b1111;
+            break;
+        case 5: // Fxxx: Mirroring
+            mm_ppu_set_nt_mirroring(&mm->data.cpu.ppu->mm->data.ppu,
+                                    (value & 1 ? NT_HORIZONTAL : NT_VERTICAL));
+            break;
+        default: // Bxxx-Exxx: CHR ROM bank selects
+            mm->cart->mapper.mmc24.chr_banks[offset - 1] = value & 0b11111;
+    }
+}
+
+static uint8_t MMC24_read_chr(MemoryMap *mm, int offset) {
+    MMC24State *mmc = &mm->cart->mapper.mmc24;
+    int bank = 0;
+    if (offset >= mm->cart->chr_bank_size) {
+        offset -= mm->cart->chr_bank_size;
+        bank++;
+    }
+    int b_offset = mmc->chr_banks[mmc->chr_latches[bank] + 2 * bank] *
+                   mm->cart->chr_bank_size + offset;
+    if (offset == 0x0FD8) {
+        mmc->chr_latches[bank] = 0;
+    } else if (offset == 0x0FE8) {
+        mmc->chr_latches[bank] = 1;
+    }
+    return mm->cart->chr_memory[b_offset];
+}
+static uint8_t MMC2_read_chr1(MemoryMap *mm, int offset) {
+    MMC24State *mmc = &mm->cart->mapper.mmc24;
+    int b_offset = mmc->chr_banks[mmc->chr_latches[1] + 2] *
+                   mm->cart->chr_bank_size + offset;
+    if (offset >= 0x0FD8 && offset <= 0x0FDF) {
+        mmc->chr_latches[1] = 0;
+    } else if (offset >= 0x0FE8 && offset <= 0x0FEF) {
+        mmc->chr_latches[1] = 1;
+    }
+    return mm->cart->chr_memory[b_offset];
+}
+
+static void MMC2_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+    Cartridge *cart = cpu_mm->cart;
+    cart->prg_bank_size = SIZE_PRG_ROM / 4;
+    cart->chr_bank_size = SIZE_CHR_ROM / 2;
+    memset(&cart->mapper.mmc24, 0, sizeof(MMC24State));
+    
+    for (int i = 0; i < SIZE_PRG_ROM / 4; i++) {
+        cpu_mm->addrs[0x8000 + i] = (MemoryAddress) {read_banked_prg, NULL, i};
+    }
+    for (int i = SIZE_PRG_ROM / 4; i < SIZE_PRG_ROM; i++) {
+        cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
+            {MMC2_read_last_prg, MMC24_write_register, i};
+    }
+    
+    for (int i = 0; i < SIZE_CHR_ROM / 2; i++) {
+        ppu_mm->addrs[i]          = (MemoryAddress) {MMC24_read_chr, NULL, i};
+        ppu_mm->addrs[0x1000 + i] = (MemoryAddress) {MMC2_read_chr1, NULL, i};
+    }
+}
+static void MMC4_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+    Cartridge *cart = cpu_mm->cart;
+    cart->prg_bank_size = SIZE_PRG_ROM / 2;
+    cart->chr_bank_size = SIZE_CHR_ROM / 2;
+    memset(&cart->mapper.mmc24, 0, sizeof(MMC24State));
+    
+    for (int i = 0; i < SIZE_PRG_ROM / 2; i++) {
+        cpu_mm->addrs[0x8000 + i] = (MemoryAddress) {read_banked_prg,
+            (i >= SIZE_PRG_ROM / 4 ? MMC24_write_register : NULL), i};
+    }
+    for (int i = SIZE_PRG_ROM / 2; i < SIZE_PRG_ROM; i++) {
+        cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
+            {MMC4_read_last_prg, MMC24_write_register, i};
+    }
+
+    for (int i = 0; i < SIZE_CHR_ROM; i++) {
+        ppu_mm->addrs[i] = (MemoryAddress) {MMC24_read_chr, NULL, i};
+    }
+    
+    init_sram(cpu_mm, SIZE_SRAM);
+}
+
 // MAPPER 13: CPROM (fixed + bank switchable CHR RAM) //
 
 static void CPROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
@@ -311,6 +407,8 @@ static const MapperInfo mappers[] = {
     { 66, "GxROM", GxROM_init},
     // Nintendo ASIC
     {  1, "MMC1" ,  MMC1_init},
+    {  9, "MMC2" ,  MMC2_init},
+    { 10, "MMC4" ,  MMC4_init},
     {155, "MMC1A", MMC1A_init},
 };
 static const size_t mappers_len = sizeof(mappers) / sizeof(MapperInfo);
