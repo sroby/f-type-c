@@ -9,7 +9,9 @@ static uint8_t read_fixed_prg(MemoryMap *mm, int offset) {
     return mm->cart->prg_rom[offset];
 }
 static uint8_t read_banked_prg(MemoryMap *mm, int offset) {
-    offset += mm->cart->prg_bank * mm->cart->prg_bank_size;
+    offset = offset % mm->cart->prg_bank_size +
+             mm->cart->prg_banks[offset / mm->cart->prg_bank_size] *
+             mm->cart->prg_bank_size;
     return mm->cart->prg_rom[offset];
 }
 
@@ -17,7 +19,9 @@ static uint8_t read_fixed_chr(MemoryMap *mm, int offset) {
     return mm->cart->chr_memory[offset];
 }
 static uint8_t read_banked_chr(MemoryMap *mm, int offset) {
-    offset += mm->cart->chr_bank * mm->cart->chr_bank_size;
+    offset = offset % mm->cart->chr_bank_size +
+             mm->cart->chr_banks[offset / mm->cart->chr_bank_size] *
+             mm->cart->chr_bank_size;
     return mm->cart->chr_memory[offset];
 }
 
@@ -25,7 +29,9 @@ static void write_fixed_chr(MemoryMap *mm, int offset, uint8_t value) {
     mm->cart->chr_memory[offset] = value;
 }
 static void write_banked_chr(MemoryMap *mm, int offset, uint8_t value) {
-    offset += mm->cart->chr_bank * mm->cart->chr_bank_size;
+    offset = offset % mm->cart->chr_bank_size +
+             mm->cart->chr_banks[offset / mm->cart->chr_bank_size] *
+             mm->cart->chr_bank_size;
     mm->cart->chr_memory[offset] = value;
 }
 
@@ -101,21 +107,25 @@ static void NROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 
 // MAPPER 1: Nintendo MMC1 (banked PRG/CHR, mirroring via serial interface) //
 
-static uint8_t MMC1_read_prg(MemoryMap *mm, int offset) {
-    Cartridge *cart = mm->cart;
+static void MMC1_update_prg_banks(Cartridge *cart) {
     if (cart->prg_bank_size == SIZE_PRG_ROM) {
-        offset += (cart->prg_bank & ~1) * cart->prg_bank_size;
-    } else if (offset >= cart->prg_bank_size) {
-        offset -= cart->prg_bank_size;
-        if (cart->mapper.mmc1.prg_bank_mode) {
-            offset += cart->prg_rom_size - cart->prg_bank_size;
-        } else {
-            offset += cart->prg_bank * cart->prg_bank_size;
-        }
-    } else if (cart->mapper.mmc1.prg_bank_mode) {
-        offset += cart->prg_bank * cart->prg_bank_size;
+        cart->prg_banks[0] = cart->mapper.mmc1.prg_bank & ~1;
+    } else if (cart->mapper.mmc1.prg_fixed_bank) {
+        cart->prg_banks[0] = cart->mapper.mmc1.prg_bank;
+        cart->prg_banks[1] = cart->prg_rom_size / cart->prg_bank_size - 1;
+    } else {
+        cart->prg_banks[0] = 0;
+        cart->prg_banks[1] = cart->mapper.mmc1.prg_bank;
     }
-    return cart->prg_rom[offset];
+}
+
+static void MMC1_update_chr_banks(Cartridge *cart) {
+    if (cart->chr_bank_size == SIZE_CHR_ROM) {
+        cart->chr_banks[0] = cart->mapper.mmc1.chr_banks[0] & ~1;
+    } else {
+        cart->chr_banks[0] = cart->mapper.mmc1.chr_banks[0];
+        cart->chr_banks[1] = cart->mapper.mmc1.chr_banks[1];
+    }
 }
 
 static void MMC1_write_register(MemoryMap *mm, int offset, uint8_t value) {
@@ -129,49 +139,33 @@ static void MMC1_write_register(MemoryMap *mm, int offset, uint8_t value) {
     if (mmc1->shift_pos < 5) {
         return;
     }
-    switch (offset / 0x2000) {
+    offset /= 0x2000;
+    switch (offset) {
         case 0: // 8000-9FFF: Control
             mm_ppu_set_nt_mirroring(&mm->data.cpu.ppu->mm->data.ppu,
                                     mmc1->shift_reg & 0b11);
-            mmc1->prg_bank_mode = mmc1->shift_reg & (1 << 2);
+            mmc1->prg_fixed_bank = (mmc1->shift_reg & 0b100) << 2;
             mm->cart->prg_bank_size =
                 (mmc1->shift_reg & (1 << 3) ? SIZE_PRG_ROM / 2 : SIZE_PRG_ROM);
             mm->cart->chr_bank_size =
                 (mmc1->shift_reg & (1 << 4) ? SIZE_CHR_ROM / 2 : SIZE_CHR_ROM);
+            MMC1_update_prg_banks(mm->cart);
+            MMC1_update_chr_banks(mm->cart);
             break;
         case 1: // A000-BFFF: CHR bank 0
-            mm->cart->chr_bank = mmc1->shift_reg;
-            break;
         case 2: // C000-DFFF: CHR bank 1
-            mmc1->chr_bank_0x1000 = mmc1->shift_reg;
+            mmc1->chr_banks[offset - 1] = mmc1->shift_reg;
+            MMC1_update_chr_banks(mm->cart);
             break;
         case 3: // E000-FFFF: PRG bank + SRAM write protect
-            mm->cart->prg_bank = mmc1->shift_reg & 0b1111;
+            mmc1->prg_bank = mmc1->shift_reg & 0b1111;
             if (!mmc1->is_a) {
                 mm->cart->sram_enabled = !(mmc1->shift_reg & (1 << 4));
             }
+            MMC1_update_prg_banks(mm->cart);
             break;
     }
     mmc1->shift_reg = mmc1->shift_pos = 0;
-}
-
-static void MMC1_chr_offset(Cartridge *cart, int *offset) {
-    if (cart->chr_bank_size == SIZE_CHR_ROM) {
-        *offset += (cart->chr_bank & ~1) * cart->chr_bank_size;
-    } else if (*offset >= cart->chr_bank_size) {
-        *offset += cart->mapper.mmc1.chr_bank_0x1000 * cart->chr_bank_size -
-                   cart->chr_bank_size;
-    } else {
-        *offset += cart->chr_bank * cart->chr_bank_size;
-    }
-}
-static uint8_t MMC1_read_chr(MemoryMap *mm, int offset) {
-    MMC1_chr_offset(mm->cart, &offset);
-    return mm->cart->chr_memory[offset];
-}
-static void MMC1_write_chr(MemoryMap *mm, int offset, uint8_t value) {
-    MMC1_chr_offset(mm->cart, &offset);
-    mm->cart->chr_memory[offset] = value;
 }
 
 static void MMC1_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
@@ -180,17 +174,11 @@ static void MMC1_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     
     // Booting in 16b+16f PRG mode seems to be the most compatible
     cart->prg_bank_size = SIZE_PRG_ROM / 2;
-    cart->mapper.mmc1.prg_bank_mode = true;
+    cart->mapper.mmc1.prg_fixed_bank = 1;
+    MMC1_update_prg_banks(cart);
     
-    for (int i = 0; i < SIZE_PRG_ROM; i++) {
-        cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
-            {MMC1_read_prg, MMC1_write_register, i};
-    }
-    for (int i = 0; i < SIZE_CHR_ROM; i++) {
-        ppu_mm->addrs[i] = (MemoryAddress)
-            {MMC1_read_chr, (cart->chr_is_ram ? MMC1_write_chr : NULL), i};
-    }
-    
+    init_banked_prg(cpu_mm, MMC1_write_register);
+    init_banked_chr(ppu_mm);
     init_sram(cpu_mm, SIZE_SRAM);
 }
 
@@ -204,29 +192,24 @@ static void MMC1A_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 
 static void UxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
     // TODO: Limit maximum page to size of PRG ROM
-    mm->cart->prg_bank = value;
+    mm->cart->prg_banks[0] = value;
 }
 
 static void UxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    cpu_mm->cart->prg_bank_size = SIZE_PRG_ROM / 2;
+    Cartridge *cart = cpu_mm->cart;
+    cart->prg_bank_size = SIZE_PRG_ROM / 2;
     
-    const int last_bank = cpu_mm->cart->prg_rom_size - SIZE_PRG_ROM / 2;
-    // CPU 8000-BFFF: Switchable bank
-    // CPU C000-FFFF: Fixed to the last bank
-    for (int i = 0; i < SIZE_PRG_ROM / 2; i++) {
-        cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
-            {read_banked_prg, UxROM_write_register, i};
-        cpu_mm->addrs[0x8000 + SIZE_PRG_ROM / 2 + i] = (MemoryAddress)
-            {read_fixed_prg, UxROM_write_register, last_bank + i};
-    }
-
+    // Page 1: Fixed to last bank
+    cart->prg_banks[1] = cart->prg_rom_size / cart->prg_bank_size - 1;
+    
+    init_banked_prg(cpu_mm, UxROM_write_register);
     init_fixed_chr(ppu_mm);
 }
 
 // MAPPER 3: CNROM (bank switchable CHR ROM) //
 
 static void CNROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
-    mm->cart->chr_bank = value & 0b11;
+    mm->cart->chr_banks[0] = value & 0b11;
 }
 
 static void CNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
@@ -237,7 +220,7 @@ static void CNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 7: AxROM (bank switchable PRG ROM, single page nametable toggle) //
 
 static void AxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
-    mm->cart->prg_bank = value & 0b111;
+    mm->cart->prg_banks[0] = value & 0b111;
     mm_ppu_set_nt_mirroring(&mm->data.cpu.ppu->mm->data.ppu,
                             (value & 0b10000 ? NT_SINGLE_B : NT_SINGLE_A));
 }
@@ -251,95 +234,93 @@ static void AxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPERS 9-10: Nintendo MMC2 and MMC4                                      //
 //               (banked+fixed PRG, banked CHR with read trigger, mirroring) //
 
-static uint8_t MMC2_read_last_prg(MemoryMap *mm, int offset) {
-    offset += mm->cart->prg_rom_size - mm->cart->prg_bank_size * 4;
-    return mm->cart->prg_rom[offset];
-}
-static uint8_t MMC4_read_last_prg(MemoryMap *mm, int offset) {
-    offset += mm->cart->prg_rom_size - mm->cart->prg_bank_size * 2;
-    return mm->cart->prg_rom[offset];
+static void MMC24_update_chr_banks(Cartridge *cart) {
+    for (int i = 0; i < 2; i++) {
+        cart->chr_banks[i] =
+            cart->mapper.mmc24.chr_banks[i][cart->mapper.mmc24.chr_latches[i]];
+    }
 }
 
 static void MMC24_write_register(MemoryMap *mm, int offset, uint8_t value) {
     offset = offset / 0x1000 - 2;
+    if (offset < 0) {
+        return;
+    }
     switch (offset) {
         case 0: // Axxx: PRG ROM bank select
-            mm->cart->prg_bank = value & 0b1111;
+            mm->cart->prg_banks[0] = value & 0b1111;
             break;
         case 5: // Fxxx: Mirroring
             mm_ppu_set_nt_mirroring(&mm->data.cpu.ppu->mm->data.ppu,
                                     (value & 1 ? NT_HORIZONTAL : NT_VERTICAL));
             break;
         default: // Bxxx-Exxx: CHR ROM bank selects
-            mm->cart->mapper.mmc24.chr_banks[offset - 1] = value & 0b11111;
+            offset--;
+            mm->cart->mapper.mmc24.chr_banks[offset / 2]
+                                            [offset % 2] = value & 0b11111;
+            MMC24_update_chr_banks(mm->cart);
     }
 }
 
 static uint8_t MMC24_read_chr(MemoryMap *mm, int offset) {
-    MMC24State *mmc = &mm->cart->mapper.mmc24;
-    int bank = 0;
-    if (offset >= mm->cart->chr_bank_size) {
-        offset -= mm->cart->chr_bank_size;
-        bank++;
+    uint8_t value = read_banked_chr(mm, offset);
+    
+    Cartridge *cart = mm->cart;
+    MMC24State *mmc = &cart->mapper.mmc24;
+    int bank = offset / cart->chr_bank_size;
+    offset %= cart->chr_bank_size;
+    if (mmc->is_2 && bank == 1) {
+        if (offset >= 0x0FD8 && offset <= 0x0FDF) {
+            mmc->chr_latches[bank] = 0;
+        } else if (offset >= 0x0FE8 && offset <= 0x0FEF) {
+            mmc->chr_latches[bank] = 1;
+        }
+    } else {
+        if (offset == 0x0FD8) {
+            mmc->chr_latches[bank] = 0;
+        } else if (offset == 0x0FE8) {
+            mmc->chr_latches[bank] = 1;
+        }
     }
-    int b_offset = mmc->chr_banks[mmc->chr_latches[bank] + 2 * bank] *
-                   mm->cart->chr_bank_size + offset;
-    if (offset == 0x0FD8) {
-        mmc->chr_latches[bank] = 0;
-    } else if (offset == 0x0FE8) {
-        mmc->chr_latches[bank] = 1;
-    }
-    return mm->cart->chr_memory[b_offset];
-}
-static uint8_t MMC2_read_chr1(MemoryMap *mm, int offset) {
-    MMC24State *mmc = &mm->cart->mapper.mmc24;
-    int b_offset = mmc->chr_banks[mmc->chr_latches[1] + 2] *
-                   mm->cart->chr_bank_size + offset;
-    if (offset >= 0x0FD8 && offset <= 0x0FDF) {
-        mmc->chr_latches[1] = 0;
-    } else if (offset >= 0x0FE8 && offset <= 0x0FEF) {
-        mmc->chr_latches[1] = 1;
-    }
-    return mm->cart->chr_memory[b_offset];
+    MMC24_update_chr_banks(cart);
+    
+    return value;
 }
 
-static void MMC2_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    Cartridge *cart = cpu_mm->cart;
-    cart->prg_bank_size = SIZE_PRG_ROM / 4;
-    cart->chr_bank_size = SIZE_CHR_ROM / 2;
-    memset(&cart->mapper.mmc24, 0, sizeof(MMC24State));
+static void MMC24_init_common(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+    memset(&cpu_mm->cart->mapper.mmc24, 0, sizeof(MMC24State));
     
-    for (int i = 0; i < SIZE_PRG_ROM / 4; i++) {
-        cpu_mm->addrs[0x8000 + i] = (MemoryAddress) {read_banked_prg, NULL, i};
-    }
-    for (int i = SIZE_PRG_ROM / 4; i < SIZE_PRG_ROM; i++) {
-        cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
-            {MMC2_read_last_prg, MMC24_write_register, i};
-    }
+    init_banked_prg(cpu_mm, MMC24_write_register);
     
-    for (int i = 0; i < SIZE_CHR_ROM / 2; i++) {
-        ppu_mm->addrs[i]          = (MemoryAddress) {MMC24_read_chr, NULL, i};
-        ppu_mm->addrs[0x1000 + i] = (MemoryAddress) {MMC2_read_chr1, NULL, i};
-    }
-}
-static void MMC4_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    Cartridge *cart = cpu_mm->cart;
-    cart->prg_bank_size = SIZE_PRG_ROM / 2;
-    cart->chr_bank_size = SIZE_CHR_ROM / 2;
-    memset(&cart->mapper.mmc24, 0, sizeof(MMC24State));
-    
-    for (int i = 0; i < SIZE_PRG_ROM / 2; i++) {
-        cpu_mm->addrs[0x8000 + i] = (MemoryAddress) {read_banked_prg,
-            (i >= SIZE_PRG_ROM / 4 ? MMC24_write_register : NULL), i};
-    }
-    for (int i = SIZE_PRG_ROM / 2; i < SIZE_PRG_ROM; i++) {
-        cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
-            {MMC4_read_last_prg, MMC24_write_register, i};
-    }
-
     for (int i = 0; i < SIZE_CHR_ROM; i++) {
         ppu_mm->addrs[i] = (MemoryAddress) {MMC24_read_chr, NULL, i};
     }
+}
+
+static void MMC2_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+    MMC24_init_common(cpu_mm, ppu_mm);
+
+    Cartridge *cart = cpu_mm->cart;
+    cart->mapper.mmc24.is_2 = true;
+    cart->prg_bank_size = SIZE_PRG_ROM / 4;
+    cart->chr_bank_size = SIZE_CHR_ROM / 2;
+    
+    // Last three banks are fixed to the end
+    const int n_banks = cart->prg_rom_size / cart->prg_bank_size;
+    cart->prg_banks[1] = n_banks - 3;
+    cart->prg_banks[2] = n_banks - 2;
+    cart->prg_banks[3] = n_banks - 1;
+}
+
+static void MMC4_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
+    MMC24_init_common(cpu_mm, ppu_mm);
+    
+    Cartridge *cart = cpu_mm->cart;
+    cart->prg_bank_size = SIZE_PRG_ROM / 2;
+    cart->chr_bank_size = SIZE_CHR_ROM / 2;
+    
+    // Last bank is fixed to the end
+    cart->prg_banks[1] = cart->prg_rom_size / cart->prg_bank_size - 1;
     
     init_sram(cpu_mm, SIZE_SRAM);
 }
@@ -347,7 +328,7 @@ static void MMC4_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 13: CPROM (fixed + bank switchable CHR RAM) //
 
 static void CPROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
-    mm->cart->chr_bank = value & 0b11;
+    mm->cart->chr_banks[1] = value & 0b11;
 }
 
 static void CPROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
@@ -360,21 +341,13 @@ static void CPROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     cart->chr_memory = realloc(cart->chr_memory, cart->chr_memory_size);
     
     init_fixed_prg(cpu_mm, CPROM_write_register);
-    
-    // PPU 0000-0FFF: Fixed to the first bank
-    // PPU 1000-1FFF: Switchable bank
-    for (int i = 0; i < SIZE_CHR_ROM / 2; i++) {
-        ppu_mm->addrs[i] = (MemoryAddress)
-            {read_fixed_chr, write_fixed_chr, i};
-        ppu_mm->addrs[SIZE_CHR_ROM / 2 + i] = (MemoryAddress)
-            {read_banked_chr, write_banked_chr, i};
-    }
+    init_banked_chr(ppu_mm);
 }
 
 // MAPPER 34: BNROM (bank switchable PRG ROM) //
 
 static void BNROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
-    mm->cart->prg_bank = value;
+    mm->cart->prg_banks[0] = value;
 }
 
 static void BNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
@@ -385,8 +358,8 @@ static void BNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 66: GxROM (bank switchable PRG ROM and CHR ROM) //
 
 static void GxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
-    mm->cart->prg_bank = value >> 4;
-    mm->cart->chr_bank = value & 0b1111;
+    mm->cart->prg_banks[0] = value >> 4;
+    mm->cart->chr_banks[0] = value & 0b1111;
 }
 
 static void GxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
@@ -426,11 +399,13 @@ bool mapper_check_support(int mapper_id, const char **name) {
 }
 
 void mapper_init(Cartridge *cart, MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
-    cart->prg_bank = cart->chr_bank = cart->sram_bank = 0;
+    memset(cart->prg_banks, 0, sizeof(cart->prg_banks));
+    memset(cart->chr_banks, 0, sizeof(cart->chr_banks));
     cart->prg_bank_size = SIZE_PRG_ROM;
     cart->chr_bank_size = SIZE_CHR_ROM;
     cart->sram_enabled = true;
-    
+    cart->sram_bank = 0;
+
     for (int i = 0; i < mappers_len; i++) {
         if (mappers[i].ines_id == cart->mapper_id) {
             (*mappers[i].init_func)(cpu_mm, ppu_mm);

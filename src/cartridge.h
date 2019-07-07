@@ -5,20 +5,24 @@
 
 #define SIZE_SRAM 0x2000
 
+#define MAX_BANKS 8
+
 // Forward declarations
 typedef struct MemoryMap MemoryMap;
 
 typedef struct MMC1State {
     int shift_reg;
     int shift_pos;
-    bool prg_bank_mode;
-    int chr_bank_0x1000;
+    int prg_fixed_bank;
+    int prg_bank;
+    int chr_banks[2];
     bool is_a;
 } MMC1State;
 
 typedef struct MMC24State {
-    int chr_banks[4];
+    int chr_banks[2][2];
     int chr_latches[2];
+    bool is_2;
 } MMC24State;
 
 typedef union Mapper {
@@ -46,9 +50,9 @@ typedef struct Cartridge {
     bool mirroring;
     int mapper_id;
     Mapper mapper;
-    int prg_bank;
+    int prg_banks[MAX_BANKS];
     int prg_bank_size;
-    int chr_bank;
+    int chr_banks[MAX_BANKS];
     int chr_bank_size;
     int sram_bank;
 } Cartridge;
