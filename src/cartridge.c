@@ -1,5 +1,6 @@
 #include "cartridge.h"
 
+#include "cpu.h"
 #include "memory_maps.h"
 #include "ppu.h"
 
@@ -220,6 +221,22 @@ static void CNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 4: Nintendo MMC3 (and MMC6)                               //
 //           (banked+fixed PRG, banked CHR, scanline counter, etc.) //
 
+static void MMC3_scanline_callback(PPUState *ppu) {
+    MMC3State *mmc = &ppu->mm->cart->mapper.mmc3;
+    if (mmc->irq_counter == 0 && !mmc->irq_reload) {
+        mmc->irq_reload = true;
+        if (mmc->irq_enabled) {
+            cpu_irq(ppu->cpu);
+        }
+    }
+    if (mmc->irq_reload) {
+        mmc->irq_counter = mmc->irq_latch;
+        mmc->irq_reload = false;
+    } else {
+        mmc->irq_counter--;
+    }
+}
+
 static void MMC3_update_banks(Cartridge *cart) {
     MMC3State *mmc = &cart->mapper.mmc3;
     
@@ -284,7 +301,7 @@ static void MMC3_write_register(MemoryMap *mm, int offset, uint8_t value) {
             mmc->irq_latch = value;
             break;
         case 5: // IRQ reload
-            mmc->irq_counter = 0;
+            mmc->irq_reload = true;
             break;
         case 6: // IRQ disable
             mmc->irq_enabled = false;
@@ -307,6 +324,8 @@ static void MMC3_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     init_banked_prg(cpu_mm, MMC3_write_register);
     init_banked_chr(ppu_mm);
     init_sram(cpu_mm, SIZE_SRAM);
+    
+    cpu_mm->data.cpu.ppu->scanline_callback = MMC3_scanline_callback;
 }
 
 // MAPPER 7: AxROM (bank switchable PRG ROM, single page nametable toggle) //

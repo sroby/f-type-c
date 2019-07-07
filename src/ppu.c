@@ -230,6 +230,10 @@ bool ppu_scanline(PPUState *ppu) {
         }
         
         render_sprites(ppu, n_sprites, sprites, true);
+        
+        if (ppu->scanline_callback) {
+            (*ppu->scanline_callback)(ppu);
+        }
     }
     
     // Scanline 261: Post-rendering

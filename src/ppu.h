@@ -87,6 +87,7 @@ struct PPUState {
     // Cycle and scanline counters
     uint64_t t;
     int scanline;
+    void (*scanline_callback)(PPUState *);
     
     // Raw screen data, in ARGB8888 format
     uint32_t screen[WIDTH * HEIGHT];
