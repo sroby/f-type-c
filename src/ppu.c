@@ -129,6 +129,7 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
     
     ppu->t = 0;
     ppu->scanline = 0;
+    ppu->scanline_callback = NULL;
 }
 
 bool ppu_scanline(PPUState *ppu) {
