@@ -88,7 +88,7 @@ int main(int argc, const char *argv[]) {
     }
     
     Window wnd;
-    char *fn = strdup(argv[1]);
+    char *fn = realpath(argv[1], NULL);
     int error_code = window_init(&wnd, basename(fn));
     if (error_code) {
         return error_code;
