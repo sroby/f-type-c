@@ -128,7 +128,7 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
     ppu->scroll_x = ppu->scroll_y = 0;
     
     ppu->t = 0;
-    ppu->scanline = 0;
+    ppu->scanline = ppu->current_y = 0;
     ppu->scanline_callback = NULL;
 }
 
@@ -146,6 +146,7 @@ bool ppu_scanline(PPUState *ppu) {
         ppu->status &= ~(STATUS_VBLANK |
                          STATUS_SPRITE0_HIT |
                          STATUS_SPRITE_OVERFLOW);
+        ppu->current_y = ppu->scroll_y;
     }
     
     // Scanlines 21-260: Rendering (240 lines)
@@ -182,12 +183,8 @@ bool ppu_scanline(PPUState *ppu) {
             uint16_t nt_page = ppu->ctrl & 0b11;
             int nt_x = ppu->scroll_x / 8;
             int screen_x = -(ppu->scroll_x % 8);
-            uint16_t row = (ppu->scroll_y + line) % 8;
-            int nt_y = (ppu->scroll_y + line) / 8;
-            if (nt_y >= HEIGHT_NT) {
-                nt_y -= HEIGHT_NT;
-                nt_page ^= 2;
-            }
+            uint16_t row = (ppu->current_y) % 8;
+            int nt_y = ppu->current_y / 8;
             int at = 0x100;
             while (screen_x < WIDTH) {
                 if (nt_x >= WIDTH_NT) {
@@ -231,6 +228,12 @@ bool ppu_scanline(PPUState *ppu) {
         }
         
         render_sprites(ppu, n_sprites, sprites, true);
+        
+        ppu->current_y++;
+        if (ppu->current_y >= HEIGHT) {
+            ppu->current_y -= HEIGHT;
+            ppu->ctrl ^= CTRL_SCROLL_PAGE_Y;
+        }
         
         if (ppu->scanline_callback) {
             (*ppu->scanline_callback)(ppu);
