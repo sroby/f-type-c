@@ -94,6 +94,24 @@ static void init_sram(MemoryMap *mm, int size) {
     }
 }
 
+static int extract_bank(int n_banks, int bit_offset, uint8_t value) {
+    int i = 2;
+    while (i < n_banks) {
+        i <<= 1;
+    }
+    return (value >> bit_offset) & (i - 1);
+}
+
+static int extract_prg_bank(Cartridge *cart, int bit_offset, uint8_t value) {
+    return extract_bank(cart->prg_rom_size / cart->prg_bank_size,
+                        bit_offset, value);
+}
+
+static int extract_chr_bank(Cartridge *cart, int bit_offset, uint8_t value) {
+    return extract_bank(cart->chr_memory_size / cart->chr_bank_size,
+                        bit_offset, value);
+}
+
 // MAPPER 0: NROM (aka. no mapper) //
 
 static void NROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
@@ -192,8 +210,7 @@ static void MMC1A_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 2: UxROM (bank switchable + fixed PRG ROM) //
 
 static void UxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
-    // TODO: Limit maximum page to size of PRG ROM
-    mm->cart->prg_banks[0] = value;
+    mm->cart->prg_banks[0] = extract_prg_bank(mm->cart, 0, value);
 }
 
 static void UxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
@@ -210,7 +227,7 @@ static void UxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 3: CNROM (bank switchable CHR ROM) //
 
 static void CNROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
-    mm->cart->chr_banks[0] = value & 0b11;
+    mm->cart->chr_banks[0] = extract_chr_bank(mm->cart, 0, value);
 }
 
 static void CNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
@@ -359,7 +376,7 @@ static void MMC24_write_register(MemoryMap *mm, int offset, uint8_t value) {
     }
     switch (offset) {
         case 0: // Axxx: PRG ROM bank select
-            mm->cart->prg_banks[0] = value & 0b1111;
+            mm->cart->prg_banks[0] = extract_prg_bank(mm->cart, 0, value);
             break;
         case 5: // Fxxx: Mirroring
             mm_ppu_set_nt_mirroring(&mm->data.cpu.ppu->mm->data.ppu,
@@ -367,8 +384,8 @@ static void MMC24_write_register(MemoryMap *mm, int offset, uint8_t value) {
             break;
         default: // Bxxx-Exxx: CHR ROM bank selects
             offset--;
-            mm->cart->mapper.mmc24.chr_banks[offset / 2]
-                                            [offset % 2] = value & 0b11111;
+            mm->cart->mapper.mmc24.chr_banks[offset / 2][offset % 2] =
+                extract_chr_bank(mm->cart, 0, value);
             MMC24_update_chr_banks(mm->cart);
     }
 }
@@ -458,7 +475,7 @@ static void CPROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 34: BNROM (bank switchable PRG ROM) //
 
 static void BNROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
-    mm->cart->prg_banks[0] = value;
+    mm->cart->prg_banks[0] = extract_prg_bank(mm->cart, 0, value);
 }
 
 static void BNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
@@ -469,8 +486,8 @@ static void BNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 66: GxROM (bank switchable PRG ROM and CHR ROM) //
 
 static void GxROM_write_register(MemoryMap *mm, int offset, uint8_t value) {
-    mm->cart->prg_banks[0] = value >> 4;
-    mm->cart->chr_banks[0] = value & 0b1111;
+    mm->cart->prg_banks[0] = extract_prg_bank(mm->cart, 4, value);
+    mm->cart->chr_banks[0] = extract_chr_bank(mm->cart, 0, value);
 }
 
 static void GxROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
