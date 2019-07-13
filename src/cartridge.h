@@ -34,10 +34,18 @@ typedef struct MMC3State {
     bool irq_reload;
 } MMC3State;
 
+typedef struct UxROMVariants {
+    int bit_offset;
+    int target_bank;
+} UxROMVariants;
+
 typedef union Mapper {
     MMC1State mmc1;
     MMC24State mmc24;
     MMC3State mmc3;
+    UxROMVariants uxrom;
+    uint8_t sunsoft4_ctrl;
+    int cp_counter;
 } Mapper;
 
 typedef struct Cartridge {
