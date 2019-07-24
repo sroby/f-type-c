@@ -59,9 +59,7 @@ int window_init(Window *wnd, const char *filename) {
     }
     
     Uint32 window_flags = SDL_WINDOW_ALLOW_HIGHDPI;
-#ifdef DEBUG
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
-#else
+#ifndef DEBUG
     window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
     SDL_ShowCursor(SDL_DISABLE);
 #endif
@@ -80,7 +78,20 @@ int window_init(Window *wnd, const char *filename) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
-    SDL_RenderSetLogicalSize(wnd->renderer, WIDTH_ADJUSTED, HEIGHT_CROPPED);
+    
+    // Compute the display area
+    int w, h;
+    SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
+    int zoom = h / HEIGHT_CROPPED;
+    int adjusted_w = WIDTH * zoom * 8 / 7;
+    wnd->display_area.w = adjusted_w + (adjusted_w % 2);
+    wnd->display_area.h = HEIGHT_CROPPED * zoom;
+    wnd->display_area.x = (w - wnd->display_area.w) / 2;
+    wnd->display_area.y = (h - wnd->display_area.h) / 2;
+    if (zoom <= 2) {
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
+    }
+    
     wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
                                      SDL_TEXTUREACCESS_STREAMING,
                                      WIDTH, HEIGHT);
@@ -230,7 +241,8 @@ void window_loop(Window *wnd, Machine *vm) {
         // Render the frame
         SDL_UnlockTexture(wnd->texture);
         SDL_RenderClear(wnd->renderer);
-        SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area, NULL);
+        SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area,
+                       &wnd->display_area);
         SDL_RenderPresent(wnd->renderer);
 
         // Throttle the execution until we are due for a new frame

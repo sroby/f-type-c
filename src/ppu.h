@@ -49,7 +49,7 @@
 // Screen dimensions
 #define WIDTH 256
 #define WIDTH_NT 32
-#define WIDTH_ADJUSTED 292
+#define WIDTH_ADJUSTED (WIDTH * 8 / 7)
 #define HEIGHT 240
 #define HEIGHT_NT 30
 #define HEIGHT_CROPPED 224
