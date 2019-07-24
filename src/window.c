@@ -217,13 +217,6 @@ void window_loop(Window *wnd, Machine *vm) {
                                                      (float)QUIT_REQUEST_DELAY);
         }
         
-        // Throttle the execution until we are due for a new frame
-        if (SDL_GetPerformanceCounter() < next_frame) {
-            SDL_Delay(1);
-            continue;
-        }
-        next_frame += ticks_per_frame;
-        
         // Advance one frame
         if (!machine_advance_frame(vm, verbose)) {
             break;
@@ -236,6 +229,11 @@ void window_loop(Window *wnd, Machine *vm) {
         SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area, NULL);
         SDL_RenderPresent(wnd->renderer);
 
+        // Throttle the execution until we are due for a new frame
+        while (SDL_GetPerformanceCounter() < next_frame) {
+            SDL_Delay(1);
+        }
+        next_frame += ticks_per_frame;
         frame++;
     }
     
