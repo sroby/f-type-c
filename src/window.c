@@ -113,6 +113,8 @@ void window_loop(Window *wnd, Machine *vm) {
                                                                    / 600988;
     uint8_t *controllers = vm->cpu_mm.data.cpu.controllers;
     
+    int pitch;
+    
     // Main loop
     int frame = 0;
     int quit_request = 0;
@@ -217,14 +219,16 @@ void window_loop(Window *wnd, Machine *vm) {
                                                      (float)QUIT_REQUEST_DELAY);
         }
         
+        SDL_LockTexture(wnd->texture, NULL, (void **)&vm->ppu.screen,
+                        &pitch);
+        
         // Advance one frame
         if (!machine_advance_frame(vm, verbose)) {
             break;
         }
         
         // Render the frame
-        SDL_UpdateTexture(wnd->texture, NULL, vm->ppu.screen,
-                          WIDTH * sizeof(uint32_t));
+        SDL_UnlockTexture(wnd->texture);
         SDL_RenderClear(wnd->renderer);
         SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area, NULL);
         SDL_RenderPresent(wnd->renderer);
