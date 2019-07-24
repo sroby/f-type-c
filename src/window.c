@@ -82,9 +82,13 @@ int window_init(Window *wnd, const char *filename) {
     // Compute the display area
     int w, h;
     SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
-    int zoom = h / HEIGHT_CROPPED;
-    int adjusted_w = WIDTH * zoom * 8 / 7;
-    wnd->display_area.w = adjusted_w + (adjusted_w % 2);
+    int zoom = h / HEIGHT_CROPPED + 1;
+    int adjusted_w;
+    do {
+        adjusted_w = WIDTH * --zoom * 8 / 7;
+        adjusted_w += (adjusted_w % 2);
+    } while (adjusted_w > w);
+    wnd->display_area.w = adjusted_w;
     wnd->display_area.h = HEIGHT_CROPPED * zoom;
     wnd->display_area.x = (w - wnd->display_area.w) / 2;
     wnd->display_area.y = (h - wnd->display_area.h) / 2;
