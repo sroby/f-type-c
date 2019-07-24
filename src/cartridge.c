@@ -271,7 +271,8 @@ static void CNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 4: Nintendo MMC3 and MMC6                            //
 //           (variable banking, H/V control, scanline counter) //
 
-static void MMC3_scanline_callback(PPUState *ppu) {
+// TODO: Implement the proper trigger instead
+/*static void MMC3_scanline_callback(PPUState *ppu) {
     MMC3State *mmc = &ppu->mm->cart->mapper.mmc3;
     if (mmc->irq_counter == 0 && !mmc->irq_reload) {
         mmc->irq_reload = true;
@@ -285,7 +286,7 @@ static void MMC3_scanline_callback(PPUState *ppu) {
     } else {
         mmc->irq_counter--;
     }
-}
+}*/
 
 static void MMC3_update_banks(Cartridge *cart) {
     MMC3State *mmc = &cart->mapper.mmc3;
@@ -373,8 +374,6 @@ static void MMC3_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     init_banked_prg(cpu_mm, MMC3_write_register);
     init_banked_chr(ppu_mm);
     init_sram(cpu_mm, SIZE_SRAM);
-    
-    cpu_mm->data.cpu.ppu->scanline_callback = MMC3_scanline_callback;
 }
 
 // MAPPER 7: Nintendo AxROM (32b/8f, A/B control) //

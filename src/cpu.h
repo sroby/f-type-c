@@ -61,7 +61,7 @@ struct CPUState {
     // Program counter
     uint16_t pc;
     // Total cycle counter
-    uint64_t t;
+    uint64_t time;
     // Memory map
     MemoryMap *mm;
     // Opcode lookup table

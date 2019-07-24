@@ -8,8 +8,7 @@
 #include "ppu.h"
 
 // Timing constants
-#define T_MULTI 3
-#define T_SCANLINE_PER_CPU 341 // 113.666 * 3
+#define T_CPU_MULTIPLIER 3
 
 // Forward decalarations
 typedef struct Cartridge Cartridge;

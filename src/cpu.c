@@ -6,7 +6,7 @@
 
 static void apply_page_boundary_penalty(CPUState *cpu, uint16_t a, uint16_t b) {
     if ((a >> 8) != (b >> 8)) {
-        cpu->t++;
+        cpu->time++;
     }
 }
 
@@ -65,7 +65,7 @@ static void interrupt(CPUState *cpu, bool b_flag, uint16_t ivt_addr) {
     }
     set_p_flag(cpu, P_I, true);
     cpu->pc = mm_read_word(cpu->mm, ivt_addr);
-    cpu->t += 7;
+    cpu->time += 7;
 }
 
 // OPCODES //
@@ -246,7 +246,7 @@ static void cond_branch(CPUState *cpu, OpParam param, int flag, bool value) {
     if (get_p_flag(cpu, flag) != value) {
         return;
     }
-    cpu->t++;
+    cpu->time++;
     uint16_t new_pc = cpu->pc + param.relative_addr;
     apply_page_boundary_penalty(cpu, cpu->pc, new_pc);
     cpu->pc = new_pc;
@@ -309,7 +309,7 @@ void cpu_init(CPUState *cpu, MemoryMap *mm) {
     cpu->a = cpu->x = cpu->y = cpu->s = 0;
     cpu->p = 1 << P__;
     cpu->pc = 0;
-    cpu->t = 0;
+    cpu->time = 0;
     cpu->mm = mm;
     memset(cpu->opcodes, 0, sizeof(cpu->opcodes));
     
@@ -554,7 +554,7 @@ int cpu_step(CPUState *cpu, bool verbose) {
     if (op->cycles < 0) {
         apply_page_boundary_penalty(cpu, p1.addr, p2.addr);
     }
-    cpu->t += abs(op->cycles);
+    cpu->time += abs(op->cycles);
     
     if (verbose) {
         printf("%s", op->name);
@@ -615,10 +615,10 @@ void cpu_reset(CPUState *cpu) {
 }
 
 void cpu_external_t_increment(CPUState *cpu, int amount) {
-    if (cpu->t % 2) {
-        cpu->t++;
+    if (cpu->time % 2) {
+        cpu->time++;
     }
-    cpu->t += amount;
+    cpu->time += amount;
 }
 
 void cpu_debug_print_state(CPUState *cpu) {

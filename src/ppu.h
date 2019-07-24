@@ -54,6 +54,13 @@
 #define HEIGHT_NT 30
 #define HEIGHT_CROPPED 224
 
+// Tasks array
+#define TASK_SPRITE 0
+#define TASK_FETCH 1
+#define TASK_UPDATE 2
+
+#define PPU_CYCLES_PER_SCANLINE 341
+
 // Forward declarations
 typedef struct CPUState CPUState;
 typedef struct PPUState PPUState;
@@ -61,34 +68,45 @@ typedef struct MemoryMap MemoryMap;
 
 struct PPUState {
     CPUState *cpu;
-    
     MemoryMap *mm;
-    uint16_t mm_addr;
     
     // Object Attribute Memory, ie. the sprites
     uint8_t oam[0x100];
     uint8_t oam_addr;
+    uint8_t oam2[32];
 
-    // Registers
+    // External registers
     uint8_t ctrl; // Write-only
     uint8_t mask; // Write-only
     uint8_t status; // Read-only
-
+    
+    // Internal registers
+    uint16_t v;
+    uint16_t t;
+    uint8_t x;
+    bool w;
+    
     // Latches
     uint8_t reg_latch;
     uint8_t ppudata_latch;
-    uint8_t addr_latch;
-    bool addr_latch_is_set;
     
-    // Screen 0,0 position
-    uint8_t scroll_x;
-    uint8_t scroll_y;
-    
-    // Cycle and scanline counters
-    uint64_t t;
+    // Execution counters
+    uint64_t time;
+    int cycle;
     int scanline;
-    int current_y;
-    void (*scanline_callback)(PPUState *);
+    int frame;
+    
+    // Rendering pipeline
+    void (*tasks[PPU_CYCLES_PER_SCANLINE][4])(PPUState *);
+    uint16_t f_nt, f_pt0, f_pt1;
+    uint8_t f_at;
+    uint16_t bg_pt0, bg_pt1;
+    uint16_t bg_at0, bg_at1;
+    uint8_t s_pt0[8], s_pt1[8];
+    uint8_t s_attrs[8];
+    uint8_t s_x[8];
+    int s_total;
+    bool s_has_zero, s_has_zero_next;
     
     // Raw screen data, in ARGB8888 format
     uint32_t screen[WIDTH * HEIGHT];
@@ -96,7 +114,7 @@ struct PPUState {
 
 void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu);
 
-bool ppu_scanline(PPUState *ppu);
+bool ppu_step(PPUState *ppu, bool verbose);
 
 uint8_t ppu_read_register(PPUState *ppu, int reg);
 void ppu_write_register(PPUState *ppu, int reg, uint8_t value);

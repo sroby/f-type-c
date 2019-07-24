@@ -26,226 +26,339 @@ static const uint32_t colors[] = {
     0x80C0E0, 0x000000, 0x000000, 0x000000,
 };
 
-static bool render_pattern_row(PPUState *ppu, uint16_t pt_addr, int pos_x,
-                        int palette, bool flip_h, bool clip) {
-    uint8_t *palettes = ppu->mm->data.ppu.palettes;
-    const int line = ppu->scanline - 21;
-    uint8_t b0 = mm_read(ppu->mm, pt_addr);
-    uint8_t b1 = mm_read(ppu->mm, pt_addr | (1 << 3));
-    if (!b0 && !b1) {
-        return false;
-    }
-    for (int j = 0; j < 8; j++) {
-        int pos = pos_x + j;
-        if (pos < 0 || (clip && pos < 8)) {
-            continue;
-        }
-        if (pos > 255) {
-            break;
-        }
-        int jj = (flip_h ? j : 7 - j);
-        int palette_index = (b0 & (1 << jj) ? 1 : 0) +
-                            (b1 & (1 << jj) ? 2 : 0);
-        if (palette_index) {
-            ppu->screen[line * WIDTH + pos] =
-                colors[palettes[palette * 3 + palette_index - 1]];
-        }
-    }
-    return true;
-}
-
-static void render_sprites(PPUState *ppu, int n_sprites,
-                           const uint8_t **sprites, bool front) {
-    if (!n_sprites) {
-        return;
-    }
-    const bool clip = !(ppu->mask & MASK_NOCLIP_SPRITES);
-    const int line = ppu->scanline - 21;
-    const bool tall = ppu->ctrl & CTRL_8x16_SPRITES;
-    const int height = (tall ? 16 : 8);
-    bool bank = ppu->ctrl & CTRL_PT_SPRITES;
-    for (int i = n_sprites - 1; i >= 0; i--) {
-        const uint8_t *sprite = sprites[i];
-        if ((bool)(sprite[OAM_ATTRS] & OAM_ATTR_UNDER_BG) == front) {
-            continue;
-        }
-        uint16_t row = line - sprite[OAM_Y] - 1;
-        if (sprite[OAM_ATTRS] & OAM_ATTR_FLIP_V) {
-            row = height - row - 1;
-        }
-        uint8_t pt = sprite[OAM_PATTERN];
-        if (tall) {
-            bank = pt & 1;
-            if (row >= 8) {
-                pt |= 1;
-            } else {
-                pt &= ~1;
-            }
-        }
-        uint16_t pt_addr = ((uint16_t)pt << 4) | (row % 8);
-        if (bank) {
-            pt_addr |= (1 << 12);
-        }
-        int palette = (sprite[OAM_ATTRS] & 0b11) + 4;
-        bool flip_h = sprite[OAM_ATTRS] & OAM_ATTR_FLIP_H;
-        if (render_pattern_row(ppu, pt_addr, sprite[OAM_X], palette, flip_h,
-                               clip) &&
-            sprite == ppu->oam) {
-            ppu->status |= STATUS_SPRITE0_HIT;
-        }
-    }
-}
-
-static bool has_addr_latch(PPUState *ppu, uint8_t value) {
-    if (ppu->addr_latch_is_set) {
-        return true;
-    }
-    ppu->addr_latch = value;
-    ppu->addr_latch_is_set = true;
-    return false;
-}
+// Source: http://graphics.stanford.edu/~seander/bithacks.html#BitReverseTable
+static const uint8_t bit_reverse[] =
+{
+#   define R2(n)     n,     n + 2*64,     n + 1*64,     n + 3*64
+#   define R4(n) R2(n), R2(n + 2*16), R2(n + 1*16), R2(n + 3*16)
+#   define R6(n) R4(n), R4(n + 2*4 ), R4(n + 1*4 ), R4(n + 3*4 )
+    R6(0), R6(2), R6(1), R6(3)
+};
 
 static inline void increment_mm_addr(PPUState *ppu) {
-    ppu->mm_addr += (ppu->ctrl & CTRL_ADDR_INC_32 ? 32 : 1);
+    ppu->v += (ppu->ctrl & CTRL_ADDR_INC_32 ? 32 : 1);
+}
+
+static inline bool is_rendering(PPUState *ppu) {
+    return ppu->mask & (MASK_RENDER_BACKGROUND | MASK_RENDER_SPRITES);
+}
+
+// CYCLE TASKS //
+
+static void task_render_pixel(PPUState *ppu) {
+    if (ppu->scanline < 0) {
+        return;
+    }
+    
+    int s_index = 0;
+    uint8_t s_attrs = 0;
+    bool s_is_zero = false;
+    int bg_index = 0;
+    
+    if (ppu->mask & MASK_RENDER_SPRITES) {
+        // Decrement all sprites,
+        // while looking for a matching non-transparent pixel
+        for (int s = 0; s < 8; s++) {
+            if (ppu->s_x[s] > 0) {
+                ppu->s_x[s]--;
+            } else {
+                if (!s_index && (ppu->mask & MASK_NOCLIP_SPRITES ||
+                                 ppu->cycle >= 8)) {
+                    s_index = ((ppu->s_pt0[s] & 128) >> 7) |
+                              ((ppu->s_pt1[s] & 128) >> 6);
+                    if (s_index) {
+                        s_attrs = ppu->s_attrs[s];
+                        s_is_zero = ppu->s_has_zero && !s;
+                    }
+                }
+                ppu->s_pt0[s] <<= 1;
+                ppu->s_pt1[s] <<= 1;
+            }
+        }
+    }
+    if (ppu->mask & MASK_RENDER_BACKGROUND) {
+        if (ppu->mask & MASK_NOCLIP_BACKGROUND || ppu->cycle >= 8) {
+            bg_index = (((ppu->bg_pt0 << ppu->x) & 32768) >> 15) |
+                       (((ppu->bg_pt1 << ppu->x) & 32768) >> 14);
+        }
+    }
+    
+    if (bg_index && s_index && s_is_zero) {
+        // TODO: delay by 1/2 (??) cycles
+        ppu->status |= STATUS_SPRITE0_HIT;
+    }
+
+    int color;
+    if (s_index && (!(s_attrs & OAM_ATTR_UNDER_BG) || !bg_index)) {
+        color = ppu->mm->data.ppu.palettes[((s_attrs & 0b11) + 4) * 3 +
+                                           s_index - 1];
+    } else if (bg_index) {
+        int palette = (((ppu->bg_at0 << ppu->x) & 32768) >> 15) |
+                      (((ppu->bg_at1 << ppu->x) & 32768) >> 14);
+        color = ppu->mm->data.ppu.palettes[palette * 3 + bg_index - 1];
+    } else {
+        color = ppu->mm->data.ppu.background_colors[0];
+    }
+    
+    ppu->screen[ppu->scanline * WIDTH + ppu->cycle] = colors[color];
+
+    ppu->bg_at0 <<= 1;
+    ppu->bg_at1 <<= 1;
+    ppu->bg_pt0 <<= 1;
+    ppu->bg_pt1 <<= 1;
+}
+
+static void task_sprite_clear(PPUState *ppu) {
+    if (ppu->scanline < 0) {
+        return;
+    }
+    memset(ppu->oam2, 0xFF, sizeof(ppu->oam2));
+    ppu->s_total = 0;
+}
+
+static void task_sprite_eval(PPUState *ppu) {
+    if (ppu->scanline < 0) {
+        return;
+    }
+    const uint8_t *spr = ppu->oam + ((ppu->cycle - 65) / 3 * 4);
+    const int sprite_height = (ppu->ctrl & CTRL_8x16_SPRITES ? 16 : 8);
+    if (spr[OAM_Y] <= ppu->scanline &&
+        (spr[OAM_Y] + sprite_height - 1) >= ppu->scanline) {
+        if (ppu->s_total >= 8) {
+            // Not accurate behaviour, but very rarely used
+            ppu->status |= STATUS_SPRITE_OVERFLOW;
+        } else {
+            memcpy(ppu->oam2 + (ppu->s_total * 4), spr, 4);
+            ppu->s_total++;
+        }
+    }
+    if (spr == ppu->oam) {
+        ppu->s_has_zero_next = ppu->s_total;
+    }
+}
+
+static void task_fetch_nt(PPUState *ppu) {
+    ppu->f_nt = mm_read(ppu->mm, 0x2000 | (ppu->v & 0x0FFF));
+}
+
+static void task_fetch_at(PPUState *ppu) {
+    ppu->f_at = mm_read(ppu->mm, 0x23C0 | (ppu->v & 0x0C00) |
+                                          ((ppu->v >> 4) & 0x38) |
+                                          ((ppu->v >> 2) & 0x07));
+}
+
+static uint8_t fetch_bg_pt(PPUState *ppu, int offset) {
+    uint16_t pt_addr = (ppu->f_nt << 4) | ((ppu->v & 0x7000) >> 12) | offset;
+    if (ppu->ctrl & CTRL_PT_BACKGROUND) {
+        pt_addr |= (1 << 12);
+    }
+    return mm_read(ppu->mm, pt_addr);
+}
+
+static void task_fetch_bg_pt0(PPUState *ppu) {
+    ppu->f_pt0 = fetch_bg_pt(ppu, 0);
+}
+
+static void task_fetch_bg_pt1(PPUState *ppu) {
+    ppu->f_pt1 = fetch_bg_pt(ppu, 8);
+
+    // Fill the stacks
+    if (ppu->cycle > 256) {
+        ppu->bg_pt0 <<= 8;
+        ppu->bg_pt1 <<= 8;
+        ppu->bg_at0 <<= 8;
+        ppu->bg_at1 <<= 8;
+    }
+    
+    ppu->bg_pt0 |= ppu->f_pt0;
+    ppu->bg_pt1 |= ppu->f_pt1;
+    
+    int offset;
+    if (((ppu->v >> 5) & 0b11) > 1) {
+        offset = ((ppu->v & 0b11) > 1 ? 6 : 4);
+    } else {
+        offset = ((ppu->v & 0b11) > 1 ? 2 : 0);
+    }
+    int at = (ppu->f_at >> offset) & 0b11;
+    if (at & 1) {
+        ppu->bg_at0 |= 0xFF;
+    }
+    if (at & 2) {
+        ppu->bg_at1 |= 0xFF;
+    }
+}
+
+static uint8_t fetch_spr_pt(PPUState *ppu, int i, int offset) {
+    const bool sprite_16mode = (ppu->ctrl & CTRL_8x16_SPRITES);
+    uint8_t *spr = ppu->oam2 + (i * 4);
+    int row = ppu->scanline - spr[OAM_Y];
+    if (spr[OAM_ATTRS] & OAM_ATTR_FLIP_V) {
+        row = (sprite_16mode ? 16 : 8) - row - 1;
+    }
+    bool bank = ppu->ctrl & CTRL_PT_SPRITES;
+    uint8_t pt = spr[OAM_PATTERN];
+    if (sprite_16mode) {
+        bank = pt & 1;
+        if (row >= 8) {
+            pt |= 1;
+        } else {
+            pt &= ~1;
+        }
+    }
+    uint16_t pt_addr = (pt << 4) | (row % 8) | offset;
+    if (bank) {
+        pt_addr |= (1 << 12);
+    }
+    uint8_t p = mm_read(ppu->mm, pt_addr);
+    if (spr[OAM_ATTRS] & OAM_ATTR_FLIP_H) {
+        p = bit_reverse[p];
+    }
+    return p;
+}
+
+static void task_fetch_spr_pt0(PPUState *ppu) {
+    int i = (ppu->cycle - 261) / 8;
+    ppu->s_pt0[i] = fetch_spr_pt(ppu, i, 0);
+    
+    ppu->s_attrs[i] = ppu->oam2[i * 4 + OAM_ATTRS];
+}
+
+static void task_fetch_spr_pt1(PPUState *ppu) {
+    int i = (ppu->cycle - 263) / 8;
+    ppu->s_pt1[i] = fetch_spr_pt(ppu, i, 8);
+    
+    ppu->s_x[i] = ppu->oam2[i * 4 + OAM_X];
+    
+    ppu->s_has_zero = ppu->s_has_zero_next;
+}
+
+static void task_update_inc_hori_v(PPUState *ppu) {
+    if ((ppu->v & 0b11111) == 0b11111) {
+        ppu->v &= ~0b11111;
+        ppu->v ^= (1 << 10);
+    } else {
+        ppu->v++;
+    }
+}
+
+static void task_update_inc_vert_v(PPUState *ppu) {
+    if ((ppu->v & 0x7000) == 0x7000) {
+        ppu->v &= ~0x7000;
+        uint16_t y = (ppu->v & 0x3E0) >> 5;
+        if (y == 29) {
+            y = 0;
+            ppu->v ^= 0x800;
+        } else if (y == 31) {
+            y = 0;
+        } else {
+            y++;
+        }
+        ppu->v = (ppu->v & ~0x3E0) | (y << 5);
+    } else {
+        ppu->v += 0x1000;
+    }
+}
+
+static void task_update_hori_v_hori_t(PPUState *ppu) {
+    ppu->v = (ppu->v & ~0x41F) | (ppu->t & 0x41F);
+}
+
+static void task_update_vert_v_vert_t(PPUState *ppu) {
+    if (ppu->scanline == -1) {
+        ppu->v = (ppu->v & ~0x7BE0) | (ppu->t & 0x7BE0);
+    }
 }
 
 // PUBLIC FUNCTIONS //
 
 void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
-    ppu->cpu = cpu;
-    
+    memset(ppu, 0, sizeof(PPUState));
     ppu->mm = mm;
-    ppu->mm_addr = 0;
+    ppu->cpu = cpu;
+    ppu->scanline = -1;
     
-    memset(ppu->oam, 0, sizeof(ppu->oam));
-    ppu->oam_addr = 0;
-    
-    ppu->ctrl = ppu->mask = ppu->status = 0;
-    
-    ppu->reg_latch = ppu->ppudata_latch = ppu->addr_latch = 0;
-    ppu->addr_latch_is_set = false;
-    
-    ppu->scroll_x = ppu->scroll_y = 0;
-    
-    ppu->t = 0;
-    ppu->scanline = ppu->current_y = 0;
-    ppu->scanline_callback = NULL;
+    // Fill the tasks array
+    // sprite
+    ppu->tasks[1][TASK_SPRITE] = task_sprite_clear;
+    for (int i = 0; i < 64; i++) {
+        ppu->tasks[65 + i * 3][TASK_SPRITE] = task_sprite_eval;
+    }
+    // fetch
+    for (int i = 0; i < 336; i += 8) {
+        ppu->tasks[i + 1][TASK_FETCH] = task_fetch_nt;
+        ppu->tasks[i + 3][TASK_FETCH] = task_fetch_at;
+        ppu->tasks[i + 5][TASK_FETCH] = task_fetch_bg_pt0;
+        ppu->tasks[i + 7][TASK_FETCH] = task_fetch_bg_pt1;
+    }
+    for (int i = 0; i < 64; i += 8) {
+        ppu->tasks[261 + i][TASK_FETCH] = task_fetch_spr_pt0;
+        ppu->tasks[263 + i][TASK_FETCH] = task_fetch_spr_pt1;
+    }
+    // update
+    for (int i = 8; i < 256; i += 8) {
+        ppu->tasks[i][TASK_UPDATE] = task_update_inc_hori_v;
+    }
+    ppu->tasks[256][TASK_UPDATE] = task_update_inc_vert_v;
+    ppu->tasks[257][TASK_UPDATE] = task_update_hori_v_hori_t;
+    for (int i = 280; i < 305; i++) {
+        ppu->tasks[i][TASK_UPDATE] = task_update_vert_v_vert_t;
+    }
+    ppu->tasks[328][TASK_UPDATE] = task_update_inc_hori_v;
+    ppu->tasks[336][TASK_UPDATE] = task_update_inc_hori_v;
 }
 
-bool ppu_scanline(PPUState *ppu) {
-    // Scanlines 0-19: Vblank period
-    if (ppu->scanline == 0) {
-        ppu->status |= STATUS_VBLANK;
-        if (ppu->ctrl & CTRL_NMI_ON_VBLANK) {
-            cpu_nmi(ppu->cpu);
-        }
+bool ppu_step(PPUState *ppu, bool verbose) {
+    if (verbose && !ppu->cycle) {
+        printf("-- Scanline %d --\n", ppu->scanline);
     }
     
-    // Scanline 20: Pre-rendering
-    else if (ppu->scanline == 20) {
-        ppu->status &= ~(STATUS_VBLANK |
-                         STATUS_SPRITE0_HIT |
-                         STATUS_SPRITE_OVERFLOW);
-        ppu->current_y = ppu->scroll_y;
+    if (ppu->scanline >= 0 && ppu->scanline < HEIGHT &&
+        ppu->cycle < WIDTH) {
+        task_render_pixel(ppu);
     }
     
-    // Scanlines 21-260: Rendering (240 lines)
-    else if (ppu->scanline >= 21 && ppu->scanline <= 260) {
-        const int line = ppu->scanline - 21;
-        
-        // Fill the line with the current background colour
-        uint32_t bg_color = colors[ppu->mm->data.ppu.background_colors[0]];
-        for (int i = 0; i < WIDTH; i++) {
-            ppu->screen[line * WIDTH + i] = bg_color;
-        }
-        
-        // Fetch up to 8 suitable sprites
-        const uint8_t *sprites[8];
-        const int sprite_height = (ppu->ctrl & CTRL_8x16_SPRITES ? 16 : 8);
-        int n_sprites = 0;
-        if (line && ppu->mask & MASK_RENDER_SPRITES) {
-            for (int i = 0; i < 64; i++) {
-                int pos_y = ppu->oam[i * 4] + 1;
-                if (pos_y <= line && (pos_y + sprite_height - 1) >= line) {
-                    if (n_sprites >= 8) {
-                        ppu->status |= STATUS_SPRITE_OVERFLOW;
-                        break;
-                    }
-                    sprites[n_sprites++] = ppu->oam + (i * 4);
-                }
+    // Execute all tasks for that cycle
+    if (ppu->scanline < 240 && is_rendering(ppu)) {
+        for (int i = 0; i < 3; i++) {
+            if (ppu->tasks[ppu->cycle][i]) {
+                (*ppu->tasks[ppu->cycle][i])(ppu);
             }
         }
-        render_sprites(ppu, n_sprites, sprites, false);
-        
-        // Render background
-        if (ppu->mask & MASK_RENDER_BACKGROUND) {
-            bool clip = !(ppu->mask & MASK_NOCLIP_BACKGROUND);
-            uint16_t nt_page = ppu->ctrl & 0b11;
-            int nt_x = ppu->scroll_x / 8;
-            int screen_x = -(ppu->scroll_x % 8);
-            uint16_t row = (ppu->current_y) % 8;
-            int nt_y = ppu->current_y / 8;
-            int at = 0x100;
-            while (screen_x < WIDTH) {
-                if (nt_x >= WIDTH_NT) {
-                    nt_x -= WIDTH_NT;
-                    nt_page ^= 1;
+    }
+    
+    // Check for flag operations
+    if (ppu->cycle == 1) {
+        switch (ppu->scanline) {
+            case -1:
+                ppu->status &= ~(STATUS_VBLANK |
+                                 STATUS_SPRITE0_HIT | STATUS_SPRITE_OVERFLOW);
+                break;
+            case 241:
+                ppu->status |= STATUS_VBLANK;
+                if (ppu->ctrl & CTRL_NMI_ON_VBLANK) {
+                    cpu_nmi(ppu->cpu);
                 }
-                uint16_t nt_page_addr = 0x2000 + nt_page * 0x400;
-                uint16_t nt_addr = nt_page_addr + nt_x + nt_y * WIDTH_NT;
-                uint16_t pt_addr = ((uint16_t)mm_read(ppu->mm, nt_addr) << 4) |
-                                   row;
-                if (ppu->ctrl & CTRL_PT_BACKGROUND) {
-                    pt_addr |= (1 << 12);
-                }
-
-                // Find the palette in the attribute table
-                if (at == 0x100 || !(nt_x % 4)) {
-                    at = mm_read(ppu->mm,
-                            nt_page_addr + 0x3C0 + nt_x / 4 + nt_y / 4 * 8);
-                }
-                int palette;
-                // There's probably a better way to do this
-                if (nt_x % 4 < 2) {
-                    if (nt_y % 4 < 2) {
-                        palette = at & 0b11;
-                    } else {
-                        palette = (at & 0b110000) >> 4;
-                    }
-                } else {
-                    if (nt_y % 4 < 2) {
-                        palette = (at & 0b1100) >> 2;
-                    } else {
-                        palette = at >> 6;
-                    }
-                }
-                
-                render_pattern_row(ppu, pt_addr, screen_x, palette, false,
-                                   clip);
-                nt_x++;
-                screen_x += 8;
-            }
-        }
-        
-        render_sprites(ppu, n_sprites, sprites, true);
-        
-        ppu->current_y++;
-        if (ppu->current_y >= HEIGHT) {
-            ppu->current_y -= HEIGHT;
-            ppu->ctrl ^= CTRL_SCROLL_PAGE_Y;
-        }
-        
-        if (ppu->scanline_callback) {
-            (*ppu->scanline_callback)(ppu);
+                break;
         }
     }
     
-    // Scanline 261: Post-rendering
-    // (this is a wasted line that does nothing)
-    
-    ppu->scanline = (ppu->scanline + 1) % 262;
-    ppu->t++;
-    return !ppu->scanline;
+    // Increment the counters
+    ppu->time++;
+    ppu->cycle = (ppu->cycle + 1) % PPU_CYCLES_PER_SCANLINE;
+    if (ppu->scanline == -1 && ppu->cycle == PPU_CYCLES_PER_SCANLINE - 1 &&
+        ppu->frame % 2) {
+        // Skip last cycle of the pre-render line on odd frames
+        ppu->cycle = 0;
+    }
+    if (ppu->cycle == 0) {
+        ppu->scanline++;
+        if (ppu->scanline == 261) {
+            ppu->scanline = -1;
+            ppu->frame++;
+            return true;
+        }
+    }
+    return false;
 }
 
 uint8_t ppu_read_register(PPUState *ppu, int reg) {
@@ -253,14 +366,15 @@ uint8_t ppu_read_register(PPUState *ppu, int reg) {
         case PPUSTATUS:
             ppu->reg_latch = (ppu->reg_latch & 0b11111) | ppu->status;
             ppu->status &= ~(STATUS_VBLANK); // VBlank is cleared at read
-            ppu->addr_latch_is_set = false; // and so is the address latch
+            ppu->w = false; // and so is the address latch
             break;
         case OAMDATA:
             ppu->reg_latch = ppu->oam[ppu->oam_addr];
             break;
         case PPUDATA:
+            // TODO: don't use latch over a certain range
             ppu->reg_latch = ppu->ppudata_latch;
-            ppu->ppudata_latch = mm_read(ppu->mm, ppu->mm_addr);
+            ppu->ppudata_latch = mm_read(ppu->mm, ppu->v);
             increment_mm_addr(ppu);
             break;
     }
@@ -270,10 +384,13 @@ uint8_t ppu_read_register(PPUState *ppu, int reg) {
 void ppu_write_register(PPUState *ppu, int reg, uint8_t value) {
     ppu->reg_latch = value;
     uint8_t old_ctrl;
+    uint16_t d;
     switch (reg) {
         case PPUCTRL:
             old_ctrl = ppu->ctrl;
             ppu->ctrl = value;
+            ppu->t = (ppu->t & ~(0b11 << 10)) |
+                     (((uint16_t)value & 0b11) << 10);
             if (!(old_ctrl & CTRL_NMI_ON_VBLANK) &&
                 value & CTRL_NMI_ON_VBLANK &&
                 ppu->status & STATUS_VBLANK) {
@@ -290,20 +407,27 @@ void ppu_write_register(PPUState *ppu, int reg, uint8_t value) {
             ppu->oam[ppu->oam_addr++] = value;
             break;
         case PPUSCROLL:
-            if (has_addr_latch(ppu, value)) {
-                ppu->scroll_x = ppu->addr_latch;
-                ppu->scroll_y = value;
-                ppu->addr_latch_is_set = false;
+            d = value;
+            if (!ppu->w) {
+                ppu->t = (ppu->t & ~0b11111) | (d >> 3);
+                ppu->x = value & 0b111;
+            } else {
+                ppu->t = (ppu->t & 0b110000011111) | ((d & 0b111) << 12) |
+                         ((d & 0b11111000) << 2);
             }
+            ppu->w = !ppu->w;
             break;
         case PPUADDR:
-            if (has_addr_latch(ppu, value)) {
-                ppu->mm_addr = ((uint16_t)ppu->addr_latch << 8) + value;
-                ppu->addr_latch_is_set = false;
+            d = value;
+            if (!ppu->w) {
+                ppu->t = (ppu->t & 255) | ((d & 0b111111) << 8);
+            } else {
+                ppu->v = ppu->t = (ppu->t & ~255) | d;
             }
+            ppu->w = !ppu->w;
             break;
         case PPUDATA:
-            mm_write(ppu->mm, ppu->mm_addr, value);
+            mm_write(ppu->mm, ppu->v, value);
             increment_mm_addr(ppu);
             break;
     }
