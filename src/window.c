@@ -86,7 +86,7 @@ int window_init(Window *wnd, const char *filename) {
     int adjusted_w;
     do {
         adjusted_w = WIDTH * --zoom * 8 / 7;
-        adjusted_w += (adjusted_w % 2);
+        adjusted_w -= (adjusted_w % 2);
     } while (adjusted_w > w);
     wnd->display_area.w = adjusted_w;
     wnd->display_area.h = HEIGHT_CROPPED * zoom;
