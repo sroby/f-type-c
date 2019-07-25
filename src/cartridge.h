@@ -8,6 +8,7 @@
 #define MAX_BANKS 8
 
 // Forward declarations
+typedef struct CPUState CPUState;
 typedef struct MemoryMap MemoryMap;
 
 typedef struct MMC1State {
@@ -32,6 +33,8 @@ typedef struct MMC3State {
     int irq_counter;
     bool irq_enabled;
     bool irq_reload;
+    bool last_pt;
+    CPUState *cpu;
 } MMC3State;
 
 typedef struct UxROMVariants {

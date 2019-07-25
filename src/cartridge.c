@@ -271,23 +271,6 @@ static void CNROM_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
 // MAPPER 4: Nintendo MMC3 and MMC6                            //
 //           (variable banking, H/V control, scanline counter) //
 
-// TODO: Implement the proper trigger instead
-/*static void MMC3_scanline_callback(PPUState *ppu) {
-    MMC3State *mmc = &ppu->mm->cart->mapper.mmc3;
-    if (mmc->irq_counter == 0 && !mmc->irq_reload) {
-        mmc->irq_reload = true;
-        if (mmc->irq_enabled) {
-            cpu_irq(ppu->cpu);
-        }
-    }
-    if (mmc->irq_reload) {
-        mmc->irq_counter = mmc->irq_latch;
-        mmc->irq_reload = false;
-    } else {
-        mmc->irq_counter--;
-    }
-}*/
-
 static void MMC3_update_banks(Cartridge *cart) {
     MMC3State *mmc = &cart->mapper.mmc3;
     
@@ -364,15 +347,40 @@ static void MMC3_write_register(MemoryMap *mm, int offset, uint8_t value) {
     }
 }
 
+static uint8_t MMC3_read_chr(MemoryMap *mm, int offset) {
+    MMC3State *mmc = &mm->cart->mapper.mmc3;
+    bool current_pt = offset & (1 << 12);
+    if (!mmc->last_pt && current_pt) {
+        if (!mmc->irq_counter || mmc->irq_reload) {
+            mmc->irq_counter = mmc->irq_latch;
+            mmc->irq_reload = false;
+        } else {
+            mmc->irq_counter--;
+        }
+        if (!mmc->irq_counter && mmc->irq_enabled) {
+            cpu_irq(mmc->cpu);
+        }
+    }
+    mmc->last_pt = current_pt;
+    
+    return read_banked_chr(mm, offset);
+}
+
 static void MMC3_init(MemoryMap *cpu_mm, MemoryMap *ppu_mm) {
     Cartridge *cart = cpu_mm->cart;
     cart->prg_bank_size = SIZE_PRG_ROM / 4;
     cart->chr_bank_size = SIZE_CHR_ROM / 8;
     memset(&cart->mapper.mmc3, 0, sizeof(MMC3State));
+    cart->mapper.mmc3.cpu = cpu_mm->data.cpu.ppu->cpu;
     cart->prg_banks[3] = get_last_prg_bank(cart);
     
     init_banked_prg(cpu_mm, MMC3_write_register);
-    init_banked_chr(ppu_mm);
+    
+    for (int i = 0; i < SIZE_CHR_ROM; i++) {
+        ppu_mm->addrs[i] = (MemoryAddress) {MMC3_read_chr,
+            (cart->chr_is_ram ? write_banked_chr : NULL), i};
+    }
+    
     init_sram(cpu_mm, SIZE_SRAM);
 }
 
