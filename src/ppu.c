@@ -372,10 +372,13 @@ uint8_t ppu_read_register(PPUState *ppu, int reg) {
             ppu->reg_latch = ppu->oam[ppu->oam_addr];
             break;
         case PPUDATA:
-            // TODO: don't use latch over a certain range
-            ppu->reg_latch = ppu->ppudata_latch;
-            ppu->ppudata_latch = mm_read(ppu->mm, ppu->v);
-            increment_mm_addr(ppu);
+            if (ppu->v >= 0x3F00) {
+                ppu->reg_latch = mm_read(ppu->mm, ppu->v);
+            } else {
+                ppu->reg_latch = ppu->ppudata_latch;
+                ppu->ppudata_latch = mm_read(ppu->mm, ppu->v);
+                increment_mm_addr(ppu);
+            }
             break;
     }
     return ppu->reg_latch;
