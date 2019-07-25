@@ -88,14 +88,14 @@
 		F4EEF80422AA050A00B38C9F /* src */ = {
 			isa = PBXGroup;
 			children = (
+				F4642F7B22CE57E2000B4BEB /* cartridge.c */,
+				F4642F7A22CE57E2000B4BEB /* cartridge.h */,
 				F4858D5E22B84A860043C2EF /* common.h */,
 				F4EEF80E22AA054300B38C9F /* cpu.c */,
 				F4EEF80F22AA054300B38C9F /* cpu.h */,
 				F4EEF81622AC842C00B38C9F /* machine.c */,
 				F4EEF81522AC842C00B38C9F /* machine.h */,
 				F4EEF80522AA050A00B38C9F /* main.c */,
-				F4642F7B22CE57E2000B4BEB /* cartridge.c */,
-				F4642F7A22CE57E2000B4BEB /* cartridge.h */,
 				F4EEF80D22AA054300B38C9F /* memory_maps.c */,
 				F4EEF80C22AA054300B38C9F /* memory_maps.h */,
 				F4EEF81322AC83AA00B38C9F /* ppu.c */,
