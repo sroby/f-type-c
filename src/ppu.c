@@ -189,6 +189,9 @@ static void task_fetch_bg_pt1(PPUState *ppu) {
 }
 
 static uint8_t fetch_spr_pt(PPUState *ppu, int i, int offset) {
+    if (i >= ppu->s_total) {
+        return 0;
+    }
     const bool sprite_16mode = (ppu->ctrl & CTRL_8x16_SPRITES);
     uint8_t *spr = ppu->oam2 + (i * 4);
     int row = ppu->scanline - spr[OAM_Y];
