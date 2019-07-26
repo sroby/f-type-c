@@ -73,7 +73,9 @@ int window_init(Window *wnd, const char *filename) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
-    wnd->renderer = SDL_CreateRenderer(wnd->window, -1, 0);
+    wnd->renderer = SDL_CreateRenderer(wnd->window, -1,
+                                       SDL_RENDERER_ACCELERATED |
+                                       SDL_RENDERER_PRESENTVSYNC);
     if (!wnd->renderer) {
         printf("%s\n", SDL_GetError());
         return 1;
@@ -132,7 +134,8 @@ void window_loop(Window *wnd, Machine *vm) {
     // Main loop
     int frame = 0;
     int quit_request = 0;
-    uint64_t next_frame = SDL_GetPerformanceCounter();
+    uint64_t t_current;
+    uint64_t t_next = SDL_GetPerformanceCounter();
     while(true) {
         // Process events
         bool quitting = false;
@@ -248,10 +251,10 @@ void window_loop(Window *wnd, Machine *vm) {
         SDL_RenderPresent(wnd->renderer);
 
         // Throttle the execution until we are due for a new frame
-        while (SDL_GetPerformanceCounter() < next_frame) {
-            SDL_Delay(1);
-        }
-        next_frame += ticks_per_frame;
+        do {
+            t_current = SDL_GetPerformanceCounter();
+        } while (t_current < t_next);
+        t_next = t_current + ticks_per_frame;
         frame++;
     }
     
