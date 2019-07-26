@@ -134,7 +134,6 @@ void window_loop(Window *wnd, Machine *vm) {
     // Main loop
     int frame = 0;
     int quit_request = 0;
-    uint64_t t_current;
     uint64_t t_next = SDL_GetPerformanceCounter();
     while(true) {
         // Process events
@@ -251,10 +250,10 @@ void window_loop(Window *wnd, Machine *vm) {
         SDL_RenderPresent(wnd->renderer);
 
         // Throttle the execution until we are due for a new frame
-        do {
-            t_current = SDL_GetPerformanceCounter();
-        } while (t_current < t_next);
-        t_next = t_current + ticks_per_frame;
+        while (SDL_GetPerformanceCounter() < t_next) {
+            SDL_Delay(1);
+        }
+        t_next = SDL_GetPerformanceCounter() + ticks_per_frame;
         frame++;
     }
     
