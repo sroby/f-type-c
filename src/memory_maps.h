@@ -3,12 +3,6 @@
 
 #include "common.h"
 
-// Size of various memory structures
-#define SIZE_WRAM 0x800
-#define SIZE_PRG_ROM 0x8000
-#define SIZE_CHR_ROM 0x2000
-#define SIZE_NAMETABLE 0x400
-
 // Bit fields
 #define BUTTON_A 1
 #define BUTTON_B (1 << 1)
@@ -20,58 +14,27 @@
 #define BUTTON_RIGHT (1 << 7)
 
 // Forward declarations
-typedef struct MemoryMap MemoryMap;
-typedef struct PPUState PPUState;
-typedef struct Cartridge Cartridge;
-
-typedef enum {
-    NT_SINGLE_A = 0,
-    NT_SINGLE_B = 1,
-    NT_VERTICAL = 2,
-    NT_HORIZONTAL = 3,
-} NametableMirroring;
+typedef struct Machine Machine;
 
 typedef struct {
-    uint8_t (*read_func)(MemoryMap *, int);
-    void (*write_func)(MemoryMap *, int, uint8_t);
+    uint8_t (*read_func)(Machine *, int);
+    void (*write_func)(Machine *, int, uint8_t);
     int offset;
 } MemoryAddress;
 
-typedef struct {
-    PPUState *ppu;
-    uint8_t wram[SIZE_WRAM];
-    uint8_t controllers[2];
-    int controller_bit[2];
-} MemoryMapCPUData;
-
-typedef struct {
-    uint8_t nametables[2][SIZE_NAMETABLE];
-    uint8_t *nt_layout[4];
-    uint8_t background_colors[4];
-    uint8_t palettes[8 * 3];
-} MemoryMapPPUData;
-
-typedef union {
-    MemoryMapCPUData cpu;
-    MemoryMapPPUData ppu;
-} MemoryMapData;
-
-struct MemoryMap {
+typedef struct MemoryMap {
+    Machine *vm;
     uint8_t last_read;
-    MemoryMapData data;
-    Cartridge *cart;
     MemoryAddress addrs[0x10000];
-};
+} MemoryMap;
 
-void memory_map_cpu_init(MemoryMap *mm, Cartridge *cart, PPUState *ppu);
-void memory_map_ppu_init(MemoryMap *mm, Cartridge *cart);
+void memory_map_cpu_init(MemoryMap *mm, Machine *vm);
+void memory_map_ppu_init(MemoryMap *mm, Machine *vm);
 
 uint8_t mm_read(MemoryMap *mm, uint16_t addr);
 uint16_t mm_read_word(MemoryMap *mm, uint16_t addr);
 
 void mm_write(MemoryMap *mm, uint16_t addr, uint8_t value);
 void mm_write_word(MemoryMap *mm, uint16_t addr, uint16_t value);
-
-void mm_ppu_set_nt_mirroring(MemoryMapPPUData *data, NametableMirroring m);
 
 #endif /* memory_maps_h */

@@ -90,14 +90,13 @@ static void task_render_pixel(PPUState *ppu) {
 
     int color;
     if (s_index && (!(s_attrs & OAM_ATTR_UNDER_BG) || !bg_index)) {
-        color = ppu->mm->data.ppu.palettes[((s_attrs & 0b11) + 4) * 3 +
-                                           s_index - 1];
+        color = ppu->palettes[((s_attrs & 0b11) + 4) * 3 + s_index - 1];
     } else if (bg_index) {
         int palette = (((ppu->bg_at0 << ppu->x) & 32768) >> 15) |
                       (((ppu->bg_at1 << ppu->x) & 32768) >> 14);
-        color = ppu->mm->data.ppu.palettes[palette * 3 + bg_index - 1];
+        color = ppu->palettes[palette * 3 + bg_index - 1];
     } else {
-        color = ppu->mm->data.ppu.background_colors[0];
+        color = ppu->background_colors[0];
     }
     
     ppu->screen[ppu->scanline * WIDTH + ppu->cycle] = colors[color];

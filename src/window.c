@@ -126,8 +126,7 @@ void window_loop(Window *wnd, Machine *vm) {
     const bool verbose = verb_char ? *verb_char - '0' : false;
     const uint64_t ticks_per_frame = SDL_GetPerformanceFrequency() *  10000
                                                                    / 600988;
-    uint8_t *controllers = vm->cpu_mm.data.cpu.controllers;
-    
+    uint8_t *ctrls = vm->controllers;
     int pitch;
     
     // Main loop
@@ -153,22 +152,22 @@ void window_loop(Window *wnd, Machine *vm) {
                         if (abs(event.jaxis.value) < AXIS_DEADZONE) {
                             break;
                         }
-                        controllers[cid] &= 0b1111;
+                        ctrls[cid] &= 0b1111;
                         wnd->js_use_axis[cid] = true;
                     }
                     if (event.jaxis.axis == 0) {
-                        controllers[cid] &= ~(BUTTON_LEFT | BUTTON_RIGHT);
+                        ctrls[cid] &= ~(BUTTON_LEFT | BUTTON_RIGHT);
                         if (event.jaxis.value < -AXIS_DEADZONE) {
-                            controllers[cid] |= BUTTON_LEFT;
+                            ctrls[cid] |= BUTTON_LEFT;
                         } else if (event.jaxis.value > AXIS_DEADZONE) {
-                            controllers[cid] |= BUTTON_RIGHT;
+                            ctrls[cid] |= BUTTON_RIGHT;
                         }
                     } else if (event.jaxis.axis == 1) {
-                        controllers[cid] &= ~(BUTTON_UP | BUTTON_DOWN);
+                        ctrls[cid] &= ~(BUTTON_UP | BUTTON_DOWN);
                         if (event.jaxis.value < -AXIS_DEADZONE) {
-                            controllers[cid] |= BUTTON_UP;
+                            ctrls[cid] |= BUTTON_UP;
                         } else if (event.jaxis.value > AXIS_DEADZONE) {
-                            controllers[cid] |= BUTTON_DOWN;
+                            ctrls[cid] |= BUTTON_DOWN;
                         }
                     }
                     /*printf("P%d A%d:%d => %d\n", cid + 1,
@@ -184,13 +183,13 @@ void window_loop(Window *wnd, Machine *vm) {
                     for (int i = 0; i < 8; i++) {
                         if (event.jbutton.button == buttons[i]) {
                             if (i > 3 && wnd->js_use_axis[cid]) {
-                                controllers[cid] &= 0b1111;
+                                ctrls[cid] &= 0b1111;
                                 wnd->js_use_axis[cid] = false;
                             }
                             if (event.jbutton.state == SDL_PRESSED) {
-                                controllers[cid] |= 1 << i;
+                                ctrls[cid] |= 1 << i;
                             } else {
-                                controllers[cid] &= ~(1 << i);
+                                ctrls[cid] &= ~(1 << i);
                             }
                             break;
                         }
@@ -234,8 +233,7 @@ void window_loop(Window *wnd, Machine *vm) {
                                                      (float)QUIT_REQUEST_DELAY);
         }
         
-        SDL_LockTexture(wnd->texture, NULL, (void **)&vm->ppu.screen,
-                        &pitch);
+        SDL_LockTexture(wnd->texture, NULL, (void **)&vm->ppu->screen, &pitch);
         
         // Advance one frame
         if (!machine_advance_frame(vm, verbose)) {

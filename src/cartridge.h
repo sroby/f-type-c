@@ -1,5 +1,5 @@
-#ifndef mappers_h
-#define mappers_h
+#ifndef cartridge_h
+#define cartridge_h
 
 #include "common.h"
 
@@ -8,8 +8,7 @@
 #define MAX_BANKS 8
 
 // Forward declarations
-typedef struct CPUState CPUState;
-typedef struct MemoryMap MemoryMap;
+typedef struct Machine Machine;
 
 typedef struct MMC1State {
     int shift_reg;
@@ -34,7 +33,6 @@ typedef struct MMC3State {
     bool irq_enabled;
     bool irq_reload;
     bool last_pt;
-    CPUState *cpu;
 } MMC3State;
 
 typedef struct UxROMVariants {
@@ -81,11 +79,11 @@ typedef struct Cartridge {
 typedef struct MapperInfo {
     int ines_id;
     const char *name;
-    void (*init_func)(MemoryMap *, MemoryMap *);
+    void (*init_func)(Machine *);
 } MapperInfo;
 
 bool mapper_check_support(int mapper_id, const char **name);
 
-void mapper_init(Cartridge *cart, MemoryMap *cpu_mm, MemoryMap *ppu_mm);
+void mapper_init(Machine *vm);
 
-#endif /* mappers_h */
+#endif /* cartridge_h */

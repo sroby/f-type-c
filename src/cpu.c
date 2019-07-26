@@ -629,7 +629,7 @@ void cpu_debug_print_state(CPUState *cpu) {
     }
     printf("] S=%02x{", cpu->s);
     for (int i = 0xff; i > cpu->s; i--) {
-        printf(" %02x", cpu->mm->data.cpu.wram[0x100 + i]);
+        printf(" %02x", mm_read(cpu->mm, 0x100 + i));
     }
     printf(" }\n");
 }

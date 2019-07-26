@@ -74,6 +74,10 @@ struct PPUState {
     uint8_t oam[0x100];
     uint8_t oam_addr;
     uint8_t oam2[32];
+    
+    // Colors
+    uint8_t background_colors[4];
+    uint8_t palettes[8 * 3];
 
     // External registers
     uint8_t ctrl; // Write-only

@@ -2,7 +2,10 @@
 #include <libgen.h>
 
 #include "cartridge.h"
+#include "cpu.h"
 #include "machine.h"
+#include "memory_maps.h"
+#include "ppu.h"
 #include "window.h"
 
 int main(int argc, const char *argv[]) {
@@ -95,7 +98,15 @@ int main(int argc, const char *argv[]) {
     }
     
     Machine vm;
-    machine_init(&vm, &cart, dbg_map);
+    MemoryMap cpu_mm;
+    memory_map_cpu_init(&cpu_mm, &vm);
+    MemoryMap ppu_mm;
+    memory_map_ppu_init(&ppu_mm, &vm);
+    CPUState cpu;
+    cpu_init(&cpu, &cpu_mm);
+    PPUState ppu;
+    ppu_init(&ppu, &ppu_mm, &cpu);
+    machine_init(&vm, &cpu, &ppu, &cpu_mm, &ppu_mm, &cart, dbg_map);
     
     window_loop(&wnd, &vm);
     
