@@ -48,11 +48,11 @@
 
 // Screen dimensions
 #define WIDTH 256
-#define WIDTH_NT 32
 #define WIDTH_ADJUSTED (WIDTH * 8 / 7)
+#define WIDTH_PP (WIDTH * 8)
 #define HEIGHT 240
-#define HEIGHT_NT 30
 #define HEIGHT_CROPPED 224
+#define HEIGHT_PP (HEIGHT_CROPPED * 7)
 
 // Tasks array
 #define TASK_SPRITE 0

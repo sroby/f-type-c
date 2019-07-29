@@ -58,17 +58,11 @@ int window_init(Window *wnd, const char *filename) {
         printf("No controllers were found, will continue without input\n");
     }
     
-    Uint32 window_flags = SDL_WINDOW_ALLOW_HIGHDPI;
-#ifndef DEBUG
-    window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-    SDL_ShowCursor(SDL_DISABLE);
-#endif
-    
     // Create window and renderer
     wnd->window = SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED,
                                              SDL_WINDOWPOS_UNDEFINED,
                                              WIDTH_ADJUSTED, HEIGHT_CROPPED,
-                                             window_flags);
+                                             SDL_WINDOW_ALLOW_HIGHDPI);
     if (!wnd->window) {
         printf("%s\n", SDL_GetError());
         return 1;
@@ -80,9 +74,22 @@ int window_init(Window *wnd, const char *filename) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
+
+    // Compare physical resolution to display bounds to see if we can resize to
+    // pixel-perfect (2048x1568) mode
+    int w, h;
+    SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
+    SDL_Rect bounds;
+    SDL_GetDisplayUsableBounds(0, &bounds);
+    int target_w = WIDTH_PP / (w / WIDTH_ADJUSTED);
+    int target_h = HEIGHT_PP / (h / HEIGHT_CROPPED);
+    if (target_w <= bounds.w && target_h <= bounds.h) {
+        SDL_SetWindowSize(wnd->window, target_w, target_h);
+    } else {
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
+    }
     
     // Compute the display area
-    int w, h;
     SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
     int zoom = h / HEIGHT_CROPPED + 1;
     int adjusted_w;
@@ -94,9 +101,6 @@ int window_init(Window *wnd, const char *filename) {
     wnd->display_area.h = HEIGHT_CROPPED * zoom;
     wnd->display_area.x = (w - wnd->display_area.w) / 2;
     wnd->display_area.y = (h - wnd->display_area.h) / 2;
-    if (zoom <= 2) {
-        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
-    }
     
     wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
                                      SDL_TEXTUREACCESS_STREAMING,
