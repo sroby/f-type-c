@@ -79,6 +79,7 @@ static void write_palettes(Machine *vm, int offset, uint8_t value) {
 
 void memory_map_cpu_init(MemoryMap *mm, Machine *vm) {
     init_common(mm, vm);
+    mm->addr_mask = 0xFFFF;
     
     // Populate the address map
     // 0000-1FFF: WRAM (2kB, repeated)
@@ -105,6 +106,7 @@ void memory_map_cpu_init(MemoryMap *mm, Machine *vm) {
 
 void memory_map_ppu_init(MemoryMap *mm, Machine *vm) {
     init_common(mm, vm);
+    mm->addr_mask = 0x3FFF;
     
     // Populate the address map
     // 0000-1FFF: Cartridge I/O, defined by the mapper's init
@@ -124,10 +126,11 @@ void memory_map_ppu_init(MemoryMap *mm, Machine *vm) {
                 {read_palettes, write_palettes, j};
         }
     }
-    // 4000-FFFF: Invalid range
+    // 4000-FFFF: Over the 14 bit range
 }
 
 uint8_t mm_read(MemoryMap *mm, uint16_t addr) {
+    addr &= mm->addr_mask;
     MemoryAddress *f = &mm->addrs[addr];
     if (f->read_func) {
         mm->last_read = (*f->read_func)(mm->vm, f->offset);
@@ -139,6 +142,7 @@ uint16_t mm_read_word(MemoryMap *mm, uint16_t addr) {
 }
 
 void mm_write(MemoryMap *mm, uint16_t addr, uint8_t value) {
+    addr &= mm->addr_mask;
     MemoryAddress *f = &mm->addrs[addr];
     if (f->write_func) {
         (*f->write_func)(mm->vm, f->offset, value);

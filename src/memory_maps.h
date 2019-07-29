@@ -25,6 +25,7 @@ typedef struct {
 typedef struct MemoryMap {
     Machine *vm;
     uint8_t last_read;
+    uint16_t addr_mask;
     MemoryAddress addrs[0x10000];
 } MemoryMap;
 
