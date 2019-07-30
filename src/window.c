@@ -133,7 +133,6 @@ void window_loop(Window *wnd, Machine *vm) {
     const uint64_t ticks_per_frame = SDL_GetPerformanceFrequency() *  10000
                                                                    / 600988;
     uint8_t *ctrls = vm->controllers;
-    int pitch;
     
     // Main loop
     int frame = 0;
@@ -239,15 +238,14 @@ void window_loop(Window *wnd, Machine *vm) {
                                                      (float)QUIT_REQUEST_DELAY);
         }
         
-        SDL_LockTexture(wnd->texture, NULL, (void **)&vm->ppu->screen, &pitch);
-        
         // Advance one frame
         if (!machine_advance_frame(vm, verbose)) {
             break;
         }
         
         // Render the frame
-        SDL_UnlockTexture(wnd->texture);
+        SDL_UpdateTexture(wnd->texture, NULL, vm->ppu->screen,
+                          WIDTH * sizeof(uint32_t));
         SDL_RenderClear(wnd->renderer);
         SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area,
                        &wnd->display_area);

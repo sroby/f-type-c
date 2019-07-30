@@ -113,7 +113,7 @@ struct PPUState {
     bool s_has_zero, s_has_zero_next;
     
     // Raw screen data, in ARGB8888 format
-    uint32_t *screen;
+    uint32_t screen[WIDTH * HEIGHT];
 };
 
 void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu);
