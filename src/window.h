@@ -8,6 +8,8 @@
 
 #define QUIT_REQUEST_DELAY 60
 
+#define FRAME_DURATION 16
+
 // Forward declarations
 typedef struct Machine Machine;
 typedef struct PPUState PPUState;

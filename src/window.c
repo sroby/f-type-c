@@ -130,14 +130,12 @@ void window_cleanup(Window *wnd) {
 void window_loop(Window *wnd, Machine *vm) {
     const char *const verb_char = getenv("VERBOSE");
     const bool verbose = verb_char ? *verb_char - '0' : false;
-    const uint64_t ticks_per_frame = SDL_GetPerformanceFrequency() *  10000
-                                                                   / 600988;
     uint8_t *ctrls = vm->controllers;
     
     // Main loop
     int frame = 0;
     int quit_request = 0;
-    uint64_t t_next = SDL_GetPerformanceCounter();
+    uint32_t t_next = 0;
     while(true) {
         // Process events
         bool quitting = false;
@@ -252,10 +250,13 @@ void window_loop(Window *wnd, Machine *vm) {
         SDL_RenderPresent(wnd->renderer);
 
         // Throttle the execution until we are due for a new frame
-        while (SDL_GetPerformanceCounter() < t_next) {
-            SDL_Delay(1);
+        uint32_t t_current = SDL_GetTicks();
+        if (t_current < t_next) {
+            SDL_Delay(t_next - t_current);
+        } else {
+            t_next = t_current;
         }
-        t_next = SDL_GetPerformanceCounter() + ticks_per_frame;
+        t_next += FRAME_DURATION;
         frame++;
     }
     
