@@ -285,11 +285,13 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
         ppu->tasks[65 + i * 3][TASK_SPRITE] = task_sprite_eval;
     }
     // fetch
-    for (int i = 0; i < 336; i += 8) {
-        ppu->tasks[i + 1][TASK_FETCH] = task_fetch_nt;
-        ppu->tasks[i + 3][TASK_FETCH] = task_fetch_at;
-        ppu->tasks[i + 5][TASK_FETCH] = task_fetch_bg_pt0;
-        ppu->tasks[i + 7][TASK_FETCH] = task_fetch_bg_pt1;
+    for (int i = 1; i < PPU_CYCLES_PER_SCANLINE; i += 8) {
+        ppu->tasks[i][TASK_FETCH] = task_fetch_nt;
+        ppu->tasks[i + 2][TASK_FETCH] = task_fetch_at;
+    }
+    for (int i = 5; i < PPU_CYCLES_PER_SCANLINE; i += 8) {
+        ppu->tasks[i][TASK_FETCH] = task_fetch_bg_pt0;
+        ppu->tasks[i + 2][TASK_FETCH] = task_fetch_bg_pt1;
     }
     for (int i = 0; i < 64; i += 8) {
         ppu->tasks[261 + i][TASK_FETCH] = task_fetch_spr_pt0;
