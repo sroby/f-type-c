@@ -1,5 +1,6 @@
 CC=gcc
-CFLAGS=-O3 -Wall -Werror `sdl2-config --cflags --libs`
+CFLAGS=-O3 -Wall -Werror `sdl2-config --cflags`
+LDFLAGS=`sdl2-config --libs`
 
 TARGET=f-type
 SRCS= \
@@ -17,7 +18,7 @@ debug: CFLAGS += -DDEBUG -g
 debug: $(TARGET)
 
 $(TARGET): $(SRCS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS) $(LDFLAGS)
 
 clean:
 	$(RM) $(TARGET)
