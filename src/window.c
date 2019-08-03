@@ -2,7 +2,6 @@
 
 #include "machine.h"
 #include "memory_maps.h"
-#include "ppu.h"
 
 // Button assignments
 // Hardcoded to PS4 controller (and 8bitdo's "macOS mode") for now
@@ -23,9 +22,44 @@ static int identify_js(Window *wnd, SDL_JoystickID which) {
     return -1;
 }
 
+static int thread_machine_loop(void *data) {
+    Window *wnd = data;
+    const char *const verb_char = getenv("VERBOSE");
+    const bool verbose = verb_char ? *verb_char - '0' : false;
+    int frame = 0;
+    
+    uint32_t t_next = 0;
+    while (!SDL_AtomicGet(&wnd->quitting)) {
+        // Advance one frame
+        if (!machine_advance_frame(wnd->vm, verbose)) {
+            SDL_AtomicSet(&wnd->quitting, 1);
+            break;
+        }
+        SDL_LockMutex(wnd->mutex);
+        memcpy(wnd->screen_buffer, wnd->vm->ppu->screen,
+               sizeof(uint32_t) * WIDTH * HEIGHT);
+        SDL_UnlockMutex(wnd->mutex);
+        
+        // Throttle the execution until we are due for a new frame
+        uint32_t t_current = SDL_GetTicks();
+        if (t_current < t_next) {
+            SDL_Delay(t_next - t_current);
+        } else if (t_current > t_next) {
+            //printf("%d %d\n", t_current, t_current - t_next);
+            t_next = t_current;
+        }
+        t_next += FRAME_DURATION;
+        frame++;
+    }
+    
+    return frame;
+}
+
 // PUBLIC FUNCTIONS //
 
-int window_init(Window *wnd, const char *filename) {
+int window_init(Window *wnd, const char *filename, Machine *vm) {
+    wnd->vm = vm;
+    
     // Init SDL
     int error_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
     if (error_code) {
@@ -109,11 +143,18 @@ int window_init(Window *wnd, const char *filename) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
+    
+    wnd->mutex = SDL_CreateMutex();
+    if (!wnd->mutex) {
+        printf("%s\n", SDL_GetError());
+        return 1;
+    }
 
     return 0;
 }
 
 void window_cleanup(Window *wnd) {
+    SDL_DestroyMutex(wnd->mutex);
     SDL_DestroyTexture(wnd->texture);
     SDL_DestroyRenderer(wnd->renderer);
     SDL_DestroyWindow(wnd->window);
@@ -127,18 +168,17 @@ void window_cleanup(Window *wnd) {
     SDL_Quit();
 }
 
-void window_loop(Window *wnd, Machine *vm) {
-    const char *const verb_char = getenv("VERBOSE");
-    const bool verbose = verb_char ? *verb_char - '0' : false;
-    uint8_t *ctrls = vm->controllers;
+void window_loop(Window *wnd) {
+    uint8_t *ctrls = wnd->vm->controllers;
     
-    // Main loop
-    int frame = 0;
-    int quit_request = 0;
-    uint32_t t_next = 0;
-    while(true) {
+    SDL_AtomicSet(&wnd->quitting, 0);
+    SDL_Thread *t_machine = SDL_CreateThread(thread_machine_loop,
+                                             "machine_loop", wnd);
+    
+    // Video and events loop
+    uint32_t quit_request = 0;
+    while (!SDL_AtomicGet(&wnd->quitting)) {
         // Process events
-        bool quitting = false;
         SDL_Event event;
         int cid;
         while (SDL_PollEvent(&event)) {
@@ -205,7 +245,7 @@ void window_loop(Window *wnd, Machine *vm) {
                     switch (event.key.keysym.scancode) {
                         case SDL_SCANCODE_ESCAPE:
                             if (!quit_request) {
-                                quit_request = frame;
+                                quit_request = SDL_GetTicks();
                             }
                             break;
                         default: break;
@@ -221,44 +261,33 @@ void window_loop(Window *wnd, Machine *vm) {
                     }
                     break;
                 case SDL_QUIT:
-                    quitting = true;
+                    SDL_AtomicSet(&wnd->quitting, 1);
+                    break;
             }
-        }
-        if (quitting) {
-            break;
         }
         if (quit_request) {
-            int elapsed = frame - quit_request;
+            uint32_t elapsed = SDL_GetTicks() - quit_request;
             if (elapsed > QUIT_REQUEST_DELAY) {
-                break;
+                SDL_AtomicSet(&wnd->quitting, 1);
+            } else {
+                SDL_SetWindowOpacity(wnd->window,
+                                     1.0f - (float)elapsed /
+                                            (float)QUIT_REQUEST_DELAY);
             }
-            SDL_SetWindowOpacity(wnd->window, 1.0f - (float)elapsed /
-                                                     (float)QUIT_REQUEST_DELAY);
-        }
-        
-        // Advance one frame
-        if (!machine_advance_frame(vm, verbose)) {
-            break;
         }
         
         // Render the frame
-        SDL_UpdateTexture(wnd->texture, NULL, vm->ppu->screen,
+        SDL_LockMutex(wnd->mutex);
+        SDL_UpdateTexture(wnd->texture, NULL, wnd->screen_buffer,
                           WIDTH * sizeof(uint32_t));
+        SDL_UnlockMutex(wnd->mutex);
         SDL_RenderClear(wnd->renderer);
         SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area,
                        &wnd->display_area);
         SDL_RenderPresent(wnd->renderer);
-
-        // Throttle the execution until we are due for a new frame
-        uint32_t t_current = SDL_GetTicks();
-        if (t_current < t_next) {
-            SDL_Delay(t_next - t_current);
-        } else {
-            t_next = t_current;
-        }
-        t_next += FRAME_DURATION;
-        frame++;
     }
     
+    int frame;
+    SDL_WaitThread(t_machine, &frame);
     printf("Ended after %d frames\n", frame);
 }
