@@ -13,6 +13,8 @@
 #define BUTTON_LEFT (1 << 6)
 #define BUTTON_RIGHT (1 << 7)
 
+#define MASK_COLOR 0b111111
+
 // Forward declarations
 typedef struct Machine Machine;
 

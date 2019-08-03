@@ -65,14 +65,14 @@ static uint8_t read_background_colors(Machine *vm, int offset) {
     return vm->ppu->background_colors[offset];
 }
 static void write_background_colors(Machine *vm, int offset, uint8_t value) {
-    vm->ppu->background_colors[offset] = value;
+    vm->ppu->background_colors[offset] = value & MASK_COLOR;
 }
 
 static uint8_t read_palettes(Machine *vm, int offset) {
     return vm->ppu->palettes[offset];
 }
 static void write_palettes(Machine *vm, int offset, uint8_t value) {
-    vm->ppu->palettes[offset] = value;
+    vm->ppu->palettes[offset] = value & MASK_COLOR;
 }
 
 // PUBLIC FUNCTIONS //
