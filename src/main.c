@@ -90,6 +90,13 @@ int main(int argc, const char *argv[]) {
         fclose(map_file);
     }
     
+    Window wnd;
+    char *fn = realpath(argv[1], NULL);
+    int error_code = window_init(&wnd, basename(fn));
+    if (error_code) {
+        return error_code;
+    }
+    
     Machine vm;
     MemoryMap cpu_mm;
     memory_map_cpu_init(&cpu_mm, &vm);
@@ -101,13 +108,8 @@ int main(int argc, const char *argv[]) {
     ppu_init(&ppu, &ppu_mm, &cpu);
     machine_init(&vm, &cpu, &ppu, &cpu_mm, &ppu_mm, &cart, dbg_map);
     
-    Window wnd;
-    char *fn = realpath(argv[1], NULL);
-    int error_code = window_init(&wnd, basename(fn), &vm);
-    if (error_code) {
-        return error_code;
-    }
-    window_loop(&wnd);
+    window_loop(&wnd, &vm);
+    
     window_cleanup(&wnd);
     
     // TODO: Save SRAM
