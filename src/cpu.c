@@ -17,11 +17,9 @@ static bool get_p_flag(CPUState *cpu, int flag) {
 }
 
 static void set_p_flag(CPUState *cpu, int flag, bool value) {
-    if (value) {
-        cpu->p |= (1 << flag);
-    } else {
-        cpu->p &= ~(1 << flag);
-    }
+    const int pos_mask = value << flag;
+    const int neg_mask = ~(!value << flag);
+    cpu->p = (cpu->p | pos_mask) & neg_mask;
 }
 
 static void apply_p_nz(CPUState *cpu, uint8_t value) {
