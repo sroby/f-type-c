@@ -4,14 +4,16 @@
 #include "common.h"
 
 // P flags
-#define P_C 0 // Carry
-#define P_Z 1 // Zero value
-#define P_I 2 // IRQ disable
-#define P_D 3 // Decimal mode (not supported)
-#define P_B 4 // Break
-#define P__ 5 // Unused
-#define P_V 6 // Overflow
-#define P_N 7 // Negative value
+typedef enum {
+    P_C = 1 << 0, // Carry
+    P_Z = 1 << 1, // Zero value
+    P_I = 1 << 2, // IRQ disable
+    P_D = 1 << 3, // Decimal mode (not supported)
+    P_B = 1 << 4, // Break
+    P__ = 1 << 5, // Unused
+    P_V = 1 << 6, // Overflow
+    P_N = 1 << 7  // Negative value
+} PFlag;
 
 // Interrupt Vector Table
 #define IVT_NMI   0xFFFA

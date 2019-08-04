@@ -12,13 +12,13 @@ static void apply_page_boundary_penalty(CPUState *cpu, uint16_t a, uint16_t b) {
 
 // P.STATUS REGISTER //
 
-static bool get_p_flag(CPUState *cpu, int flag) {
-    return cpu->p & (1 << flag);
+static bool get_p_flag(CPUState *cpu, PFlag flag) {
+    return cpu->p & flag;
 }
 
-static void set_p_flag(CPUState *cpu, int flag, bool value) {
-    const int pos_mask = value << flag;
-    const int neg_mask = ~(!value << flag);
+static void set_p_flag(CPUState *cpu, PFlag flag, bool value) {
+    const uint8_t pos_mask = -value & flag;     // All 0 if val == 0
+    const uint8_t neg_mask = ~(-!value & flag); // All 1 if val == 1
     cpu->p = (cpu->p | pos_mask) & neg_mask;
 }
 
@@ -94,7 +94,7 @@ static void op_ST(CPUState *cpu, const Opcode *op, OpParam param) {
 static void op_PH(CPUState *cpu, const Opcode *op, OpParam param) {
     uint8_t value = *op->reg1;
     if (op->reg1 == &cpu->p) {
-        value |= (1 << P_B) + (1 << P__);
+        value |= P_B | P__;
     }
     stack_push(cpu, value);
 }
@@ -102,7 +102,7 @@ static void op_PH(CPUState *cpu, const Opcode *op, OpParam param) {
 static void op_PL(CPUState *cpu, const Opcode *op, OpParam param) {
     *op->reg1 = stack_pull(cpu);
     if (op->reg1 == &cpu->p) {
-        *op->reg1 &= ~((1 << P_B) + (1 << P__));
+        *op->reg1 &= ~(P_B | P__);
     } else {
         apply_p_nz(cpu, *op->reg1);
     }
@@ -232,7 +232,7 @@ static void op_JSR(CPUState *cpu, const Opcode *op, OpParam param) {
 }
 
 static void op_RTI(CPUState *cpu, const Opcode *op, OpParam param) {
-    cpu->p = stack_pull(cpu) & ~((1 << P_B) + (1 << P__));
+    cpu->p = stack_pull(cpu) & ~(P_B | P__);
     cpu->pc = stack_pull_word(cpu);
 }
 
@@ -240,7 +240,7 @@ static void op_RTS(CPUState *cpu, const Opcode *op, OpParam param) {
     cpu->pc = stack_pull_word(cpu) + 1;
 }
 
-static void cond_branch(CPUState *cpu, OpParam param, int flag, bool value) {
+static void cond_branch(CPUState *cpu, OpParam param, PFlag flag, bool value) {
     if (get_p_flag(cpu, flag) != value) {
         return;
     }
@@ -305,7 +305,7 @@ static void op_SED(CPUState *cpu, const Opcode *op, OpParam param) {
 
 void cpu_init(CPUState *cpu, MemoryMap *mm) {
     cpu->a = cpu->x = cpu->y = cpu->s = 0;
-    cpu->p = 1 << P__;
+    cpu->p = P__;
     cpu->pc = 0;
     cpu->time = 0;
     cpu->mm = mm;
