@@ -110,7 +110,7 @@ static void op_PL(CPUState *cpu, const Opcode *op, OpParam param) {
 
 static void op_ADC(CPUState *cpu, const Opcode *op, OpParam param) {
     uint8_t value = get_param_value(cpu, op, param);
-    uint8_t carry = (get_p_flag(cpu, P_C) ? 1 : 0);
+    uint8_t carry = get_p_flag(cpu, P_C);
     set_p_flag(cpu, P_C, ((int)(cpu->a) + (int)carry + (int)value) >= 0x100);
     uint8_t result = cpu->a + carry + value;
     set_p_flag(cpu, P_V, (result & (1 << 7)) != (cpu->a & (1 << 7)));
@@ -120,7 +120,7 @@ static void op_ADC(CPUState *cpu, const Opcode *op, OpParam param) {
 
 static void op_SBC(CPUState *cpu, const Opcode *op, OpParam param) {
     uint8_t value = get_param_value(cpu, op, param);
-    uint8_t carry = (get_p_flag(cpu, P_C) ? 1 : 0);
+    uint8_t carry = get_p_flag(cpu, P_C);
     set_p_flag(cpu, P_C, ((int)(cpu->a) + (int)carry - 1 - (int)value) >= 0);
     uint8_t result = cpu->a + carry - 1 - value;
     set_p_flag(cpu, P_V, (result & (1 << 7)) != (cpu->a & (1 << 7)));
@@ -196,7 +196,7 @@ static void op_ASL(CPUState *cpu, const Opcode *op, OpParam param) {
     shift_left(cpu, op, param, 0);
 }
 static void op_ROL(CPUState *cpu, const Opcode *op, OpParam param) {
-    shift_left(cpu, op, param, (get_p_flag(cpu, P_C) ? 1 : 0));
+    shift_left(cpu, op, param, get_p_flag(cpu, P_C));
 }
 
 static void shift_right(CPUState *cpu, const Opcode *op, OpParam param,
@@ -219,7 +219,7 @@ static void op_LSR(CPUState *cpu, const Opcode *op, OpParam param) {
     shift_right(cpu, op, param, 0);
 }
 static void op_ROR(CPUState *cpu, const Opcode *op, OpParam param) {
-    shift_right(cpu, op, param, (get_p_flag(cpu, P_C) ? 1 << 7 : 0));
+    shift_right(cpu, op, param, get_p_flag(cpu, P_C) << 7);
 }
 
 static void op_JMP(CPUState *cpu, const Opcode *op, OpParam param) {
