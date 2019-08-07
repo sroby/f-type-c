@@ -510,6 +510,8 @@ int cpu_step(CPUState *cpu, bool verbose) {
     p1.addr = p2.addr = 0;
     switch (op->am) {
         case AM_IMPLIED:
+            // Implied always does a dummy parameter read of the next byte
+            mm_read(cpu->mm, cpu->pc);
             break;
         case AM_IMMEDIATE:
             p1.immediate_value = p2.immediate_value = mm_read(cpu->mm,
