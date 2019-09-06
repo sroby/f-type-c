@@ -26,11 +26,13 @@
 Make sure you have the SDL2 devel package installed via your distribution's package manager.
 
 A simple Makefile is included, just run:
+
     $ make
 
 ### macOS
 
 Install the dependencies via [Homebrew](https://brew.sh):
+
     $ brew install sdl2
 
 An Xcode project is included, but the same Makefile as Linux can also be used.
