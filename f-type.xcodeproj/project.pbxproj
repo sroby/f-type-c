@@ -36,6 +36,7 @@
 		F4858D7622BCE2BC0043C2EF /* libSDL2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libSDL2.dylib; path = ../../../../usr/local/lib/libSDL2.dylib; sourceTree = "<group>"; };
 		F4858D7822BCECB70043C2EF /* window.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = window.h; sourceTree = "<group>"; };
 		F4858D7922BCECB70043C2EF /* window.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = window.c; sourceTree = "<group>"; };
+		F4950322231F414F00FD7532 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		F4EEF80222AA050A00B38C9F /* f-type */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "f-type"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4EEF80522AA050A00B38C9F /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		F4EEF80C22AA054300B38C9F /* memory_maps.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = memory_maps.h; sourceTree = "<group>"; };
@@ -71,6 +72,7 @@
 		F4EEF7F922AA050A00B38C9F = {
 			isa = PBXGroup;
 			children = (
+				F4950322231F414F00FD7532 /* README.md */,
 				F4EEF80422AA050A00B38C9F /* src */,
 				F4EEF80322AA050A00B38C9F /* Products */,
 				F4858D7522BCE2BC0043C2EF /* Frameworks */,
