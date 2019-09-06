@@ -546,7 +546,7 @@ static void PCI556_init(Machine *vm) {
     }
 }
 
-// MAPPER  66: Nintendo GxROM (32b/8b)                                    //
+// MAPPER  66: Nintendo GNROM and MHROM (32b/8b)                          //
 //         70: Bandai 74*161/161/32 (16b+16f/8b with equivalent register) //
 //        140: Jaleco JF-11/14 (similar but register in the SRAM area)    //
 //        152: Bandai 74*161/161/32 single screen (70 with A/B control)   //
@@ -802,6 +802,42 @@ static void TAMS1_init(Machine *vm) {
     machine_set_nt_mirroring(vm, NT_SINGLE_A);
 }
 
+// MAPPER 99: Nintendo Vs. System default board (8b+24f/8b via $4016 bit 2) //
+
+static uint8_t VS_read_prg(Machine *vm, int offset) {
+    if (vm->vs_bank) {
+        offset += SIZE_PRG_ROM;
+    }
+    return vm->cart->prg_rom[offset];
+}
+
+static uint8_t VS_read_chr(Machine *vm, int offset) {
+    if (vm->vs_bank) {
+        offset += SIZE_CHR_ROM;
+    }
+    return vm->cart->chr_memory[offset];
+}
+
+static void VS_init(Machine *vm) {
+    Cartridge *cart = vm->cart;
+    
+    for (int i = 0; i < SIZE_PRG_ROM / 4; i++) {
+        vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
+        {(cart->prg_rom_size > SIZE_PRG_ROM ? VS_read_prg : NULL), NULL, i};
+    }
+    for (int i = SIZE_PRG_ROM / 4; i < SIZE_PRG_ROM; i++) {
+        vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
+            {read_fixed_prg, NULL, i};
+    }
+    
+    for (int i = 0; i < SIZE_CHR_ROM; i++) {
+        vm->ppu_mm->addrs[i] = (MemoryAddress)
+        {(cart->chr_memory_size > SIZE_CHR_ROM ? VS_read_chr : NULL), NULL, i};
+    }
+    
+    init_sram(vm, SIZE_SRAM);
+}
+
 // MAPPER 184: Sunsoft-1 (32f/4b+4b) //
 
 static void Sunsoft1_write_register(Machine *vm, int offset, uint8_t value) {
@@ -846,7 +882,7 @@ static const MapperInfo mappers[] = {
     {  1, "Nintendo SxROM (MMC1)", MMC1_init},
     {  2, "Nintendo UxROM", UxROM_init},
     {  3, "Nintendo CNROM", CNROM_init},
-    {  4, "Nintendo TxROM (MMC3) / HKROM (MMC6)", MMC3_init},
+    {  4, "Nintendo TxROM/HKROM (MMC3/MMC6)", MMC3_init},
     {  5, "Nintendo ExROM (MMC5)", NULL},
     {  7, "Nintendo AxROM", AxROM_init},
     {  9, "Nintendo PxROM (MMC2)", MMC2_init},
@@ -885,7 +921,7 @@ static const MapperInfo mappers[] = {
     { 63, "NTDEC multicart", NULL},
     { 64, "Tengen RAMBO-1", NULL},
     { 65, "Irem H3001", NULL},
-    { 66, "Nintendo GxROM", GxROM_init},
+    { 66, "Nintendo GNROM/MHROM", GxROM_init},
     { 67, "Sunsoft-3", NULL},
     { 68, "Sunsoft-4", Sunsoft4_init},
     { 69, "Sunsoft FME-7", NULL},
@@ -916,7 +952,7 @@ static const MapperInfo mappers[] = {
     { 95, "Namco NAMCOT-3425", NULL},
     { 96, "Bandai 74*161/02/74", NULL},
     { 97, "Irem TAM-S1", TAMS1_init},
-    { 99, "Nintendo Vs. System", NULL},
+    { 99, "Nintendo Vs. System", VS_init},
     {105, "Nintendo NES-EVENT (MMC1)", NULL},
     {107, "Magicseries", NULL},
     {111, "Membler Industries Cheapocabra (GTROM)", NULL},

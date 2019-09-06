@@ -17,8 +17,7 @@ void machine_init(Machine *vm, CPUState *cpu, PPUState *ppu, MemoryMap *cpu_mm,
     vm->cart = cart;
     vm->dbg_map = dbg_map;
 
-    machine_set_nt_mirroring(vm,
-                             (cart->mirroring ? NT_VERTICAL : NT_HORIZONTAL));
+    machine_set_nt_mirroring(vm, cart->default_mirroring);
     mapper_init(vm);
     
     cpu_reset(vm->cpu);
@@ -58,14 +57,15 @@ bool machine_advance_frame(Machine *vm, bool verbose) {
     return true;
 }
 
-void machine_set_nt_mirroring(Machine *vm, NametableMirroring m) {
+void machine_set_nt_mirroring(Machine *vm, NametableMirroring nm) {
     static const int layouts[] = {
         0, 0, 0, 0, // SINGLE_A
         1, 1, 1, 1, // SINGLE_B
         0, 1, 0, 1, // VERTICAL
         0, 0, 1, 1, // HORIZONTAL
+        0, 1, 2, 3, // FOUR
     };
-    const int *layout = layouts + m * 4;
+    const int *layout = layouts + nm * 4;
     for (int i = 0; i < 4; i++) {
         vm->nt_layout[i] = vm->nametables[layout[i]];
     }

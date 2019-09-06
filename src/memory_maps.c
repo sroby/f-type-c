@@ -50,6 +50,7 @@ static void write_controller_latch(Machine *vm, int offset, uint8_t value) {
     if (value & 1) {
         vm->controller_bit[0] = vm->controller_bit[1] = 0;
     }
+    vm->vs_bank = value & 0b100;
 }
 
 // PPU MEMORY MAP ACCESSES //

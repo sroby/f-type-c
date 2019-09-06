@@ -33,12 +33,13 @@ typedef struct Machine {
     
     // System RAM
     uint8_t wram[SIZE_WRAM];
-    uint8_t nametables[2][SIZE_NAMETABLE];
+    uint8_t nametables[4][SIZE_NAMETABLE];
     uint8_t *nt_layout[4];
     
     // Controller I/O
     uint8_t controllers[2];
     int controller_bit[2];
+    bool vs_bank;
 } Machine;
 
 typedef enum {
@@ -46,6 +47,7 @@ typedef enum {
     NT_SINGLE_B = 1,
     NT_VERTICAL = 2,
     NT_HORIZONTAL = 3,
+    NT_FOUR = 4,
 } NametableMirroring;
 
 void machine_init(Machine *vm, CPUState *cpu, PPUState *ppu, MemoryMap *cpu_mm,

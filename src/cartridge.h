@@ -66,7 +66,7 @@ typedef struct Cartridge {
     bool has_battery_backup;
     
     // Memory mapper
-    bool mirroring;
+    int default_mirroring;
     int mapper_id;
     Mapper mapper;
     int prg_banks[MAX_BANKS];

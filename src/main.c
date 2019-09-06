@@ -69,8 +69,16 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
     
-    cart.mirroring = header[6] & 1;
-    printf("Mirroring: %s\n", (cart.mirroring ? "Vertical" : "Horizontal"));
+    const char *nm_desc;
+    if (header[6] & 0b1000) {
+        cart.default_mirroring = NT_FOUR;
+        nm_desc = "Four-screen";
+    } else {
+        bool mirroring_flag = header[6] & 1;
+        cart.default_mirroring = (mirroring_flag ? NT_VERTICAL : NT_HORIZONTAL);
+        nm_desc = (mirroring_flag ? "Vertical" : "Horizontal");
+    }
+    printf("Mirroring: %s\n", nm_desc);
     
     cart.has_battery_backup = header[6] & 0b10;
     printf("Battery-backed SRAM: %s\n",
