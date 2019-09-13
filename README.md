@@ -8,7 +8,7 @@
 * Regular controller input
 * Lightgun input (via mouse)
 * Mapper support:
-    * First-party: 0, 1, 2, 3, 4, 7, 9, 10, 13, 34, 66, 94, 99, 155, 180, 185 (all except the MMC5 and some multicarts)
+    * First-party: 0, 1, 2, 3, 4, 7, 9, 10, 13, 34, 66, 94, 99, 119, 155, 180, 185 (all except the MMC5 and some variants)
     * Third-party: 11, 38, 39, 68, 70, 75, 79, 87, 89, 93, 97, 113, 140, 146, 151, 152, 184
 
 ## Feature wishlist

@@ -267,8 +267,9 @@ static void CNROM_init(Machine *vm) {
     init_banked_chr(vm);
 }
 
-// MAPPER 4: Nintendo MMC3 and MMC6                            //
-//           (variable banking, H/V control, scanline counter) //
+// MAPPER   4: Nintendo MMC3 and MMC6                                       //
+//             (variable banking, H/V control, scanline counter)            //
+//        119: TQROM variant (uses both CHR ROM and CHR RAM simultaneously) //
 
 static void MMC3_update_banks(Cartridge *cart) {
     MMC3State *mmc = &cart->mapper.mmc3;
@@ -314,7 +315,7 @@ static void MMC3_write_register(Machine *vm, int offset, uint8_t value) {
     offset = offset / 0x2000 * 2 + offset % 2;
     switch (offset) {
         case 0: // Bank select
-            cart->mapper.mmc3.bank_select = value;
+            mmc->bank_select = value;
             MMC3_update_banks(cart);
             break;
         case 1: // Bank data
@@ -380,6 +381,20 @@ static void MMC3_init(Machine *vm) {
     }
     
     init_sram(vm, SIZE_SRAM);
+}
+
+static void MMC3Q_init(Machine *vm) {
+    Cartridge *cart = vm->cart;
+    
+    // Change the CHR to RAM and grow it to 128kB, to match how the bank data
+    // register maps the CHR RAM. It's a lazy hack but seems to work, both games
+    // using this board still have issues but they may be caused by remaining
+    // problems in the scanline counter?
+    cart->chr_is_ram = true;
+    cart->chr_memory_size = 16 * SIZE_CHR_ROM;
+    cart->chr_memory = realloc(cart->chr_memory, cart->chr_memory_size);
+    
+    MMC3_init(vm);
 }
 
 // MAPPER 7: Nintendo AxROM (32b/8f, A/B control) //
@@ -962,7 +977,7 @@ static const MapperInfo mappers[] = {
     {115, "Kasheng SFC-02B/-03/-004", NULL},
     {116, "Supertone SOMARI-P Huang-1/2", NULL},
     {118, "Nintendo TxSROM (MMC3)", NULL},
-    {119, "Nintendo TQROM (MMC3)", NULL},
+    {119, "Nintendo TQROM (MMC3)", MMC3Q_init},
     {121, "Kasheng A9711/13", NULL},
     {123, "Kasheng H2288", NULL},
     {132, "TXC Corporation 01-22*", NULL},
