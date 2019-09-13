@@ -823,7 +823,8 @@ static void VS_init(Machine *vm) {
     
     for (int i = 0; i < SIZE_PRG_ROM / 4; i++) {
         vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
-        {(cart->prg_rom_size > SIZE_PRG_ROM ? VS_read_prg : NULL), NULL, i};
+            {(cart->prg_rom_size > SIZE_PRG_ROM ? VS_read_prg : read_fixed_prg),
+             NULL, i};
     }
     for (int i = SIZE_PRG_ROM / 4; i < SIZE_PRG_ROM; i++) {
         vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
