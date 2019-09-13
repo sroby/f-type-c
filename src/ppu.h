@@ -61,6 +61,8 @@
 
 #define PPU_CYCLES_PER_SCANLINE 341
 
+#define LIGHTGUN_COOLDOWN 26
+
 // Forward declarations
 typedef struct CPUState CPUState;
 typedef struct PPUState PPUState;
@@ -114,6 +116,10 @@ struct PPUState {
     
     // Raw screen data, in ARGB8888 format
     uint32_t screen[WIDTH * HEIGHT];
+    
+    // Lightgun sensor handling
+    int lightgun_pos;
+    int lightgun_sensor;
 };
 
 void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu);

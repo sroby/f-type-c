@@ -99,7 +99,11 @@ static void task_render_pixel(PPUState *ppu) {
         color = ppu->background_colors[0];
     }
     
-    ppu->screen[ppu->scanline * WIDTH + ppu->cycle] = colors[color];
+    int pos = ppu->scanline * WIDTH + ppu->cycle;
+    ppu->screen[pos] = colors[color];
+    if (pos == ppu->lightgun_pos && (color == 0x20 || color == 0x30)) {
+        ppu->lightgun_sensor = LIGHTGUN_COOLDOWN;
+    }
 
     ppu->bg_at0 <<= 1;
     ppu->bg_at1 <<= 1;
@@ -277,6 +281,7 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
     ppu->mm = mm;
     ppu->cpu = cpu;
     ppu->scanline = -1;
+    ppu->lightgun_pos = -1;
     
     // Fill the tasks array
     // sprite
@@ -353,8 +358,11 @@ bool ppu_step(PPUState *ppu, bool verbose) {
         // Skip last cycle of the pre-render line on odd frames
         ppu->cycle = 0;
     }
-    if (ppu->cycle == 0) {
+    if (!ppu->cycle) {
         ppu->scanline++;
+        if (ppu->lightgun_sensor > 0) {
+            ppu->lightgun_sensor--;
+        }
         if (ppu->scanline == 261) {
             ppu->scanline = -1;
             ppu->frame++;

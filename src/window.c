@@ -23,6 +23,18 @@ static int identify_js(Window *wnd, SDL_JoystickID which) {
     return -1;
 }
 
+static void update_lightgun_pos(PPUState *ppu, const SDL_Rect *d,
+                                int32_t x, int32_t y) {
+    x -= d->x;
+    y -= d->y;
+    if (x >= 0 && y >= 0 && x < d->w && y < d->h) {
+        ppu->lightgun_pos = x * WIDTH / d->w +
+                            (y * HEIGHT_CROPPED / d->h + 8) * WIDTH;
+    } else {
+        ppu->lightgun_pos = -1;
+    }
+}
+
 // PUBLIC FUNCTIONS //
 
 int window_init(Window *wnd, const char *filename) {
@@ -109,11 +121,19 @@ int window_init(Window *wnd, const char *filename) {
         printf("%s\n", SDL_GetError());
         return 1;
     }
-
+    
+    wnd->cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
+    if (!wnd->cursor) {
+        printf("%s\n", SDL_GetError());
+        return 1;
+    }
+    SDL_SetCursor(wnd->cursor);
+    
     return 0;
 }
 
 void window_cleanup(Window *wnd) {
+    SDL_FreeCursor(wnd->cursor);
     SDL_DestroyTexture(wnd->texture);
     SDL_DestroyRenderer(wnd->renderer);
     SDL_DestroyWindow(wnd->window);
@@ -200,6 +220,30 @@ void window_loop(Window *wnd, Machine *vm) {
                     /*printf("P%d B%d:%d => %d\n", cid + 1,
                      event.jbutton.button, event.jbutton.state,
                      controllers[cid]);*/
+                    break;
+                case SDL_MOUSEMOTION:
+                    if (!(event.motion.state & SDL_BUTTON_RMASK)) {
+                        update_lightgun_pos(vm->ppu, &wnd->display_area,
+                                            event.motion.x, event.motion.y);
+                    }
+                    break;
+                case SDL_MOUSEBUTTONDOWN:
+                case SDL_MOUSEBUTTONUP:
+                    if (event.button.button != SDL_BUTTON_LEFT &&
+                        event.button.button != SDL_BUTTON_RIGHT) {
+                        break;
+                    }
+                    vm->lightgun_trigger =
+                        (event.button.state == SDL_PRESSED);
+                    if (event.button.button == SDL_BUTTON_RIGHT) {
+                        if (vm->lightgun_trigger) {
+                            vm->ppu->lightgun_pos = -1;
+                        } else {
+                            update_lightgun_pos(vm->ppu, &wnd->display_area,
+                                                event.button.x,
+                                                event.button.y);
+                        }
+                    }
                     break;
                 case SDL_KEYDOWN:
                     switch (event.key.keysym.scancode) {

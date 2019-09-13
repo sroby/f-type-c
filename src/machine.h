@@ -39,6 +39,7 @@ typedef struct Machine {
     // Controller I/O
     uint8_t controllers[2];
     int controller_bit[2];
+    bool lightgun_trigger;
     bool vs_bank;
 } Machine;
 

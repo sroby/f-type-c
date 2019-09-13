@@ -43,6 +43,10 @@ static uint8_t read_controllers(Machine *vm, int offset) {
             value++;
         }
     }
+    if (offset) {
+        value |= (!vm->ppu->lightgun_sensor << 3) |
+                 (!vm->lightgun_trigger << 4);
+    }
     return value;
 }
 
