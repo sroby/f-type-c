@@ -123,17 +123,19 @@ int window_init(Window *wnd, const char *filename) {
     }
     
     wnd->cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
-    if (!wnd->cursor) {
+    if (wnd->cursor) {
+        SDL_SetCursor(wnd->cursor);
+    } else {
         printf("%s\n", SDL_GetError());
-        return 1;
     }
-    SDL_SetCursor(wnd->cursor);
     
     return 0;
 }
 
 void window_cleanup(Window *wnd) {
-    SDL_FreeCursor(wnd->cursor);
+    if (wnd->cursor) {
+        SDL_FreeCursor(wnd->cursor);
+    }
     SDL_DestroyTexture(wnd->texture);
     SDL_DestroyRenderer(wnd->renderer);
     SDL_DestroyWindow(wnd->window);
