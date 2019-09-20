@@ -23,13 +23,13 @@ static int identify_js(Window *wnd, SDL_JoystickID which) {
     return -1;
 }
 
-static void update_lightgun_pos(PPUState *ppu, const SDL_Rect *d,
+static void update_lightgun_pos(PPUState *ppu, const SDL_Rect *area,
                                 int32_t x, int32_t y) {
-    x -= d->x;
-    y -= d->y;
-    if (x >= 0 && y >= 0 && x < d->w && y < d->h) {
-        ppu->lightgun_pos = x * WIDTH / d->w +
-                            (y * HEIGHT_CROPPED / d->h + 8) * WIDTH;
+    x -= area->x;
+    y -= area->y;
+    if (x >= 0 && y >= 0 && x < area->w && y < area->h) {
+        ppu->lightgun_pos = x * WIDTH / area->w +
+                            (y * HEIGHT_CROPPED / area->h + 8) * WIDTH;
     } else {
         ppu->lightgun_pos = -1;
     }
@@ -113,7 +113,13 @@ int window_init(Window *wnd, const char *filename) {
     wnd->display_area.h = HEIGHT_CROPPED * zoom;
     wnd->display_area.x = (w - wnd->display_area.w) / 2;
     wnd->display_area.y = (h - wnd->display_area.h) / 2;
-    
+    int win_w, win_h;
+    SDL_GetWindowSize(wnd->window, &win_w, &win_h);
+    wnd->mouse_area.w = wnd->display_area.w * win_w / w;
+    wnd->mouse_area.h = wnd->display_area.h * win_h / h;
+    wnd->mouse_area.x = wnd->display_area.x * win_w / w;
+    wnd->mouse_area.y = wnd->display_area.y * win_h / h;
+
     wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
                                      SDL_TEXTUREACCESS_STREAMING,
                                      WIDTH, HEIGHT);
@@ -122,6 +128,7 @@ int window_init(Window *wnd, const char *filename) {
         return 1;
     }
     
+    // Use the system crosshair cursor, if available
     wnd->cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
     if (wnd->cursor) {
         SDL_SetCursor(wnd->cursor);
@@ -225,7 +232,7 @@ void window_loop(Window *wnd, Machine *vm) {
                     break;
                 case SDL_MOUSEMOTION:
                     if (!(event.motion.state & SDL_BUTTON_RMASK)) {
-                        update_lightgun_pos(vm->ppu, &wnd->display_area,
+                        update_lightgun_pos(vm->ppu, &wnd->mouse_area,
                                             event.motion.x, event.motion.y);
                     }
                     break;
@@ -241,7 +248,7 @@ void window_loop(Window *wnd, Machine *vm) {
                         if (vm->lightgun_trigger) {
                             vm->ppu->lightgun_pos = -1;
                         } else {
-                            update_lightgun_pos(vm->ppu, &wnd->display_area,
+                            update_lightgun_pos(vm->ppu, &wnd->mouse_area,
                                                 event.button.x,
                                                 event.button.y);
                         }
