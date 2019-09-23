@@ -60,10 +60,12 @@ static void write_controller_latch(Machine *vm, int offset, uint8_t value) {
 // PPU MEMORY MAP ACCESSES //
 
 static uint8_t read_nametables(Machine *vm, int offset) {
-    return vm->nt_layout[offset / SIZE_NAMETABLE][offset % SIZE_NAMETABLE];
+    return vm->nt_layout[(unsigned int)offset / SIZE_NAMETABLE]
+                        [(unsigned int)offset % SIZE_NAMETABLE];
 }
 static void write_nametables(Machine *vm, int offset, uint8_t value) {
-    vm->nt_layout[offset / SIZE_NAMETABLE][offset % SIZE_NAMETABLE] = value;
+    vm->nt_layout[(unsigned int)offset / SIZE_NAMETABLE]
+                 [(unsigned int)offset % SIZE_NAMETABLE] = value;
 }
 
 static uint8_t read_background_colors(Machine *vm, int offset) {
