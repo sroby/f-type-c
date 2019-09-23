@@ -608,7 +608,7 @@ static void Bandai74s_init(Machine *vm) {
 // MAPPER 68: Sunsoft-4 (16b+16f/2b+2b+2b+2b, NT mapped to CHR) //
 
 static void Sunsoft4_update_nametables(Machine *vm) {
-    static const int layouts[] = {
+    const int layouts[] = {
         0, 1, 0, 1, // VERTICAL
         0, 0, 1, 1, // HORIZONTAL
         0, 0, 0, 0, // SINGLE_A
@@ -799,8 +799,8 @@ static void Sunsoft2_init(Machine *vm) {
 // MAPPER 97: Irem TAM-S1 (16f+16b/8f, A/B/H/V control) //
 
 static void TAMS1_write_register(Machine *vm, int offset, uint8_t value) {
-    static const NametableMirroring modes[] = {NT_SINGLE_A, NT_HORIZONTAL,
-                                               NT_VERTICAL, NT_SINGLE_B};
+    const NametableMirroring modes[] = {NT_SINGLE_A, NT_HORIZONTAL,
+                                        NT_VERTICAL, NT_SINGLE_B};
     vm->cart->prg_banks[1] = extract_prg_bank(vm->cart, 0, value);
     machine_set_nt_mirroring(vm, modes[value >> 6]);
 }
@@ -873,7 +873,7 @@ static void Sunsoft1_init(Machine *vm) {
 //             (all games are really just 32f/8f)                           //
 
 static uint8_t CNROM_CP_read_chr(Machine *vm, int offset) {
-    static const uint8_t dummies[] = {0xBE, 0xEF};
+    const uint8_t dummies[] = {0xBE, 0xEF};
     if (vm->cart->mapper.cp_counter < 2) {
         return dummies[vm->cart->mapper.cp_counter++];
     }

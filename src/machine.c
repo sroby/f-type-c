@@ -58,7 +58,7 @@ bool machine_advance_frame(Machine *vm, bool verbose) {
 }
 
 void machine_set_nt_mirroring(Machine *vm, NametableMirroring nm) {
-    static const int layouts[] = {
+    const int layouts[] = {
         0, 0, 0, 0, // SINGLE_A
         1, 1, 1, 1, // SINGLE_B
         0, 1, 0, 1, // VERTICAL
