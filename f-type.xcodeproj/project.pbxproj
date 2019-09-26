@@ -134,7 +134,7 @@
 		F4EEF7FA22AA050A00B38C9F /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1020;
+				LastUpgradeCheck = 1100;
 				ORGANIZATIONNAME = "Simon Roby";
 				TargetAttributes = {
 					F4EEF80122AA050A00B38C9F = {
@@ -292,6 +292,7 @@
 		F4EEF80A22AA050A00B38C9F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				HEADER_SEARCH_PATHS = /usr/local/include/SDL2;
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
@@ -303,6 +304,7 @@
 		F4EEF80B22AA050A00B38C9F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				HEADER_SEARCH_PATHS = /usr/local/include/SDL2;
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
