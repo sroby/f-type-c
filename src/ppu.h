@@ -123,11 +123,6 @@ struct PPUState {
 };
 
 void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu);
-
 bool ppu_step(PPUState *ppu, bool verbose);
-
-uint8_t ppu_read_register(PPUState *ppu, int reg);
-void ppu_write_register(PPUState *ppu, int reg, uint8_t value);
-void ppu_write_oam_dma(PPUState *ppu, uint8_t *page);
 
 #endif /* ppu_h */

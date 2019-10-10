@@ -1,6 +1,7 @@
 #include "ppu.h"
 
 #include "cpu.h"
+#include "machine.h"
 #include "memory_maps.h"
 
 // This is the palette from the PC10/Vs. RGB PPU, in ARGB8888 format
@@ -274,6 +275,112 @@ static void task_update_vert_v_vert_t(PPUState *ppu) {
     }
 }
 
+// MEMORY I/O //
+
+static uint8_t read_register(Machine *vm, int offset) {
+    PPUState *ppu = vm->ppu;
+    switch (offset) {
+        case PPUSTATUS:
+            ppu->reg_latch = (ppu->reg_latch & 0b11111) | ppu->status;
+            ppu->status &= ~(STATUS_VBLANK); // VBlank is cleared at read
+            ppu->w = false; // and so is the address latch
+            break;
+        case OAMDATA:
+            ppu->reg_latch = ppu->oam[ppu->oam_addr];
+            break;
+        case PPUDATA:
+            if (ppu->v >= 0x3F00) {
+                ppu->reg_latch = mm_read(ppu->mm, ppu->v);
+            } else {
+                ppu->reg_latch = ppu->ppudata_latch;
+                ppu->ppudata_latch = mm_read(ppu->mm, ppu->v);
+                increment_mm_addr(ppu);
+            }
+            break;
+    }
+    return ppu->reg_latch;
+}
+
+static void write_register(Machine *vm, int offset, uint8_t value) {
+    PPUState *ppu = vm->ppu;
+    ppu->reg_latch = value;
+    uint8_t old_ctrl;
+    uint16_t d;
+    switch (offset) {
+        case PPUCTRL:
+            old_ctrl = ppu->ctrl;
+            ppu->ctrl = value;
+            ppu->t = (ppu->t & ~(0b11 << 10)) |
+                     (((uint16_t)value & 0b11) << 10);
+            if (!(old_ctrl & CTRL_NMI_ON_VBLANK) &&
+                value & CTRL_NMI_ON_VBLANK &&
+                ppu->status & STATUS_VBLANK) {
+                cpu_nmi(vm->cpu);
+            }
+            break;
+        case PPUMASK:
+            ppu->mask = value;
+            break;
+        case OAMADDR:
+            ppu->oam_addr = value;
+            break;
+        case OAMDATA:
+            ppu->oam[ppu->oam_addr++] = value;
+            break;
+        case PPUSCROLL:
+            d = value;
+            if (!ppu->w) {
+                ppu->t = (ppu->t & ~0b11111) | (d >> 3);
+                ppu->x = value & 0b111;
+            } else {
+                ppu->t = (ppu->t & 0b110000011111) | ((d & 0b111) << 12) |
+                         ((d & 0b11111000) << 2);
+            }
+            ppu->w = !ppu->w;
+            break;
+        case PPUADDR:
+            d = value;
+            if (!ppu->w) {
+                ppu->t = (ppu->t & 255) | ((d & 0b111111) << 8);
+            } else {
+                ppu->v = ppu->t = (ppu->t & ~255) | d;
+            }
+            ppu->w = !ppu->w;
+            break;
+        case PPUDATA:
+            mm_write(ppu->mm, ppu->v, value);
+            increment_mm_addr(ppu);
+            break;
+    }
+}
+
+static void write_oam_dma(Machine *vm, int offset, uint8_t value) {
+    if (value == 0x40) {
+        return; // Avoid a (very unlikely) infinite loop
+    }
+    uint8_t page[0x100];
+    uint16_t page_addr = (uint16_t)value << 8;
+    for (int i = 0; i < 0x100; i++) {
+        page[i] = mm_read(vm->cpu_mm, page_addr + i);
+    }
+    memcpy(vm->ppu->oam, page, 0x100);
+    cpu_external_t_increment(vm->cpu, 0x201);
+}
+
+static uint8_t read_background_colors(Machine *vm, int offset) {
+    return vm->ppu->background_colors[offset];
+}
+static void write_background_colors(Machine *vm, int offset, uint8_t value) {
+    vm->ppu->background_colors[offset] = value & MASK_COLOR;
+}
+
+static uint8_t read_palettes(Machine *vm, int offset) {
+    return vm->ppu->palettes[offset];
+}
+static void write_palettes(Machine *vm, int offset, uint8_t value) {
+    vm->ppu->palettes[offset] = value & MASK_COLOR;
+}
+
 // PUBLIC FUNCTIONS //
 
 void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
@@ -313,6 +420,26 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
     }
     ppu->tasks[328][TASK_UPDATE] = task_update_inc_hori_v;
     ppu->tasks[336][TASK_UPDATE] = task_update_inc_hori_v;
+    
+    // CPU 2000-3FFF: PPU registers (8, repeated)
+    for (int i = 0; i < 0x2000; i++) {
+        cpu->mm->addrs[0x2000 + i] = (MemoryAddress)
+            {read_register, write_register, i % 8};
+    }
+    // CPU 4014: OAM DMA register
+    cpu->mm->addrs[0x4014].write_func = write_oam_dma;
+    
+    // PPU 3F00-3FFF: Palettes
+    for (int i = 0x3F00; i < 0x4000; i += 0x20) {
+        for (int j = 0; j < 8; j++) {
+            mm->addrs[i + (j * 0x04)] = (MemoryAddress)
+                {read_background_colors, write_background_colors, j % 4};
+        }
+        for (int j = 0; j < 24; j++) {
+            mm->addrs[i + (j / 3 * 4) + (j % 3) + 1] = (MemoryAddress)
+                {read_palettes, write_palettes, j};
+        }
+    }
 }
 
 bool ppu_step(PPUState *ppu, bool verbose) {
@@ -370,84 +497,4 @@ bool ppu_step(PPUState *ppu, bool verbose) {
         }
     }
     return false;
-}
-
-uint8_t ppu_read_register(PPUState *ppu, int reg) {
-    switch (reg) {
-        case PPUSTATUS:
-            ppu->reg_latch = (ppu->reg_latch & 0b11111) | ppu->status;
-            ppu->status &= ~(STATUS_VBLANK); // VBlank is cleared at read
-            ppu->w = false; // and so is the address latch
-            break;
-        case OAMDATA:
-            ppu->reg_latch = ppu->oam[ppu->oam_addr];
-            break;
-        case PPUDATA:
-            if (ppu->v >= 0x3F00) {
-                ppu->reg_latch = mm_read(ppu->mm, ppu->v);
-            } else {
-                ppu->reg_latch = ppu->ppudata_latch;
-                ppu->ppudata_latch = mm_read(ppu->mm, ppu->v);
-                increment_mm_addr(ppu);
-            }
-            break;
-    }
-    return ppu->reg_latch;
-}
-
-void ppu_write_register(PPUState *ppu, int reg, uint8_t value) {
-    ppu->reg_latch = value;
-    uint8_t old_ctrl;
-    uint16_t d;
-    switch (reg) {
-        case PPUCTRL:
-            old_ctrl = ppu->ctrl;
-            ppu->ctrl = value;
-            ppu->t = (ppu->t & ~(0b11 << 10)) |
-                     (((uint16_t)value & 0b11) << 10);
-            if (!(old_ctrl & CTRL_NMI_ON_VBLANK) &&
-                value & CTRL_NMI_ON_VBLANK &&
-                ppu->status & STATUS_VBLANK) {
-                cpu_nmi(ppu->cpu);
-            }
-            break;
-        case PPUMASK:
-            ppu->mask = value;
-            break;
-        case OAMADDR:
-            ppu->oam_addr = value;
-            break;
-        case OAMDATA:
-            ppu->oam[ppu->oam_addr++] = value;
-            break;
-        case PPUSCROLL:
-            d = value;
-            if (!ppu->w) {
-                ppu->t = (ppu->t & ~0b11111) | (d >> 3);
-                ppu->x = value & 0b111;
-            } else {
-                ppu->t = (ppu->t & 0b110000011111) | ((d & 0b111) << 12) |
-                         ((d & 0b11111000) << 2);
-            }
-            ppu->w = !ppu->w;
-            break;
-        case PPUADDR:
-            d = value;
-            if (!ppu->w) {
-                ppu->t = (ppu->t & 255) | ((d & 0b111111) << 8);
-            } else {
-                ppu->v = ppu->t = (ppu->t & ~255) | d;
-            }
-            ppu->w = !ppu->w;
-            break;
-        case PPUDATA:
-            mm_write(ppu->mm, ppu->v, value);
-            increment_mm_addr(ppu);
-            break;
-    }
-}
-
-void ppu_write_oam_dma(PPUState *ppu, uint8_t *page) {
-    memcpy(ppu->oam, page, 0x100);
-    cpu_external_t_increment(ppu->cpu, 0x201);
 }
