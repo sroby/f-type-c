@@ -8,13 +8,13 @@
 #include "ppu.h"
 #include "window.h"
 
-int main(int argc, const char *argv[]) {
+int main(int argc, char *argv[]) {
     if (argc < 2) {
         printf("Usage: %s rom.nes [debug.map]\n", argv[0]);
         return 1;
     }
     
-    FILE *rom_file = fopen(argv[1], "r");
+    FILE *rom_file = fopen(argv[1], "rb");
     if (!rom_file) {
         printf("Error opening file %s\n", argv[1]);
         return 1;
@@ -99,7 +99,11 @@ int main(int argc, const char *argv[]) {
     }
     
     Window wnd;
+#ifdef _WIN32
+    char *fn = strdup(argv[1]);
+#else
     char *fn = realpath(argv[1], NULL);
+#endif
     int error_code = window_init(&wnd, basename(fn));
     if (error_code) {
         return error_code;

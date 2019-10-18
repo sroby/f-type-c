@@ -14,6 +14,7 @@
 ## Feature wishlist
 * Sound!
 * Debugger!
+* GUI!
 * ...and lots more
 
 ## Dependencies
@@ -22,13 +23,15 @@
 
 ## Compiling
 
+### General
+
+A simple Makefile is included, so assuming a Unix-style environment with properly installed dependencies, simply run `make` to build.
+
+See the next sub-sections for platform-specific instructions.
+
 ### Linux
 
-Make sure you have the SDL2 devel package installed via your distribution's package manager.
-
-A simple Makefile is included, just run:
-
-    $ make
+Make sure you have the SDL2 devel package installed via your distribution's package manager, then use the Makefile to build.
 
 ### macOS
 
@@ -36,10 +39,16 @@ Install the dependencies via [Homebrew](https://brew.sh):
 
     $ brew install sdl2
 
-An Xcode project is included, but the same Makefile as Linux can also be used.
+In addition to the Makefile, an Xcode project is also included, although it still builds the "Unix way" which means no full-fledged application bundle for now.
 
 ### Windows
-*TODO*
+
+Building for Windows is only supported via [mingw-w64](http://mingw-w64.org/doku.php) for now (and only 32-bit is confirmed to work). Get the mingw development libraries from the [SDL2 download page](http://libsdl.org/download-2.0.php). To build with the Makefile, you'll probably need to override a few variables to specify the compiler and proper invocation of `sdl2-config`:
+
+    $ export SDL_PATH=<where you extracted SDL2-devel-2.0.x-mingw.tar.gz>/i686-w64-mingw32
+    $ make TARGET=f-type.exe CC=i686-w64-mingw32-gcc SDL2_CONFIG="$SDL_PATH/bin/sdl2-config --prefix=$SDL_PATH"
+
+You will also need to copy `SDL2.dll` from `$SDL_PATH/bin` to the same directory as the executable.
 
 ## Documentation credits
 This project wouldn't be possible without the following sources:

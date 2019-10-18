@@ -1,6 +1,7 @@
 CC=gcc
-CFLAGS=-O3 -Wall -Werror `sdl2-config --cflags`
-LDFLAGS=`sdl2-config --libs`
+SDL2_CONFIG=sdl2-config
+CFLAGS=-O3 -Wall -Werror `$(SDL2_CONFIG) --cflags`
+LDFLAGS=`$(SDL2_CONFIG) --libs`
 
 TARGET=f-type
 SRCS= \
