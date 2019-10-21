@@ -139,7 +139,7 @@ static void NROM_init(Machine *vm) {
 
 static void MMC1_update_prg_banks(Cartridge *cart) {
     if (cart->prg_bank_size == SIZE_PRG_ROM) {
-        cart->prg_banks[0] = cart->mapper.mmc1.prg_bank & ~1;
+        cart->prg_banks[0] = cart->mapper.mmc1.prg_bank >> 1;
     } else if (cart->mapper.mmc1.prg_fixed_bank) {
         cart->prg_banks[0] = cart->mapper.mmc1.prg_bank;
         cart->prg_banks[1] = get_last_prg_bank(cart);
@@ -151,7 +151,7 @@ static void MMC1_update_prg_banks(Cartridge *cart) {
 
 static void MMC1_update_chr_banks(Cartridge *cart) {
     if (cart->chr_bank_size == SIZE_CHR_ROM) {
-        cart->chr_banks[0] = cart->mapper.mmc1.chr_banks[0] & ~1;
+        cart->chr_banks[0] = cart->mapper.mmc1.chr_banks[0] >> 1;
     } else {
         cart->chr_banks[0] = cart->mapper.mmc1.chr_banks[0];
         cart->chr_banks[1] = cart->mapper.mmc1.chr_banks[1];
