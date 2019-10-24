@@ -315,7 +315,7 @@ static void write_register(Machine *vm, int offset, uint8_t value) {
             if (!(old_ctrl & CTRL_NMI_ON_VBLANK) &&
                 value & CTRL_NMI_ON_VBLANK &&
                 ppu->status & STATUS_VBLANK) {
-                cpu_nmi(vm->cpu);
+                vm->cpu->nmi = true;
             }
             break;
         case PPUMASK:
@@ -471,7 +471,7 @@ bool ppu_step(PPUState *ppu, bool verbose) {
             case 241:
                 ppu->status |= STATUS_VBLANK;
                 if (ppu->ctrl & CTRL_NMI_ON_VBLANK) {
-                    cpu_nmi(ppu->cpu);
+                    ppu->cpu->nmi = true;
                 }
                 break;
         }

@@ -12,6 +12,9 @@
 // Timing constants
 #define T_CPU_MULTIPLIER 3
 
+// IRQ lines
+#define IRQ_MAPPER 1
+
 // Forward decalarations
 typedef struct Cartridge Cartridge;
 typedef struct CPUState CPUState;

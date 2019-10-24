@@ -497,6 +497,22 @@ int cpu_step(CPUState *cpu, bool verbose) {
         printf("$%04x ", cpu->pc);
     }
     
+    if (cpu->nmi) {
+        cpu->nmi = false;
+        if (verbose) {
+            printf("/NMI\n");
+        }
+        interrupt(cpu, false, IVT_NMI);
+        return 0x100;
+    }
+    if (cpu->irq && !get_p_flag(cpu, P_I)) {
+        if (verbose) {
+            printf("/IRQ\n");
+        }
+        interrupt(cpu, false, IVT_IRQ);
+        return 0x100;
+    }
+    
     // Fetch next instruction
     uint8_t inst = mm_read(cpu->mm, cpu->pc++);
     const Opcode *op = &cpu->opcodes[inst];
@@ -600,17 +616,10 @@ int cpu_step(CPUState *cpu, bool verbose) {
     return 0x100;
 }
 
-void cpu_irq(CPUState *cpu) {
-    if (!get_p_flag(cpu, P_I)) {
-        interrupt(cpu, false, IVT_IRQ);
+void cpu_reset(CPUState *cpu, bool verbose) {
+    if (verbose) {
+        printf("$%04x /RESET", cpu->pc);
     }
-}
-
-void cpu_nmi(CPUState *cpu) {
-    interrupt(cpu, false, IVT_NMI);
-}
-
-void cpu_reset(CPUState *cpu) {
     interrupt(cpu, true, IVT_RESET);
 }
 

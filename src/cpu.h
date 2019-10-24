@@ -66,6 +66,9 @@ struct CPUState {
     uint64_t time;
     // Memory map
     MemoryMap *mm;
+    // Interrupt lines
+    bool nmi;
+    int irq;
     // Opcode lookup table
     Opcode opcodes[0x100];
 };
@@ -73,10 +76,7 @@ struct CPUState {
 void cpu_init(CPUState *cpu, MemoryMap *mm);
 
 int cpu_step(CPUState *cpu, bool verbose);
-
-void cpu_irq(CPUState *cpu);
-void cpu_nmi(CPUState *cpu);
-void cpu_reset(CPUState *cpu);
+void cpu_reset(CPUState *cpu, bool verbose);
 
 void cpu_external_t_increment(CPUState *cpu, int amount);
 

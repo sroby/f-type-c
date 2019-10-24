@@ -20,7 +20,7 @@ void machine_init(Machine *vm, CPUState *cpu, PPUState *ppu, MemoryMap *cpu_mm,
     machine_set_nt_mirroring(vm, cart->default_mirroring);
     mapper_init(vm);
     
-    cpu_reset(vm->cpu);
+    cpu_reset(vm->cpu, false);
 }
 
 bool machine_advance_frame(Machine *vm, bool verbose) {
@@ -49,7 +49,6 @@ bool machine_advance_frame(Machine *vm, bool verbose) {
             if (cpu_step(vm->cpu, verbose && !is_endless_loop) != 0x100) {
                 return false;
             }
-
         }
         
         done = ppu_step(vm->ppu, verbose);
