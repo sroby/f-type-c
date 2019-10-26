@@ -9,6 +9,7 @@
 #include "window.h"
 
 int main(int argc, char *argv[]) {
+    printf("%s build %s (%s)\n", APP_NAME, BUILD_ID, APP_HOMEPAGE);
     if (argc < 2) {
         printf("Usage: %s rom.nes [debug.map]\n", argv[0]);
         return 1;

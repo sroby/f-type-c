@@ -8,4 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define APP_NAME "f-type"
+#define APP_HOMEPAGE "https://github.com/sroby/f-type"
+
+#ifndef BUILD_ID
+#define BUILD_ID "[unknown]"
+#endif
+
 #endif /* common_h */
