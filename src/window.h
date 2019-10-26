@@ -23,6 +23,7 @@ typedef struct Window {
     SDL_Cursor *cursor;
     SDL_Joystick *js[2];
     bool js_use_axis[2];
+    const int *buttons[2];
 } Window;
 
 int window_init(Window *wnd, const char *filename);

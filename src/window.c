@@ -8,6 +8,7 @@
 // Hardcoded to PS4 controller (and 8bitdo's "macOS mode") for now
 // A, B, Select, Start, Up, Down, Left, Right
 static const int buttons[] = {1, 0, 4, 6, 11, 12, 13, 14};
+static const int buttons_snes_retroport[] = {2, 0, 4, 6, -1, -1, -1, -1};
 
 static const SDL_Rect screen_visible_area =
     {0, (HEIGHT - HEIGHT_CROPPED) / 2, WIDTH, HEIGHT_CROPPED};
@@ -56,9 +57,11 @@ int window_init(Window *wnd, const char *filename) {
     for (int i = 0; i < n_js; i++) {
         SDL_Joystick *js = SDL_JoystickOpen(i);
         if (js) {
+            const char *js_name = SDL_JoystickName(js);
+            wnd->buttons[assigned_js] = (strcmp(js_name, "SNES RetroPort") ?
+                                         buttons : buttons_snes_retroport);
             wnd->js[assigned_js++] = js;
-            printf("Assigned \"%s\" as controller #%d\n",
-                   SDL_JoystickName(js), assigned_js);
+            printf("Assigned \"%s\" as controller #%d\n", js_name, assigned_js);
             if (assigned_js >= 2) {
                 break;
             }
@@ -213,7 +216,7 @@ void window_loop(Window *wnd, Machine *vm) {
                         break;
                     }
                     for (int i = 0; i < 8; i++) {
-                        if (event.jbutton.button == buttons[i]) {
+                        if (event.jbutton.button == wnd->buttons[cid][i]) {
                             if (i > 3 && wnd->js_use_axis[cid]) {
                                 ctrls[cid] &= 0b1111;
                                 wnd->js_use_axis[cid] = false;
