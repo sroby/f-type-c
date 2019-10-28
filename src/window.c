@@ -5,10 +5,11 @@
 #include "ppu.h"
 
 // Button assignments
-// Hardcoded to PS4 controller (and 8bitdo's "macOS mode") for now
 // A, B, Select, Start, Up, Down, Left, Right
-static const int buttons[] = {1, 0, 4, 6, 11, 12, 13, 14};
+// Default is PS4, others are specific checks of the controller name
+static const int buttons_ps4[] = {0, 2, 4, 6, 11, 12, 13, 14};
 static const int buttons_snes_retroport[] = {2, 0, 4, 6, -1, -1, -1, -1};
+static const int buttons_8bitdo[] = {0, 1, 10, 11, -1, -1, -1, -1};
 
 static const SDL_Rect screen_visible_area =
     {0, (HEIGHT - HEIGHT_CROPPED) / 2, WIDTH, HEIGHT_CROPPED};
@@ -58,8 +59,13 @@ int window_init(Window *wnd, const char *filename) {
         SDL_Joystick *js = SDL_JoystickOpen(i);
         if (js) {
             const char *js_name = SDL_JoystickName(js);
-            wnd->buttons[assigned_js] = (strcmp(js_name, "SNES RetroPort") ?
-                                         buttons : buttons_snes_retroport);
+            if (!strcasecmp(js_name, "snes retroport")) {
+                wnd->buttons[assigned_js] = buttons_snes_retroport;
+            } else if (!strncasecmp(js_name, "8bitdo", 6)) {
+                wnd->buttons[assigned_js] = buttons_8bitdo;
+            } else {
+                wnd->buttons[assigned_js] = buttons_ps4;
+            }
             wnd->js[assigned_js++] = js;
             printf("Assigned \"%s\" as controller #%d\n", js_name, assigned_js);
             if (assigned_js >= 2) {
@@ -205,9 +211,8 @@ void window_loop(Window *wnd, Machine *vm) {
                             ctrls[cid] |= BUTTON_DOWN;
                         }
                     }
-                    /*printf("P%d A%d:%d => %d\n", cid + 1,
-                     event.jaxis.axis, event.jaxis.value,
-                     controllers[cid]);*/
+                    /*printf("P%d A%d:%d => %d\n", cid + 1, event.jaxis.axis,
+                           event.jaxis.value, ctrls[cid]);*/
                     break;
                 case SDL_JOYBUTTONDOWN:
                 case SDL_JOYBUTTONUP:
@@ -229,9 +234,8 @@ void window_loop(Window *wnd, Machine *vm) {
                             break;
                         }
                     }
-                    /*printf("P%d B%d:%d => %d\n", cid + 1,
-                     event.jbutton.button, event.jbutton.state,
-                     controllers[cid]);*/
+                    /*printf("P%d B%d:%d => %d\n", cid + 1, event.jbutton.button,
+                           event.jbutton.state, ctrls[cid]);*/
                     break;
                 case SDL_MOUSEMOTION:
                     if (!(event.motion.state & SDL_BUTTON_RMASK)) {
