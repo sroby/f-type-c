@@ -336,7 +336,7 @@ static void MMC3_write_register(Machine *vm, int offset, uint8_t value) {
             mmc->irq_latch = value;
             break;
         case 5: // IRQ reload
-            mmc->irq_reload = true;
+            mmc->irq_counter = 0;
             break;
         case 6: // IRQ disable
             mmc->irq_enabled = false;
@@ -352,11 +352,10 @@ static uint8_t MMC3_read_chr(Machine *vm, int offset) {
     MMC3State *mmc = &vm->cart->mapper.mmc3;
     bool current_pt = offset & (1 << 12);
     if (!mmc->last_pt && current_pt) {
-        if (!mmc->irq_counter || mmc->irq_reload) {
-            mmc->irq_counter = mmc->irq_latch;
-            mmc->irq_reload = false;
-        } else {
+        if (mmc->irq_counter) {
             mmc->irq_counter--;
+        } else {
+            mmc->irq_counter = mmc->irq_latch;
         }
         if (!mmc->irq_counter && mmc->irq_enabled) {
             vm->cpu->irq |= IRQ_MAPPER;
@@ -373,6 +372,7 @@ static void MMC3_init(Machine *vm) {
     cart->chr_bank_size = SIZE_CHR_ROM / 8;
     memset(&cart->mapper.mmc3, 0, sizeof(MMC3State));
     cart->prg_banks[3] = get_last_prg_bank(cart);
+    MMC3_update_banks(cart);
     
     init_banked_prg(vm, MMC3_write_register);
     

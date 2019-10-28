@@ -31,7 +31,6 @@ typedef struct MMC3State {
     int irq_latch;
     int irq_counter;
     bool irq_enabled;
-    bool irq_reload;
     bool last_pt;
 } MMC3State;
 
