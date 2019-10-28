@@ -4,8 +4,32 @@
 #include "machine.h"
 #include "memory_maps.h"
 
+// NTSC palette, generated from https://bisqwit.iki.fi/utils/nespalette.php
+// (default settings, gamma 1.8)
+static const uint32_t colors_ntsc[] = {
+    0x525252, 0x011A51, 0x0F0F65, 0x230663,
+    0x36034B, 0x400426, 0x3F0904, 0x321300,
+    0x1F2000, 0x0B2A00, 0x002F00, 0x002E0A,
+    0x00262D, 0x000000, 0x000000, 0x000000,
+    
+    0xA0A0A0, 0x1E4A9D, 0x3837BC, 0x5828B8,
+    0x752194, 0x84235C, 0x822E24, 0x6F3F00,
+    0x515200, 0x316300, 0x1A6B05, 0x0E692E,
+    0x105C68, 0x000000, 0x000000, 0x000000,
+    
+    0xFEFFFF, 0x699EFC, 0x8987FF, 0xAE76FF,
+    0xCE6DF1, 0xE070B2, 0xDE7C70, 0xC8913E,
+    0xA6A725, 0x81BA28, 0x63C446, 0x54C17D,
+    0x56B3C0, 0x3C3C3C, 0x000000, 0x000000,
+    
+    0xFEFFFF, 0xBED6FD, 0xCCCCFF, 0xDDC4FF,
+    0xEAC0F9, 0xF2C1DF, 0xF1C7C2, 0xE8D0AA,
+    0xD9DA9D, 0xC9E29E, 0xBCE6AE, 0xB4E5C7,
+    0xB5DFE4, 0xA9A9A9, 0x000000, 0x000000,
+};
+
 // This is the palette from the PC10/Vs. RGB PPU, in ARGB8888 format
-static const uint32_t colors[] = {
+/*static const uint32_t colors_2C03[] = {
     0x606060, 0x002080, 0x0000C0, 0x6040C0,
     0x800060, 0xA00060, 0xA02000, 0x804000,
     0x604000, 0x204000, 0x006020, 0x008000,
@@ -25,7 +49,7 @@ static const uint32_t colors[] = {
     0xE080E0, 0xE0A0A0, 0xE0C080, 0xE0E040,
     0xE0E060, 0xA0E040, 0x80E060, 0x40E0C0,
     0x80C0E0, 0x000000, 0x000000, 0x000000,
-};
+};*/
 
 // Source: http://graphics.stanford.edu/~seander/bithacks.html#BitReverseTable
 static const uint8_t bit_reverse[] =
@@ -101,7 +125,7 @@ static void task_render_pixel(PPUState *ppu) {
     }
     
     int pos = ppu->scanline * WIDTH + ppu->cycle;
-    ppu->screen[pos] = colors[color];
+    ppu->screen[pos] = colors_ntsc[color];
     if (pos == ppu->lightgun_pos && (color == 0x20 || color == 0x30)) {
         ppu->lightgun_sensor = LIGHTGUN_COOLDOWN;
     }
