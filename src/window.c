@@ -6,10 +6,11 @@
 
 // Button assignments
 // A, B, Select, Start, Up, Down, Left, Right
-// Default is PS4, others are specific checks of the controller name
-static const int buttons_ps4[] = {0, 2, 4, 6, 11, 12, 13, 14};
+// Default is PS4/Switch, others are specific checks of the controller name
+static const int buttons[] = {0, 2, 4, 6, 11, 12, 13, 14};
 static const int buttons_snes_retroport[] = {2, 0, 4, 6, -1, -1, -1, -1};
 static const int buttons_8bitdo[] = {0, 1, 10, 11, -1, -1, -1, -1};
+static const int buttons_ds3[] = {14, 15, 0, 3, 4, 6, 7, 5};
 
 static const SDL_Rect screen_visible_area =
     {0, (HEIGHT - HEIGHT_CROPPED) / 2, WIDTH, HEIGHT_CROPPED};
@@ -63,8 +64,10 @@ int window_init(Window *wnd, const char *filename) {
                 wnd->buttons[assigned_js] = buttons_snes_retroport;
             } else if (!strncasecmp(js_name, "8bitdo", 6)) {
                 wnd->buttons[assigned_js] = buttons_8bitdo;
+            } else if (!strcasecmp(js_name, "playstation(r)3 controller")) {
+                wnd->buttons[assigned_js] = buttons_ds3;
             } else {
-                wnd->buttons[assigned_js] = buttons_ps4;
+                wnd->buttons[assigned_js] = buttons;
             }
             wnd->js[assigned_js++] = js;
             printf("Assigned \"%s\" as controller #%d\n", js_name, assigned_js);
@@ -234,7 +237,8 @@ void window_loop(Window *wnd, Machine *vm) {
                             break;
                         }
                     }
-                    /*printf("P%d B%d:%d => %d\n", cid + 1, event.jbutton.button,
+                    /*printf("P%d B%d:%d => %d\n", cid + 1,
+                           event.jbutton.button,
                            event.jbutton.state, ctrls[cid]);*/
                     break;
                 case SDL_MOUSEMOTION:
