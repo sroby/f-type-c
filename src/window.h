@@ -12,7 +12,6 @@
 
 // Forward declarations
 typedef struct Machine Machine;
-typedef struct PPUState PPUState;
 
 typedef struct Window {
     SDL_Window *window;

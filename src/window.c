@@ -26,7 +26,7 @@ static int identify_js(Window *wnd, SDL_JoystickID which) {
     return -1;
 }
 
-static void update_lightgun_pos(PPUState *ppu, const SDL_Rect *area,
+static void update_lightgun_pos(PPU *ppu, const SDL_Rect *area,
                                 int32_t x, int32_t y) {
     x -= area->x;
     y -= area->y;

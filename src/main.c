@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
     memory_map_ppu_init(&ppu_mm, &vm);
     CPU65xx cpu;
     cpu_65xx_init(&cpu, &cpu_mm);
-    PPUState ppu;
+    PPU ppu;
     ppu_init(&ppu, &ppu_mm, &cpu);
     machine_init(&vm, &cpu, &ppu, &cpu_mm, &ppu_mm, &cart, dbg_map);
     

@@ -60,17 +60,17 @@ static const uint8_t bit_reverse[] =
     R6(0), R6(2), R6(1), R6(3)
 };
 
-static inline void increment_mm_addr(PPUState *ppu) {
+static inline void increment_mm_addr(PPU *ppu) {
     ppu->v += (ppu->ctrl & CTRL_ADDR_INC_32 ? 32 : 1);
 }
 
-static inline bool is_rendering(PPUState *ppu) {
+static inline bool is_rendering(PPU *ppu) {
     return ppu->mask & (MASK_RENDER_BACKGROUND | MASK_RENDER_SPRITES);
 }
 
 // CYCLE TASKS //
 
-static void task_render_pixel(PPUState *ppu) {
+static void task_render_pixel(PPU *ppu) {
     if (ppu->scanline < 0) {
         return;
     }
@@ -136,7 +136,7 @@ static void task_render_pixel(PPUState *ppu) {
     ppu->bg_pt1 <<= 1;
 }
 
-static void task_sprite_clear(PPUState *ppu) {
+static void task_sprite_clear(PPU *ppu) {
     if (ppu->scanline < 0) {
         return;
     }
@@ -144,7 +144,7 @@ static void task_sprite_clear(PPUState *ppu) {
     ppu->s_total = 0;
 }
 
-static void task_sprite_eval(PPUState *ppu) {
+static void task_sprite_eval(PPU *ppu) {
     if (ppu->scanline < 0) {
         return;
     }
@@ -165,17 +165,17 @@ static void task_sprite_eval(PPUState *ppu) {
     }
 }
 
-static void task_fetch_nt(PPUState *ppu) {
+static void task_fetch_nt(PPU *ppu) {
     ppu->f_nt = mm_read(ppu->mm, 0x2000 | (ppu->v & 0x0FFF));
 }
 
-static void task_fetch_at(PPUState *ppu) {
+static void task_fetch_at(PPU *ppu) {
     ppu->f_at = mm_read(ppu->mm, 0x23C0 | (ppu->v & 0x0C00) |
                                           ((ppu->v >> 4) & 0x38) |
                                           ((ppu->v >> 2) & 0x07));
 }
 
-static uint8_t fetch_bg_pt(PPUState *ppu, int offset) {
+static uint8_t fetch_bg_pt(PPU *ppu, int offset) {
     uint16_t pt_addr = (ppu->f_nt << 4) | ((ppu->v & 0x7000) >> 12) | offset;
     if (ppu->ctrl & CTRL_PT_BACKGROUND) {
         pt_addr |= (1 << 12);
@@ -183,11 +183,11 @@ static uint8_t fetch_bg_pt(PPUState *ppu, int offset) {
     return mm_read(ppu->mm, pt_addr);
 }
 
-static void task_fetch_bg_pt0(PPUState *ppu) {
+static void task_fetch_bg_pt0(PPU *ppu) {
     ppu->f_pt0 = fetch_bg_pt(ppu, 0);
 }
 
-static void task_fetch_bg_pt1(PPUState *ppu) {
+static void task_fetch_bg_pt1(PPU *ppu) {
     ppu->f_pt1 = fetch_bg_pt(ppu, 8);
 
     // Fill the stacks
@@ -216,7 +216,7 @@ static void task_fetch_bg_pt1(PPUState *ppu) {
     }
 }
 
-static uint8_t fetch_spr_pt(PPUState *ppu, int i, int offset) {
+static uint8_t fetch_spr_pt(PPU *ppu, int i, int offset) {
     const bool sprite_16mode = (ppu->ctrl & CTRL_8x16_SPRITES);
     uint8_t *spr = ppu->oam2 + (i * 4);
     int row = ppu->scanline - spr[OAM_Y];
@@ -246,14 +246,14 @@ static uint8_t fetch_spr_pt(PPUState *ppu, int i, int offset) {
     return p;
 }
 
-static void task_fetch_spr_pt0(PPUState *ppu) {
+static void task_fetch_spr_pt0(PPU *ppu) {
     int i = (ppu->cycle - 261) / 8;
     ppu->s_pt0[i] = fetch_spr_pt(ppu, i, 0);
     
     ppu->s_attrs[i] = ppu->oam2[i * 4 + OAM_ATTRS];
 }
 
-static void task_fetch_spr_pt1(PPUState *ppu) {
+static void task_fetch_spr_pt1(PPU *ppu) {
     int i = (ppu->cycle - 263) / 8;
     ppu->s_pt1[i] = fetch_spr_pt(ppu, i, 8);
     
@@ -262,7 +262,7 @@ static void task_fetch_spr_pt1(PPUState *ppu) {
     ppu->s_has_zero = ppu->s_has_zero_next;
 }
 
-static void task_update_inc_hori_v(PPUState *ppu) {
+static void task_update_inc_hori_v(PPU *ppu) {
     if ((ppu->v & 0b11111) == 0b11111) {
         ppu->v &= ~0b11111;
         ppu->v ^= (1 << 10);
@@ -271,7 +271,7 @@ static void task_update_inc_hori_v(PPUState *ppu) {
     }
 }
 
-static void task_update_inc_vert_v(PPUState *ppu) {
+static void task_update_inc_vert_v(PPU *ppu) {
     if ((ppu->v & 0x7000) == 0x7000) {
         ppu->v &= ~0x7000;
         uint16_t y = (ppu->v & 0x3E0) >> 5;
@@ -289,11 +289,11 @@ static void task_update_inc_vert_v(PPUState *ppu) {
     }
 }
 
-static void task_update_hori_v_hori_t(PPUState *ppu) {
+static void task_update_hori_v_hori_t(PPU *ppu) {
     ppu->v = (ppu->v & ~0x41F) | (ppu->t & 0x41F);
 }
 
-static void task_update_vert_v_vert_t(PPUState *ppu) {
+static void task_update_vert_v_vert_t(PPU *ppu) {
     if (ppu->scanline == -1) {
         ppu->v = (ppu->v & ~0x7BE0) | (ppu->t & 0x7BE0);
     }
@@ -302,7 +302,7 @@ static void task_update_vert_v_vert_t(PPUState *ppu) {
 // MEMORY I/O //
 
 static uint8_t read_register(Machine *vm, int offset) {
-    PPUState *ppu = vm->ppu;
+    PPU *ppu = vm->ppu;
     switch (offset) {
         case PPUSTATUS:
             ppu->reg_latch = (ppu->reg_latch & 0b11111) | ppu->status;
@@ -326,7 +326,7 @@ static uint8_t read_register(Machine *vm, int offset) {
 }
 
 static void write_register(Machine *vm, int offset, uint8_t value) {
-    PPUState *ppu = vm->ppu;
+    PPU *ppu = vm->ppu;
     ppu->reg_latch = value;
     uint8_t old_ctrl;
     uint16_t d;
@@ -407,8 +407,8 @@ static void write_palettes(Machine *vm, int offset, uint8_t value) {
 
 // PUBLIC FUNCTIONS //
 
-void ppu_init(PPUState *ppu, MemoryMap *mm, CPU65xx *cpu) {
-    memset(ppu, 0, sizeof(PPUState));
+void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu) {
+    memset(ppu, 0, sizeof(PPU));
     ppu->mm = mm;
     ppu->cpu = cpu;
     ppu->scanline = -1;
@@ -466,7 +466,7 @@ void ppu_init(PPUState *ppu, MemoryMap *mm, CPU65xx *cpu) {
     }
 }
 
-bool ppu_step(PPUState *ppu, bool verbose) {
+bool ppu_step(PPU *ppu, bool verbose) {
     if (verbose && !ppu->cycle) {
         printf("-- Scanline %d --\n", ppu->scanline);
     }

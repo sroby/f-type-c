@@ -5,7 +5,7 @@
 #include "memory_maps.h"
 #include "ppu.h"
 
-void machine_init(Machine *vm, CPU65xx *cpu, PPUState *ppu, MemoryMap *cpu_mm,
+void machine_init(Machine *vm, CPU65xx *cpu, PPU *ppu, MemoryMap *cpu_mm,
                   MemoryMap *ppu_mm, Cartridge *cart, const DebugMap *dbg_map) {
     memset(vm, 0, sizeof(Machine));
     vm->controller_bit[0] = vm->controller_bit[1] = 8;

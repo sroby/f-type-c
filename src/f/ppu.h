@@ -65,10 +65,10 @@
 
 // Forward declarations
 typedef struct CPU65xx CPU65xx;
-typedef struct PPUState PPUState;
+typedef struct PPU PPU;
 typedef struct MemoryMap MemoryMap;
 
-struct PPUState {
+struct PPU {
     CPU65xx *cpu;
     MemoryMap *mm;
     
@@ -103,7 +103,7 @@ struct PPUState {
     int frame;
     
     // Rendering pipeline
-    void (*tasks[PPU_CYCLES_PER_SCANLINE][4])(PPUState *);
+    void (*tasks[PPU_CYCLES_PER_SCANLINE][4])(PPU *);
     uint16_t f_nt, f_pt0, f_pt1;
     uint8_t f_at;
     uint16_t bg_pt0, bg_pt1;
@@ -122,7 +122,7 @@ struct PPUState {
     int lightgun_sensor;
 };
 
-void ppu_init(PPUState *ppu, MemoryMap *mm, CPU65xx *cpu);
-bool ppu_step(PPUState *ppu, bool verbose);
+void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu);
+bool ppu_step(PPU *ppu, bool verbose);
 
 #endif /* f_ppu_h */

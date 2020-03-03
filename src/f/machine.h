@@ -19,7 +19,7 @@
 typedef struct Cartridge Cartridge;
 typedef struct CPU65xx CPU65xx;
 typedef struct MemoryMap MemoryMap;
-typedef struct PPUState PPUState;
+typedef struct PPU PPU;
 
 typedef struct {
     uint16_t addr;
@@ -28,7 +28,7 @@ typedef struct {
 
 typedef struct Machine {
     CPU65xx *cpu;
-    PPUState *ppu;
+    PPU *ppu;
     MemoryMap *cpu_mm;
     MemoryMap *ppu_mm;
     Cartridge *cart;
@@ -54,7 +54,7 @@ typedef enum {
     NT_FOUR = 4,
 } NametableMirroring;
 
-void machine_init(Machine *vm, CPU65xx *cpu, PPUState *ppu, MemoryMap *cpu_mm,
+void machine_init(Machine *vm, CPU65xx *cpu, PPU *ppu, MemoryMap *cpu_mm,
                   MemoryMap *ppu_mm, Cartridge *cart, const DebugMap *dbg_map);
 
 bool machine_advance_frame(Machine *vm, bool verbose);
