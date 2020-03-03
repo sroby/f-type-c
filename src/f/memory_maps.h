@@ -1,7 +1,7 @@
-#ifndef memory_maps_h
-#define memory_maps_h
+#ifndef f_memory_maps_h
+#define f_memory_maps_h
 
-#include "common.h"
+#include "../common.h"
 
 // Bit fields
 #define BUTTON_A 1
@@ -40,4 +40,4 @@ uint16_t mm_read_word(MemoryMap *mm, uint16_t addr);
 void mm_write(MemoryMap *mm, uint16_t addr, uint8_t value);
 void mm_write_word(MemoryMap *mm, uint16_t addr, uint16_t value);
 
-#endif /* memory_maps_h */
+#endif /* f_memory_maps_h */

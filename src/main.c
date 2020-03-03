@@ -1,11 +1,11 @@
 #include "common.h"
 #include <libgen.h>
 
-#include "cartridge.h"
-#include "cpu.h"
-#include "machine.h"
-#include "memory_maps.h"
-#include "ppu.h"
+#include "cpu/65xx.h"
+#include "f/cartridge.h"
+#include "f/machine.h"
+#include "f/memory_maps.h"
+#include "f/ppu.h"
 #include "window.h"
 
 int main(int argc, char *argv[]) {

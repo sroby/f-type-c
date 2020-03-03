@@ -1,8 +1,8 @@
 #include "window.h"
 
-#include "machine.h"
-#include "memory_maps.h"
-#include "ppu.h"
+#include "f/machine.h"
+#include "f/memory_maps.h"
+#include "f/ppu.h"
 
 // Button assignments
 // A, B, Select, Start, Up, Down, Left, Right

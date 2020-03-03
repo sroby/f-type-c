@@ -1,6 +1,6 @@
-#include "cpu.h"
+#include "65xx.h"
 
-#include "memory_maps.h"
+#include "../f/memory_maps.h"
 
 // MISC. //
 

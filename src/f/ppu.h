@@ -1,7 +1,7 @@
-#ifndef ppu_h
-#define ppu_h
+#ifndef f_ppu_h
+#define f_ppu_h
 
-#include "common.h"
+#include "../common.h"
 
 // Bit fields
 #define CTRL_SCROLL_PAGE_X 1
@@ -125,4 +125,4 @@ struct PPUState {
 void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu);
 bool ppu_step(PPUState *ppu, bool verbose);
 
-#endif /* ppu_h */
+#endif /* f_ppu_h */

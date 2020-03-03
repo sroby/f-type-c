@@ -1,7 +1,7 @@
-#ifndef cpu_h
-#define cpu_h
+#ifndef cpu_65xx_h
+#define cpu_65xx_h
 
-#include "common.h"
+#include "../common.h"
 
 // P flags
 typedef enum {
@@ -82,4 +82,4 @@ void cpu_external_t_increment(CPUState *cpu, int amount);
 
 void cpu_debug_print_state(CPUState *cpu);
 
-#endif /* cpu_h */
+#endif /* cpu_65xx_h */

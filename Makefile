@@ -6,12 +6,12 @@ BUILD_ID=`git rev-parse --short HEAD`
 
 TARGET=f-type
 SRCS= \
-	src/cartridge.c \
-	src/cpu.c \
-	src/machine.c \
+	src/cpu/65xx.c \
+	src/f/cartridge.c \
+	src/f/machine.c \
+	src/f/memory_maps.c \
+	src/f/ppu.c \
 	src/main.c \
-	src/memory_maps.c \
-	src/ppu.c \
 	src/window.c
 
 all: $(TARGET)

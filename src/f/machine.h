@@ -1,7 +1,7 @@
-#ifndef machine_h
-#define machine_h
+#ifndef f_machine_h
+#define f_machine_h
 
-#include "common.h"
+#include "../common.h"
 
 // Size of various memory structures
 #define SIZE_WRAM 0x800
@@ -61,4 +61,4 @@ bool machine_advance_frame(Machine *vm, bool verbose);
 
 void machine_set_nt_mirroring(Machine *vm, NametableMirroring m);
 
-#endif /* system_h */
+#endif /* f_machine_h */

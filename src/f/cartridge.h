@@ -1,7 +1,7 @@
-#ifndef cartridge_h
-#define cartridge_h
+#ifndef f_cartridge_h
+#define f_cartridge_h
 
-#include "common.h"
+#include "../common.h"
 
 #define SIZE_SRAM 0x2000
 
@@ -85,4 +85,4 @@ bool mapper_check_support(int mapper_id, const char **name);
 
 void mapper_init(Machine *vm);
 
-#endif /* cartridge_h */
+#endif /* f_cartridge_h */

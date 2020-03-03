@@ -1,6 +1,6 @@
 #include "machine.h"
 
-#include "cpu.h"
+#include "../cpu/65xx.h"
 #include "cartridge.h"
 #include "memory_maps.h"
 #include "ppu.h"
