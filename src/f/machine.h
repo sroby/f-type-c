@@ -17,7 +17,7 @@
 
 // Forward decalarations
 typedef struct Cartridge Cartridge;
-typedef struct CPUState CPUState;
+typedef struct CPU65xx CPU65xx;
 typedef struct MemoryMap MemoryMap;
 typedef struct PPUState PPUState;
 
@@ -27,7 +27,7 @@ typedef struct {
 } DebugMap;
 
 typedef struct Machine {
-    CPUState *cpu;
+    CPU65xx *cpu;
     PPUState *ppu;
     MemoryMap *cpu_mm;
     MemoryMap *ppu_mm;
@@ -54,7 +54,7 @@ typedef enum {
     NT_FOUR = 4,
 } NametableMirroring;
 
-void machine_init(Machine *vm, CPUState *cpu, PPUState *ppu, MemoryMap *cpu_mm,
+void machine_init(Machine *vm, CPU65xx *cpu, PPUState *ppu, MemoryMap *cpu_mm,
                   MemoryMap *ppu_mm, Cartridge *cart, const DebugMap *dbg_map);
 
 bool machine_advance_frame(Machine *vm, bool verbose);

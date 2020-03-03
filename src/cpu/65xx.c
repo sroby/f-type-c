@@ -4,7 +4,7 @@
 
 // MISC. //
 
-static void apply_page_boundary_penalty(CPUState *cpu, uint16_t a, uint16_t b) {
+static void apply_page_boundary_penalty(CPU65xx *cpu, uint16_t a, uint16_t b) {
     if ((a >> 8) != (b >> 8)) {
         cpu->time++;
     }
@@ -12,48 +12,48 @@ static void apply_page_boundary_penalty(CPUState *cpu, uint16_t a, uint16_t b) {
 
 // P.STATUS REGISTER //
 
-static bool get_p_flag(CPUState *cpu, PFlag flag) {
+static bool get_p_flag(CPU65xx *cpu, PFlag flag) {
     return cpu->p & flag;
 }
 
-static void set_p_flag(CPUState *cpu, PFlag flag, bool value) {
+static void set_p_flag(CPU65xx *cpu, PFlag flag, bool value) {
     const uint8_t pos_mask = -value & flag;     // All 0 if val == 0
     const uint8_t neg_mask = ~(-!value & flag); // All 1 if val == 1
     cpu->p = (cpu->p | pos_mask) & neg_mask;
 }
 
-static void apply_p_nz(CPUState *cpu, uint8_t value) {
+static void apply_p_nz(CPU65xx *cpu, uint8_t value) {
     set_p_flag(cpu, P_Z, !value);
     set_p_flag(cpu, P_N, value & (1 << 7));
 }
 
 // STACK REGISTER //
 
-static uint16_t get_stack_addr(CPUState *cpu) {
+static uint16_t get_stack_addr(CPU65xx *cpu) {
     return 0x100 + (uint16_t)(cpu->s);
 }
 
-static void stack_push(CPUState *cpu, uint8_t value) {
+static void stack_push(CPU65xx *cpu, uint8_t value) {
     mm_write(cpu->mm, get_stack_addr(cpu), value);
     (cpu->s)--;
 }
-static void stack_push_word(CPUState *cpu, uint16_t value) {
+static void stack_push_word(CPU65xx *cpu, uint16_t value) {
     stack_push(cpu, value >> 8);
     stack_push(cpu, value & 0xff);
 }
 
-static uint8_t stack_pull(CPUState *cpu) {
+static uint8_t stack_pull(CPU65xx *cpu) {
     (cpu->s)++;
     return mm_read(cpu->mm, get_stack_addr(cpu));
 }
-static uint16_t stack_pull_word(CPUState *cpu) {
+static uint16_t stack_pull_word(CPU65xx *cpu) {
     uint16_t lower = stack_pull(cpu);
     return lower + ((uint16_t)stack_pull(cpu) << 8);
 }
 
 // INTERRUPT HANDLING //
 
-static void interrupt(CPUState *cpu, bool b_flag, uint16_t ivt_addr) {
+static void interrupt(CPU65xx *cpu, bool b_flag, uint16_t ivt_addr) {
     set_p_flag(cpu, P_B, b_flag);
     if (ivt_addr == IVT_RESET) {
         cpu->s -= 3;
@@ -68,30 +68,30 @@ static void interrupt(CPUState *cpu, bool b_flag, uint16_t ivt_addr) {
 
 // OPCODES //
 
-static uint8_t get_param_value(CPUState *cpu, const Opcode *op, OpParam param) {
+static uint8_t get_param_value(CPU65xx *cpu, const Opcode *op, OpParam param) {
     if (op->am == AM_IMMEDIATE) {
         return param.immediate_value;
     }
     return mm_read(cpu->mm, param.addr);
 }
 
-static void op_T(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_T(CPU65xx *cpu, const Opcode *op, OpParam param) {
     *op->reg2 = *op->reg1;
     if (op->reg2 != &cpu->s) {
         apply_p_nz(cpu, *op->reg2);
     }
 }
 
-static void op_LD(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_LD(CPU65xx *cpu, const Opcode *op, OpParam param) {
     *op->reg1 = get_param_value(cpu, op, param);
     apply_p_nz(cpu, *op->reg1);
 }
 
-static void op_ST(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_ST(CPU65xx *cpu, const Opcode *op, OpParam param) {
     mm_write(cpu->mm, param.addr, *op->reg1);
 }
 
-static void op_PH(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_PH(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t value = *op->reg1;
     if (op->reg1 == &cpu->p) {
         value |= P_B | P__;
@@ -99,7 +99,7 @@ static void op_PH(CPUState *cpu, const Opcode *op, OpParam param) {
     stack_push(cpu, value);
 }
 
-static void op_PL(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_PL(CPU65xx *cpu, const Opcode *op, OpParam param) {
     *op->reg1 = stack_pull(cpu);
     if (op->reg1 == &cpu->p) {
         *op->reg1 &= ~(P_B | P__);
@@ -108,7 +108,7 @@ static void op_PL(CPUState *cpu, const Opcode *op, OpParam param) {
     }
 }
 
-static void op_ADC(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_ADC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t value = get_param_value(cpu, op, param);
     uint8_t carry = get_p_flag(cpu, P_C);
     set_p_flag(cpu, P_C, ((int)(cpu->a) + (int)carry + (int)value) >= 0x100);
@@ -118,7 +118,7 @@ static void op_ADC(CPUState *cpu, const Opcode *op, OpParam param) {
     apply_p_nz(cpu, cpu->a);
 }
 
-static void op_SBC(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_SBC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t value = get_param_value(cpu, op, param);
     uint8_t carry = get_p_flag(cpu, P_C);
     set_p_flag(cpu, P_C, ((int)(cpu->a) + (int)carry - 1 - (int)value) >= 0);
@@ -128,55 +128,55 @@ static void op_SBC(CPUState *cpu, const Opcode *op, OpParam param) {
     apply_p_nz(cpu, cpu->a);
 }
 
-static void op_AND(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_AND(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->a &= get_param_value(cpu, op, param);
     apply_p_nz(cpu, cpu->a);
 }
 
-static void op_EOR(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_EOR(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->a ^= get_param_value(cpu, op, param);
     apply_p_nz(cpu, cpu->a);
 }
 
-static void op_ORA(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_ORA(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->a |= get_param_value(cpu, op, param);
     apply_p_nz(cpu, cpu->a);
 }
 
-static void op_CMP(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_CMP(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t value = get_param_value(cpu, op, param);
     set_p_flag(cpu, P_C, ((int)(*op->reg1) - (int)value) >= 0);
     apply_p_nz(cpu, *op->reg1 - value);
 }
 
-static void op_BIT(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_BIT(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t value = get_param_value(cpu, op, param);
     set_p_flag(cpu, P_Z, !(cpu->a & value));
     set_p_flag(cpu, P_N, value & (1 << 7));
     set_p_flag(cpu, P_V, value & (1 << 6));
 }
 
-static void op_INC(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_INC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t result = get_param_value(cpu, op, param) + 1;
     mm_write(cpu->mm, param.addr, result);
     apply_p_nz(cpu, result);
 }
 
-static void op_IN(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_IN(CPU65xx *cpu, const Opcode *op, OpParam param) {
     apply_p_nz(cpu, ++(*op->reg1));
 }
 
-static void op_DEC(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_DEC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t result = get_param_value(cpu, op, param) - 1;
     mm_write(cpu->mm, param.addr, result);
     apply_p_nz(cpu, result);
 }
 
-static void op_DE(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_DE(CPU65xx *cpu, const Opcode *op, OpParam param) {
     apply_p_nz(cpu, --(*op->reg1));
 }
 
-static void shift_left(CPUState *cpu, const Opcode *op, OpParam param,
+static void shift_left(CPU65xx *cpu, const Opcode *op, OpParam param,
                        uint8_t carry) {
     if (op->reg1) {
         set_p_flag(cpu, P_C, *op->reg1 & (1 << 7));
@@ -192,14 +192,14 @@ static void shift_left(CPUState *cpu, const Opcode *op, OpParam param,
         apply_p_nz(cpu, value);
     }
 }
-static void op_ASL(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_ASL(CPU65xx *cpu, const Opcode *op, OpParam param) {
     shift_left(cpu, op, param, 0);
 }
-static void op_ROL(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_ROL(CPU65xx *cpu, const Opcode *op, OpParam param) {
     shift_left(cpu, op, param, get_p_flag(cpu, P_C));
 }
 
-static void shift_right(CPUState *cpu, const Opcode *op, OpParam param,
+static void shift_right(CPU65xx *cpu, const Opcode *op, OpParam param,
                         uint8_t carry) {
     if (op->reg1) {
         set_p_flag(cpu, P_C, *op->reg1 & 1);
@@ -215,32 +215,32 @@ static void shift_right(CPUState *cpu, const Opcode *op, OpParam param,
         apply_p_nz(cpu, value);
     }
 }
-static void op_LSR(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_LSR(CPU65xx *cpu, const Opcode *op, OpParam param) {
     shift_right(cpu, op, param, 0);
 }
-static void op_ROR(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_ROR(CPU65xx *cpu, const Opcode *op, OpParam param) {
     shift_right(cpu, op, param, get_p_flag(cpu, P_C) << 7);
 }
 
-static void op_JMP(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_JMP(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->pc = param.addr;
 }
 
-static void op_JSR(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_JSR(CPU65xx *cpu, const Opcode *op, OpParam param) {
     stack_push_word(cpu, cpu->pc - 1);
     cpu->pc = param.addr;
 }
 
-static void op_RTI(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_RTI(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->p = stack_pull(cpu) & ~(P_B | P__);
     cpu->pc = stack_pull_word(cpu);
 }
 
-static void op_RTS(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_RTS(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->pc = stack_pull_word(cpu) + 1;
 }
 
-static void cond_branch(CPUState *cpu, OpParam param, PFlag flag, bool value) {
+static void cond_branch(CPU65xx *cpu, OpParam param, PFlag flag, bool value) {
     if (get_p_flag(cpu, flag) != value) {
         return;
     }
@@ -249,61 +249,61 @@ static void cond_branch(CPUState *cpu, OpParam param, PFlag flag, bool value) {
     apply_page_boundary_penalty(cpu, cpu->pc, new_pc);
     cpu->pc = new_pc;
 }
-static void op_BPL(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_BPL(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cond_branch(cpu, param, P_N, false);
 }
-static void op_BMI(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_BMI(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cond_branch(cpu, param, P_N, true);
 }
-static void op_BVC(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_BVC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cond_branch(cpu, param, P_V, false);
 }
-static void op_BVS(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_BVS(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cond_branch(cpu, param, P_V, true);
 }
-static void op_BCC(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_BCC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cond_branch(cpu, param, P_C, false);
 }
-static void op_BCS(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_BCS(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cond_branch(cpu, param, P_C, true);
 }
-static void op_BNE(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_BNE(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cond_branch(cpu, param, P_Z, false);
 }
-static void op_BEQ(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_BEQ(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cond_branch(cpu, param, P_Z, true);
 }
 
-static void op_BRK(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_BRK(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->pc++; // Puts PC one extra byte further, for some reason
     interrupt(cpu, true, IVT_IRQ);
 }
 
-static void op_CLC(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_CLC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_C, false);
 }
-static void op_CLI(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_CLI(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_I, false);
 }
-static void op_CLD(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_CLD(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_D, false);
 }
-static void op_CLV(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_CLV(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_V, false);
 }
-static void op_SEC(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_SEC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_C, true);
 }
-static void op_SEI(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_SEI(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_I, true);
 }
-static void op_SED(CPUState *cpu, const Opcode *op, OpParam param) {
+static void op_SED(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_D, true);
 }
 
 // PUBLIC FUNCTIONS //
 
-void cpu_init(CPUState *cpu, MemoryMap *mm) {
+void cpu_65xx_init(CPU65xx *cpu, MemoryMap *mm) {
     cpu->a = cpu->x = cpu->y = cpu->s = 0;
     cpu->p = P__;
     cpu->pc = 0;
@@ -492,7 +492,7 @@ void cpu_init(CPUState *cpu, MemoryMap *mm) {
     cpu->opcodes[0xEA] = (Opcode) {"NOP", 0, 0, 2, NULL, AM_IMPLIED};
 }
 
-int cpu_step(CPUState *cpu, bool verbose) {
+int cpu_65xx_step(CPU65xx *cpu, bool verbose) {
     if (verbose) {
         printf("$%04x ", cpu->pc);
     }
@@ -616,21 +616,21 @@ int cpu_step(CPUState *cpu, bool verbose) {
     return 0x100;
 }
 
-void cpu_reset(CPUState *cpu, bool verbose) {
+void cpu_65xx_reset(CPU65xx *cpu, bool verbose) {
     if (verbose) {
         printf("$%04x /RESET", cpu->pc);
     }
     interrupt(cpu, true, IVT_RESET);
 }
 
-void cpu_external_t_increment(CPUState *cpu, int amount) {
+void cpu_65xx_external_t_increment(CPU65xx *cpu, int amount) {
     if (cpu->time % 2) {
         cpu->time++;
     }
     cpu->time += amount;
 }
 
-void cpu_debug_print_state(CPUState *cpu) {
+void cpu_65xx_debug_print_state(CPU65xx *cpu) {
     printf("PC=%04x A=%02x X=%02x Y=%02x P=%02x[",
            cpu->pc, cpu->a, cpu->x, cpu->y, cpu->p);
     for (int i = 0; i < 8; i++) {

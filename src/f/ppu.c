@@ -388,7 +388,7 @@ static void write_oam_dma(Machine *vm, int offset, uint8_t value) {
         page[i] = mm_read(vm->cpu_mm, page_addr + i);
     }
     memcpy(vm->ppu->oam, page, 0x100);
-    cpu_external_t_increment(vm->cpu, 0x201);
+    cpu_65xx_external_t_increment(vm->cpu, 0x201);
 }
 
 static uint8_t read_background_colors(Machine *vm, int offset) {
@@ -407,7 +407,7 @@ static void write_palettes(Machine *vm, int offset, uint8_t value) {
 
 // PUBLIC FUNCTIONS //
 
-void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu) {
+void ppu_init(PPUState *ppu, MemoryMap *mm, CPU65xx *cpu) {
     memset(ppu, 0, sizeof(PPUState));
     ppu->mm = mm;
     ppu->cpu = cpu;

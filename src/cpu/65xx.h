@@ -21,7 +21,7 @@ typedef enum {
 #define IVT_IRQ   0xFFFE
 
 // Forward declarations
-typedef struct CPUState CPUState;
+typedef struct CPU65xx CPU65xx;
 typedef struct Opcode Opcode;
 typedef struct MemoryMap MemoryMap;
 
@@ -47,11 +47,11 @@ struct Opcode {
     uint8_t *reg1;
     uint8_t *reg2;
     int cycles;
-    void (*func)(CPUState *, const Opcode *, OpParam);
+    void (*func)(CPU65xx *, const Opcode *, OpParam);
     AddressingMode am;
 };
 
-struct CPUState {
+struct CPU65xx {
     // General purpose registers
     uint8_t a;
     uint8_t x;
@@ -73,13 +73,13 @@ struct CPUState {
     Opcode opcodes[0x100];
 };
 
-void cpu_init(CPUState *cpu, MemoryMap *mm);
+void cpu_65xx_init(CPU65xx *cpu, MemoryMap *mm);
 
-int cpu_step(CPUState *cpu, bool verbose);
-void cpu_reset(CPUState *cpu, bool verbose);
+int cpu_65xx_step(CPU65xx *cpu, bool verbose);
+void cpu_65xx_reset(CPU65xx *cpu, bool verbose);
 
-void cpu_external_t_increment(CPUState *cpu, int amount);
+void cpu_65xx_external_t_increment(CPU65xx *cpu, int amount);
 
-void cpu_debug_print_state(CPUState *cpu);
+void cpu_65xx_debug_print_state(CPU65xx *cpu);
 
 #endif /* cpu_65xx_h */

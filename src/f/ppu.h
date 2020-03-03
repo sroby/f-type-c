@@ -64,12 +64,12 @@
 #define LIGHTGUN_COOLDOWN 26
 
 // Forward declarations
-typedef struct CPUState CPUState;
+typedef struct CPU65xx CPU65xx;
 typedef struct PPUState PPUState;
 typedef struct MemoryMap MemoryMap;
 
 struct PPUState {
-    CPUState *cpu;
+    CPU65xx *cpu;
     MemoryMap *mm;
     
     // Object Attribute Memory, ie. the sprites
@@ -122,7 +122,7 @@ struct PPUState {
     int lightgun_sensor;
 };
 
-void ppu_init(PPUState *ppu, MemoryMap *mm, CPUState *cpu);
+void ppu_init(PPUState *ppu, MemoryMap *mm, CPU65xx *cpu);
 bool ppu_step(PPUState *ppu, bool verbose);
 
 #endif /* f_ppu_h */

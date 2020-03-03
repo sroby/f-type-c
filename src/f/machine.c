@@ -5,7 +5,7 @@
 #include "memory_maps.h"
 #include "ppu.h"
 
-void machine_init(Machine *vm, CPUState *cpu, PPUState *ppu, MemoryMap *cpu_mm,
+void machine_init(Machine *vm, CPU65xx *cpu, PPUState *ppu, MemoryMap *cpu_mm,
                   MemoryMap *ppu_mm, Cartridge *cart, const DebugMap *dbg_map) {
     memset(vm, 0, sizeof(Machine));
     vm->controller_bit[0] = vm->controller_bit[1] = 8;
@@ -20,7 +20,7 @@ void machine_init(Machine *vm, CPUState *cpu, PPUState *ppu, MemoryMap *cpu_mm,
     machine_set_nt_mirroring(vm, cart->default_mirroring);
     mapper_init(vm);
     
-    cpu_reset(vm->cpu, false);
+    cpu_65xx_reset(vm->cpu, false);
 }
 
 bool machine_advance_frame(Machine *vm, bool verbose) {
@@ -46,7 +46,7 @@ bool machine_advance_frame(Machine *vm, bool verbose) {
             }
             
             // Run next CPU instruction
-            if (cpu_step(vm->cpu, verbose && !is_endless_loop) != 0x100) {
+            if (cpu_65xx_step(vm->cpu, verbose && !is_endless_loop) != 0x100) {
                 return false;
             }
         }

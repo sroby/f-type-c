@@ -115,8 +115,8 @@ int main(int argc, char *argv[]) {
     memory_map_cpu_init(&cpu_mm, &vm);
     MemoryMap ppu_mm;
     memory_map_ppu_init(&ppu_mm, &vm);
-    CPUState cpu;
-    cpu_init(&cpu, &cpu_mm);
+    CPU65xx cpu;
+    cpu_65xx_init(&cpu, &cpu_mm);
     PPUState ppu;
     ppu_init(&ppu, &ppu_mm, &cpu);
     machine_init(&vm, &cpu, &ppu, &cpu_mm, &ppu_mm, &cart, dbg_map);
