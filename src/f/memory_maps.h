@@ -3,16 +3,6 @@
 
 #include "../common.h"
 
-// Bit fields
-#define BUTTON_A 1
-#define BUTTON_B (1 << 1)
-#define BUTTON_SELECT (1 << 2)
-#define BUTTON_START (1 << 3)
-#define BUTTON_UP (1 << 4)
-#define BUTTON_DOWN (1 << 5)
-#define BUTTON_LEFT (1 << 6)
-#define BUTTON_RIGHT (1 << 7)
-
 #define MASK_COLOR 0b111111
 
 // Forward declarations

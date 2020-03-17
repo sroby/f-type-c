@@ -126,7 +126,7 @@ static void task_render_pixel(PPU *ppu) {
     
     int pos = ppu->scanline * WIDTH + ppu->cycle;
     ppu->screen[pos] = colors_ntsc[color];
-    if (pos == ppu->lightgun_pos && (color == 0x20 || color == 0x30)) {
+    if (pos == *ppu->lightgun_pos && (color == 0x20 || color == 0x30)) {
         ppu->lightgun_sensor = LIGHTGUN_COOLDOWN;
     }
 
@@ -407,12 +407,14 @@ static void write_palettes(Machine *vm, int offset, uint8_t value) {
 
 // PUBLIC FUNCTIONS //
 
-void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu) {
+void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, uint32_t *screen,
+              int *lightgun_pos) {
     memset(ppu, 0, sizeof(PPU));
     ppu->mm = mm;
     ppu->cpu = cpu;
+    ppu->screen = screen;
+    ppu->lightgun_pos = lightgun_pos;
     ppu->scanline = -1;
-    ppu->lightgun_pos = -1;
     
     // Fill the tasks array
     // sprite

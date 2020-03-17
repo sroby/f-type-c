@@ -1,26 +1,59 @@
 #include "machine.h"
 
 #include "../cpu/65xx.h"
+#include "../input.h"
 #include "cartridge.h"
 #include "memory_maps.h"
 #include "ppu.h"
 
-void machine_init(Machine *vm, CPU65xx *cpu, PPU *ppu, MemoryMap *cpu_mm,
-                  MemoryMap *ppu_mm, Cartridge *cart, const DebugMap *dbg_map) {
+void machine_init(Machine *vm, Cartridge *cart, InputState *input,
+                  uint32_t *screen) {
     memset(vm, 0, sizeof(Machine));
-    vm->controller_bit[0] = vm->controller_bit[1] = 8;
     
-    vm->cpu = cpu;
-    vm->ppu = ppu;
-    vm->cpu_mm = cpu_mm;
-    vm->ppu_mm = ppu_mm;
-    vm->cart = cart;
-    vm->dbg_map = dbg_map;
+    // TODO: Don't copy the cartridge
+    vm->cart = malloc(sizeof(Cartridge));
+    *vm->cart = *cart;
+    
+    vm->input = input;
 
-    machine_set_nt_mirroring(vm, cart->default_mirroring);
+    // TODO: Convert all to non-pointers (lots of -> to . changes needed)
+    vm->cpu = malloc(sizeof(CPU65xx));
+    vm->ppu = malloc(sizeof(PPU));
+    vm->cpu_mm = malloc(sizeof(MemoryMap));
+    vm->ppu_mm = malloc(sizeof(MemoryMap));
+    memory_map_cpu_init(vm->cpu_mm, vm);
+    memory_map_ppu_init(vm->ppu_mm, vm);
+    cpu_65xx_init(vm->cpu, vm->cpu_mm);
+    ppu_init(vm->ppu, vm->ppu_mm, vm->cpu, screen, &input->lightgun_pos);
+    
+    if (!vm->cart->chr_memory_size) {
+        vm->cart->chr_memory_size = SIZE_CHR_ROM;
+        vm->cart->chr_is_ram = true;
+        vm->cart->chr_memory = malloc(SIZE_CHR_ROM);
+        memset(vm->cart->chr_memory, 0, SIZE_CHR_ROM);
+    }
+    
+    machine_set_nt_mirroring(vm, vm->cart->default_mirroring);
     mapper_init(vm);
     
     cpu_65xx_reset(vm->cpu, false);
+}
+
+void machine_teardown(Machine *vm) {
+    // TODO: Save SRAM
+    if (vm->cart->sram) {
+        free(vm->cart->sram);
+    }
+    
+    if (vm->cart->chr_is_ram) {
+        free(vm->cart->chr_memory);
+    }
+    
+    free(vm->cart);
+    free(vm->ppu_mm);
+    free(vm->cpu_mm);
+    free(vm->ppu);
+    free(vm->cpu);
 }
 
 bool machine_advance_frame(Machine *vm, bool verbose) {

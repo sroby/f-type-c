@@ -10,8 +10,18 @@
 
 #define FRAME_DURATION 16
 
+// Controller buttons
+#define BUTTON_A 1
+#define BUTTON_B (1 << 1)
+#define BUTTON_SELECT (1 << 2)
+#define BUTTON_START (1 << 3)
+#define BUTTON_UP (1 << 4)
+#define BUTTON_DOWN (1 << 5)
+#define BUTTON_LEFT (1 << 6)
+#define BUTTON_RIGHT (1 << 7)
+
 // Forward declarations
-typedef struct Machine Machine;
+typedef struct Driver Driver;
 
 typedef struct Window {
     SDL_Window *window;
@@ -25,9 +35,9 @@ typedef struct Window {
     const int *buttons[2];
 } Window;
 
-int window_init(Window *wnd, const char *filename);
+int window_init(Window *wnd, Driver *driver, const char *filename);
 void window_cleanup(Window *wnd);
 
-void window_loop(Window *wnd, Machine *vm);
+void window_loop(Window *wnd, Driver *driver);
 
 #endif /* window_h */

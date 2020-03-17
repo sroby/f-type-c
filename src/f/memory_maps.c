@@ -1,5 +1,6 @@
 #include "memory_maps.h"
 
+#include "../input.h"
 #include "machine.h"
 #include "ppu.h"
 
@@ -19,21 +20,19 @@ static void write_wram(Machine *vm, int offset, uint8_t value) {
 
 static uint8_t read_controllers(Machine *vm, int offset) {
     uint8_t value = vm->cpu_mm->last_read & 0b11100000;
-    if (vm->controller_bit[offset] < 8) {
-        if (vm->controllers[offset] & (1 << vm->controller_bit[offset]++)) {
-            value++;
-        }
-    }
+    value += vm->ctrl_latch[offset] & 1;
+    vm->ctrl_latch[offset] >>= 1;
     if (offset) {
         value |= (!vm->ppu->lightgun_sensor << 3) |
-                 (!vm->lightgun_trigger << 4);
+                 (!vm->input->lightgun_trigger << 4);
     }
     return value;
 }
 
 static void write_controller_latch(Machine *vm, int offset, uint8_t value) {
     if (value & 1) {
-        vm->controller_bit[0] = vm->controller_bit[1] = 0;
+        vm->ctrl_latch[0] = vm->input->controllers[0];
+        vm->ctrl_latch[1] = vm->input->controllers[1];
     }
     vm->vs_bank = value & 0b100;
 }

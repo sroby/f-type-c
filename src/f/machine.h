@@ -15,9 +15,14 @@
 // IRQ lines
 #define IRQ_MAPPER 1
 
+// Screen dimensions
+#define WIDTH 256
+#define HEIGHT 240
+
 // Forward decalarations
 typedef struct Cartridge Cartridge;
 typedef struct CPU65xx CPU65xx;
+typedef struct InputState InputState;
 typedef struct MemoryMap MemoryMap;
 typedef struct PPU PPU;
 
@@ -40,10 +45,9 @@ typedef struct Machine {
     uint8_t *nt_layout[4];
     
     // Controller I/O
-    uint8_t controllers[2];
-    int controller_bit[2];
-    bool lightgun_trigger;
+    uint8_t ctrl_latch[2];
     bool vs_bank;
+    InputState *input;
 } Machine;
 
 typedef enum {
@@ -54,8 +58,9 @@ typedef enum {
     NT_FOUR = 4,
 } NametableMirroring;
 
-void machine_init(Machine *vm, CPU65xx *cpu, PPU *ppu, MemoryMap *cpu_mm,
-                  MemoryMap *ppu_mm, Cartridge *cart, const DebugMap *dbg_map);
+void machine_init(Machine *vm, Cartridge *cart, InputState *input,
+                  uint32_t *screen);
+void machine_teardown(Machine *vm);
 
 bool machine_advance_frame(Machine *vm, bool verbose);
 

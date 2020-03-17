@@ -1,8 +1,6 @@
 #include "window.h"
 
-#include "f/machine.h"
-#include "f/memory_maps.h"
-#include "f/ppu.h"
+#include "driver.h"
 
 // Button assignments
 // A, B, Select, Start, Up, Down, Left, Right
@@ -11,9 +9,6 @@ static const int buttons[] = {0, 2, 4, 6, 11, 12, 13, 14};
 static const int buttons_snes_retroport[] = {2, 0, 4, 6, -1, -1, -1, -1};
 static const int buttons_8bitdo[] = {0, 1, 10, 11, -1, -1, -1, -1};
 static const int buttons_ds3[] = {14, 15, 0, 3, 4, 6, 7, 5};
-
-static const SDL_Rect screen_visible_area =
-    {0, (HEIGHT - HEIGHT_CROPPED) / 2, WIDTH, HEIGHT_CROPPED};
 
 static int identify_js(Window *wnd, SDL_JoystickID which) {
     for (int i = 0; i < 2; i++) {
@@ -26,21 +21,21 @@ static int identify_js(Window *wnd, SDL_JoystickID which) {
     return -1;
 }
 
-static void update_lightgun_pos(PPU *ppu, const SDL_Rect *area,
+static void update_lightgun_pos(Driver *driver, const SDL_Rect *area,
                                 int32_t x, int32_t y) {
     x -= area->x;
     y -= area->y;
     if (x >= 0 && y >= 0 && x < area->w && y < area->h) {
-        ppu->lightgun_pos = x * WIDTH / area->w +
-                            (y * HEIGHT_CROPPED / area->h + 8) * WIDTH;
+        driver->input.lightgun_pos = x * driver->screen_w / area->w +
+                                     y * driver->screen_h / area->h * driver->screen_w;
     } else {
-        ppu->lightgun_pos = -1;
+        driver->input.lightgun_pos = -1;
     }
 }
 
 // PUBLIC FUNCTIONS //
 
-int window_init(Window *wnd, const char *filename) {
+int window_init(Window *wnd, Driver *driver, const char *filename) {
     // Init SDL
     int error_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
     if (error_code) {
@@ -82,10 +77,13 @@ int window_init(Window *wnd, const char *filename) {
         printf("No controllers were found, will continue without input\n");
     }
     
+    // TODO: Everything below shouldn't assume a 8:7 anamorphic aspect ratio
+    int width_adjusted = driver->screen_w * 8 / 7;
+    
     // Create window and renderer
     wnd->window = SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED,
                                              SDL_WINDOWPOS_UNDEFINED,
-                                             WIDTH_ADJUSTED, HEIGHT_CROPPED,
+                                             width_adjusted, driver->screen_h,
                                              SDL_WINDOW_ALLOW_HIGHDPI);
     if (!wnd->window) {
         printf("%s\n", SDL_GetError());
@@ -100,13 +98,13 @@ int window_init(Window *wnd, const char *filename) {
     }
 
     // Compare physical resolution to display bounds to see if we can resize to
-    // pixel-perfect (2048x1568) mode
+    // pixel-perfect (2048x1680) mode
     int w, h;
     SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
     SDL_Rect bounds;
     SDL_GetDisplayUsableBounds(0, &bounds);
-    int target_w = WIDTH_PP / (w / WIDTH_ADJUSTED);
-    int target_h = HEIGHT_PP / (h / HEIGHT_CROPPED);
+    int target_w = driver->screen_w * 8 / (w / width_adjusted);
+    int target_h = driver->screen_h * 7 / (h / driver->screen_h);
     if (target_w <= bounds.w && target_h <= bounds.h) {
         SDL_SetWindowSize(wnd->window, target_w, target_h);
     } else {
@@ -115,14 +113,14 @@ int window_init(Window *wnd, const char *filename) {
     
     // Compute the display area
     SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
-    int zoom = h / HEIGHT_CROPPED + 1;
+    int zoom = h / driver->screen_h + 1;
     int adjusted_w;
     do {
-        adjusted_w = WIDTH * --zoom * 8 / 7;
+        adjusted_w = driver->screen_w * --zoom * 8 / 7;
         adjusted_w -= (adjusted_w % 2);
     } while (adjusted_w > w);
     wnd->display_area.w = adjusted_w;
-    wnd->display_area.h = HEIGHT_CROPPED * zoom;
+    wnd->display_area.h = driver->screen_h * zoom;
     wnd->display_area.x = (w - wnd->display_area.w) / 2;
     wnd->display_area.y = (h - wnd->display_area.h) / 2;
     int win_w, win_h;
@@ -134,7 +132,7 @@ int window_init(Window *wnd, const char *filename) {
 
     wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
                                      SDL_TEXTUREACCESS_STREAMING,
-                                     WIDTH, HEIGHT);
+                                     driver->screen_w, driver->screen_h);
     if (!wnd->texture) {
         printf("%s\n", SDL_GetError());
         return 1;
@@ -168,10 +166,10 @@ void window_cleanup(Window *wnd) {
     SDL_Quit();
 }
 
-void window_loop(Window *wnd, Machine *vm) {
+void window_loop(Window *wnd, Driver *driver) {
     const char *const verb_char = getenv("VERBOSE");
     const bool verbose = verb_char ? *verb_char - '0' : false;
-    uint8_t *ctrls = vm->controllers;
+    uint32_t *ctrls = driver->input.controllers;
     
     // Main loop
     int frame = 0;
@@ -243,7 +241,7 @@ void window_loop(Window *wnd, Machine *vm) {
                     break;
                 case SDL_MOUSEMOTION:
                     if (!(event.motion.state & SDL_BUTTON_RMASK)) {
-                        update_lightgun_pos(vm->ppu, &wnd->mouse_area,
+                        update_lightgun_pos(driver, &wnd->mouse_area,
                                             event.motion.x, event.motion.y);
                     }
                     break;
@@ -253,15 +251,14 @@ void window_loop(Window *wnd, Machine *vm) {
                         event.button.button != SDL_BUTTON_RIGHT) {
                         break;
                     }
-                    vm->lightgun_trigger =
+                    driver->input.lightgun_trigger =
                         (event.button.state == SDL_PRESSED);
                     if (event.button.button == SDL_BUTTON_RIGHT) {
-                        if (vm->lightgun_trigger) {
-                            vm->ppu->lightgun_pos = -1;
+                        if (driver->input.lightgun_trigger) {
+                            driver->input.lightgun_pos = -1;
                         } else {
-                            update_lightgun_pos(vm->ppu, &wnd->mouse_area,
-                                                event.button.x,
-                                                event.button.y);
+                            update_lightgun_pos(driver, &wnd->mouse_area,
+                                                event.button.x, event.button.y);
                         }
                     }
                     break;
@@ -301,16 +298,15 @@ void window_loop(Window *wnd, Machine *vm) {
         }
         
         // Advance one frame
-        if (!machine_advance_frame(vm, verbose)) {
+        if (!(*driver->advance_frame_func)(driver->vm, verbose)) {
             break;
         }
         
         // Render the frame
-        SDL_UpdateTexture(wnd->texture, NULL, vm->ppu->screen,
-                          WIDTH * sizeof(uint32_t));
+        SDL_UpdateTexture(wnd->texture, NULL, driver->screen,
+                          driver->screen_w * sizeof(uint32_t));
         SDL_RenderClear(wnd->renderer);
-        SDL_RenderCopy(wnd->renderer, wnd->texture, &screen_visible_area,
-                       &wnd->display_area);
+        SDL_RenderCopy(wnd->renderer, wnd->texture, NULL, &wnd->display_area);
         SDL_RenderPresent(wnd->renderer);
 
         // Throttle the execution until we are due for a new frame

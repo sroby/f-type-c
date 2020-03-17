@@ -46,14 +46,6 @@
 #define PPUADDR 6
 #define PPUDATA 7
 
-// Screen dimensions
-#define WIDTH 256
-#define WIDTH_ADJUSTED (WIDTH * 8 / 7)
-#define WIDTH_PP (WIDTH * 8)
-#define HEIGHT 240
-#define HEIGHT_CROPPED 224
-#define HEIGHT_PP (HEIGHT_CROPPED * 7)
-
 // Tasks array
 #define TASK_SPRITE 0
 #define TASK_FETCH 1
@@ -115,14 +107,15 @@ struct PPU {
     bool s_has_zero, s_has_zero_next;
     
     // Raw screen data, in ARGB8888 format
-    uint32_t screen[WIDTH * HEIGHT];
+    uint32_t *screen;
     
     // Lightgun sensor handling
-    int lightgun_pos;
+    int *lightgun_pos;
     int lightgun_sensor;
 };
 
-void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu);
+void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, uint32_t *screen,
+              int *lightgun_pos);
 bool ppu_step(PPU *ppu, bool verbose);
 
 #endif /* f_ppu_h */

@@ -8,6 +8,7 @@ TARGET=f-type
 SRCS= \
 	src/cpu/65xx.c \
 	src/f/cartridge.c \
+	src/f/loader.c \
 	src/f/machine.c \
 	src/f/memory_maps.c \
 	src/f/ppu.c \

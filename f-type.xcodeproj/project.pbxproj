@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F414915B2410BAAE00319710 /* loader.c in Sources */ = {isa = PBXBuildFile; fileRef = F414915A2410BAAE00319710 /* loader.c */; };
 		F4642F7C22CE57E2000B4BEB /* cartridge.c in Sources */ = {isa = PBXBuildFile; fileRef = F4642F7B22CE57E2000B4BEB /* cartridge.c */; };
 		F4858D7722BCE2BC0043C2EF /* libSDL2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = F4858D7622BCE2BC0043C2EF /* libSDL2.dylib */; };
 		F4858D7A22BCECB70043C2EF /* window.c in Sources */ = {isa = PBXBuildFile; fileRef = F4858D7922BCECB70043C2EF /* window.c */; };
@@ -30,6 +31,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F41491592410BAAE00319710 /* loader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = loader.h; sourceTree = "<group>"; };
+		F414915A2410BAAE00319710 /* loader.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = loader.c; sourceTree = "<group>"; };
+		F414915C2419E7A100319710 /* driver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = driver.h; sourceTree = "<group>"; };
+		F414915F2420018100319710 /* input.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = input.h; sourceTree = "<group>"; };
 		F4642F7A22CE57E2000B4BEB /* cartridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cartridge.h; sourceTree = "<group>"; };
 		F4642F7B22CE57E2000B4BEB /* cartridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cartridge.c; sourceTree = "<group>"; };
 		F4858D5E22B84A860043C2EF /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
@@ -75,6 +80,8 @@
 			children = (
 				F4642F7B22CE57E2000B4BEB /* cartridge.c */,
 				F4642F7A22CE57E2000B4BEB /* cartridge.h */,
+				F414915A2410BAAE00319710 /* loader.c */,
+				F41491592410BAAE00319710 /* loader.h */,
 				F4EEF81622AC842C00B38C9F /* machine.c */,
 				F4EEF81522AC842C00B38C9F /* machine.h */,
 				F4EEF80D22AA054300B38C9F /* memory_maps.c */,
@@ -117,6 +124,8 @@
 				F4149157240DC95700319710 /* cpu */,
 				F4149158240DC96300319710 /* f */,
 				F4858D5E22B84A860043C2EF /* common.h */,
+				F414915C2419E7A100319710 /* driver.h */,
+				F414915F2420018100319710 /* input.h */,
 				F4EEF80522AA050A00B38C9F /* main.c */,
 				F4858D7922BCECB70043C2EF /* window.c */,
 				F4858D7822BCECB70043C2EF /* window.h */,
@@ -181,6 +190,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F414915B2410BAAE00319710 /* loader.c in Sources */,
 				F4EEF81122AA054300B38C9F /* 65xx.c in Sources */,
 				F4EEF80622AA050A00B38C9F /* main.c in Sources */,
 				F4EEF81022AA054300B38C9F /* memory_maps.c in Sources */,
