@@ -41,17 +41,17 @@ int main(int argc, char *argv[]) {
     Driver driver;
     memset(&driver, 0, sizeof(Driver));
     driver.input.lightgun_pos = -1;
-    const char *loader_error = "Not yet implemented";
     
     // Identify file type and pass to the appropriate loader
     int error_code = 1;
+    fprintf(stderr, "%s: ", argv[1]);
     if (!strncmp((const char *)rom_data, "NES\x1a", 4)) {
-        fprintf(stderr, "%s: iNES file format\n", argv[1]);
+        fprintf(stderr, "iNES file format\n");
         error_code = ines_loader(&driver, rom_data, (int)rom_file_size);
     } else if (!strncmp((const char *)rom_data, "FDS\x1a", 4)) {
-        fprintf(stderr, "%s: FDS disk image\n", argv[1]);
+        fprintf(stderr, "FDS disk image\n");
     } else {
-        loader_error = "Could not identify file type";
+        fprintf(stderr, "Could not identify file type\n");
     }
     if (error_code) {
         return error_code;
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
             i++;
         }
         dbg_map[i + 1].label[0] = 0;
-        printf("Read %d entries from %s\n", i, argv[2]);
+        fprintf(stderr, "Read %d entries from %s\n", i, argv[2]);
         fclose(map_file);
     }*/
         

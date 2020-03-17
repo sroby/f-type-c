@@ -39,7 +39,7 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     // Init SDL
     int error_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
     if (error_code) {
-        printf("%s\n", SDL_GetError());
+        fprintf(stderr, "%s\n", SDL_GetError());
         return error_code;
     }
     
@@ -48,7 +48,7 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     wnd->js[0] = wnd->js[1] = NULL;
     int n_js = SDL_NumJoysticks();
     if (n_js < 0) {
-        printf("%s\n", SDL_GetError());
+        fprintf(stderr, "%s\n", SDL_GetError());
     }
     int assigned_js = 0;
     for (int i = 0; i < n_js; i++) {
@@ -65,16 +65,18 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
                 wnd->buttons[assigned_js] = buttons;
             }
             wnd->js[assigned_js++] = js;
-            printf("Assigned \"%s\" as controller #%d\n", js_name, assigned_js);
+            fprintf(stderr, "Assigned \"%s\" as controller #%d\n",
+                    js_name, assigned_js);
             if (assigned_js >= 2) {
                 break;
             }
         } else {
-            printf("%s\n", SDL_GetError());
+            fprintf(stderr, "%s\n", SDL_GetError());
         }
     }
     if (!assigned_js) {
-        printf("No controllers were found, will continue without input\n");
+        fprintf(stderr,
+                "No controllers were found, will continue without input\n");
     }
     
     // TODO: Everything below shouldn't assume a 8:7 anamorphic aspect ratio
@@ -86,14 +88,14 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
                                              width_adjusted, driver->screen_h,
                                              SDL_WINDOW_ALLOW_HIGHDPI);
     if (!wnd->window) {
-        printf("%s\n", SDL_GetError());
+        fprintf(stderr, "%s\n", SDL_GetError());
         return 1;
     }
     wnd->renderer = SDL_CreateRenderer(wnd->window, -1,
                                        SDL_RENDERER_ACCELERATED |
                                        SDL_RENDERER_PRESENTVSYNC);
     if (!wnd->renderer) {
-        printf("%s\n", SDL_GetError());
+        fprintf(stderr, "%s\n", SDL_GetError());
         return 1;
     }
 
@@ -134,7 +136,7 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
                                      SDL_TEXTUREACCESS_STREAMING,
                                      driver->screen_w, driver->screen_h);
     if (!wnd->texture) {
-        printf("%s\n", SDL_GetError());
+        fprintf(stderr, "%s\n", SDL_GetError());
         return 1;
     }
     
@@ -143,7 +145,7 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     if (wnd->cursor) {
         SDL_SetCursor(wnd->cursor);
     } else {
-        printf("%s\n", SDL_GetError());
+        fprintf(stderr, "%s\n", SDL_GetError());
     }
     
     return 0;
@@ -320,5 +322,5 @@ void window_loop(Window *wnd, Driver *driver) {
         frame++;
     }
     
-    printf("Ended after %d frames\n", frame);
+    fprintf(stderr, "Ended after %d frames\n", frame);
 }
