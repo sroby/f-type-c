@@ -35,7 +35,9 @@ const char *dest_codes = "JEPW??FHSDIC?KANBUXYZ";
 int s_loader(Driver *driver, uint8_t *rom_data, int rom_data_size) {
     // Round upwards to the nearest kilobyte,
     // to get rid of possible copier headers
-    rom_data += rom_data_size % 1024;
+    int size_adjust = rom_data_size % 1024;
+    rom_data += size_adjust;
+    rom_data_size -= size_adjust;
     
     // Look for SFC header
     const int header_offsets[] = {0x7FB0, 0xFFB0, 0x40FFB0};
