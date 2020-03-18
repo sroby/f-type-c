@@ -2,6 +2,7 @@
 #include <libgen.h>
 
 #include "f/loader.h"
+#include "s/loader.h"
 #include "driver.h"
 #include "window.h"
 
@@ -23,7 +24,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     off_t rom_file_size = ftello(rom_file);
-    if (rom_file_size <= 0x10) {
+    if (rom_file_size < 1024) {
         fprintf(stderr, "%s: File is too small\n", argv[1]);
         return 1;
     }
@@ -51,7 +52,7 @@ int main(int argc, char *argv[]) {
     } else if (!strncmp((const char *)rom_data, "FDS\x1a", 4)) {
         fprintf(stderr, "FDS disk image\n");
     } else {
-        fprintf(stderr, "Could not identify file type\n");
+        error_code = s_loader(&driver, rom_data, (int)rom_file_size);
     }
     if (error_code) {
         return error_code;

@@ -12,6 +12,7 @@ SRCS= \
 	src/f/machine.c \
 	src/f/memory_maps.c \
 	src/f/ppu.c \
+	src/s/loader.c \
 	src/main.c \
 	src/window.c
 
