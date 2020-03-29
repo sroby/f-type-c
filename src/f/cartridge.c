@@ -392,10 +392,12 @@ static void MMC3Q_init(Machine *vm) {
     // register maps the CHR RAM. It's a lazy hack but seems to work, both games
     // using this board still have issues but they may be caused by remaining
     // problems in the scanline counter?
+    blob chr_rom = cart->chr_memory;
     cart->chr_is_ram = true;
     cart->chr_memory.size = 16 * SIZE_CHR_ROM;
-    cart->chr_memory.data = realloc(cart->chr_memory.data,
-                                    cart->chr_memory.size);
+    cart->chr_memory.data = malloc(cart->chr_memory.size);
+    memset(cart->chr_memory.data, 0, cart->chr_memory.size);
+    memcpy(cart->chr_memory.data, chr_rom.data, chr_rom.size);
     
     MMC3_init(vm);
 }
@@ -527,11 +529,15 @@ static void CPROM_init(Machine *vm) {
     cart->chr_bank_size = SIZE_CHR_ROM / 2;
     
     // Force CHR RAM and expand it to 16kB
-    cart->chr_is_ram = true;
     cart->chr_memory.size = SIZE_CHR_ROM * 2;
-    cart->chr_memory.data = realloc(cart->chr_memory.data,
-                                    cart->chr_memory.size);
-    
+    if (cart->chr_is_ram) {
+        cart->chr_memory.data = realloc(cart->chr_memory.data,
+                                        cart->chr_memory.size);
+    } else {
+        cart->chr_memory.data = malloc(cart->chr_memory.size);
+    }
+    cart->chr_is_ram = true;
+
     init_fixed_prg(vm, CPROM_write_register);
     init_banked_chr(vm);
 }
