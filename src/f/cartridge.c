@@ -7,46 +7,46 @@
 // GENERIC MAPPER I/O //
 
 static uint8_t read_fixed_prg(Machine *vm, int offset) {
-    return vm->cart->prg_rom[offset];
+    return vm->cart->prg_rom.data[offset];
 }
 static uint8_t read_banked_prg(Machine *vm, int offset) {
-    offset = offset % vm->cart->prg_bank_size +
-             vm->cart->prg_banks[offset / vm->cart->prg_bank_size] *
-             vm->cart->prg_bank_size;
-    return vm->cart->prg_rom[offset];
+    size_t pos = offset % vm->cart->prg_bank_size +
+                 vm->cart->prg_banks[offset / vm->cart->prg_bank_size] *
+                 vm->cart->prg_bank_size;
+    return vm->cart->prg_rom.data[pos];
 }
 
 static uint8_t read_fixed_chr(Machine *vm, int offset) {
-    return vm->cart->chr_memory[offset];
+    return vm->cart->chr_memory.data[offset];
 }
 static uint8_t read_banked_chr(Machine *vm, int offset) {
-    offset = offset % vm->cart->chr_bank_size +
-             vm->cart->chr_banks[offset / vm->cart->chr_bank_size] *
-             vm->cart->chr_bank_size;
-    return vm->cart->chr_memory[offset];
+    size_t pos = offset % vm->cart->chr_bank_size +
+                 vm->cart->chr_banks[offset / vm->cart->chr_bank_size] *
+                 vm->cart->chr_bank_size;
+    return vm->cart->chr_memory.data[pos];
 }
 
 static void write_fixed_chr(Machine *vm, int offset, uint8_t value) {
-    vm->cart->chr_memory[offset] = value;
+    vm->cart->chr_memory.data[offset] = value;
 }
 static void write_banked_chr(Machine *vm, int offset, uint8_t value) {
-    offset = offset % vm->cart->chr_bank_size +
-             vm->cart->chr_banks[offset / vm->cart->chr_bank_size] *
-             vm->cart->chr_bank_size;
-    vm->cart->chr_memory[offset] = value;
+    size_t pos = offset % vm->cart->chr_bank_size +
+                 vm->cart->chr_banks[offset / vm->cart->chr_bank_size] *
+                 vm->cart->chr_bank_size;
+    vm->cart->chr_memory.data[pos] = value;
 }
 
 static uint8_t read_sram(Machine *vm, int offset) {
     if (vm->cart->sram_enabled) {
         offset += vm->cart->sram_bank * SIZE_SRAM;
-        return vm->cart->sram[offset];
+        return vm->cart->sram.data[offset];
     }
     return vm->cpu_mm->last_read;
 }
 static void write_sram(Machine *vm, int offset, uint8_t value) {
     if (vm->cart->sram_enabled) {
         offset += vm->cart->sram_bank * SIZE_SRAM;
-        vm->cart->sram[offset] = value;
+        vm->cart->sram.data[offset] = value;
     }
 }
 
@@ -55,7 +55,7 @@ static void init_fixed_prg(Machine *vm, void (*register_func)
     // 8000-FFFF: PRG ROM (32kB, repeated if 16kB)
     for (int i = 0; i < SIZE_PRG_ROM; i++) {
         vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
-            {read_fixed_prg, register_func, i % vm->cart->prg_rom_size};
+            {read_fixed_prg, register_func, i % vm->cart->prg_rom.size};
     }
 }
 static void init_banked_prg(Machine *vm, void (*register_func)
@@ -63,7 +63,7 @@ static void init_banked_prg(Machine *vm, void (*register_func)
     // 8000-FFFF: PRG ROM (32kB, repeated if 16kB)
     for (int i = 0; i < SIZE_PRG_ROM; i++) {
         vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
-            {read_banked_prg, register_func, i % vm->cart->prg_rom_size};
+            {read_banked_prg, register_func, i % vm->cart->prg_rom.size};
     }
 }
 
@@ -83,8 +83,8 @@ static void init_banked_chr(Machine *vm) {
 }
 
 static void init_sram(Machine *vm, int size) {
-    vm->cart->sram_size = size;
-    vm->cart->sram = malloc(size);
+    vm->cart->sram.size = size;
+    vm->cart->sram.data = malloc(size);
     
     // 6000-7FFF: SRAM (up to 8kB, repeated if less)
     for (int i = 0; i < SIZE_SRAM; i++) {
@@ -109,17 +109,17 @@ static int extract_bank(int n_banks, int bit_offset, uint8_t value) {
 }
 
 static int extract_prg_bank(Cartridge *cart, int bit_offset, uint8_t value) {
-    return extract_bank(cart->prg_rom_size / cart->prg_bank_size,
+    return extract_bank((int)(cart->prg_rom.size / cart->prg_bank_size),
                         bit_offset, value);
 }
 
 static int extract_chr_bank(Cartridge *cart, int bit_offset, uint8_t value) {
-    return extract_bank(cart->chr_memory_size / cart->chr_bank_size,
+    return extract_bank((int)(cart->chr_memory.size / cart->chr_bank_size),
                         bit_offset, value);
 }
 
 static int get_last_prg_bank(Cartridge *cart) {
-    return cart->prg_rom_size / cart->prg_bank_size - 1;
+    return (int)(cart->prg_rom.size / cart->prg_bank_size - 1);
 }
 
 // MAPPER 0: Nintendo NROM (32f/8f, aka. no mapper) //
@@ -275,7 +275,8 @@ static void MMC3_update_banks(Cartridge *cart) {
     MMC3State *mmc = &cart->mapper.mmc3;
     
     // PRG ROM
-    const int next_to_last = cart->prg_rom_size / cart->prg_bank_size - 2;
+    const int next_to_last = (int)(cart->prg_rom.size /
+                                   cart->prg_bank_size - 2);
     if (mmc->bank_select & (1 << 6)) {
         cart->prg_banks[2] = mmc->banks[6];
         cart->prg_banks[1] = mmc->banks[7];
@@ -392,8 +393,9 @@ static void MMC3Q_init(Machine *vm) {
     // using this board still have issues but they may be caused by remaining
     // problems in the scanline counter?
     cart->chr_is_ram = true;
-    cart->chr_memory_size = 16 * SIZE_CHR_ROM;
-    cart->chr_memory = realloc(cart->chr_memory, cart->chr_memory_size);
+    cart->chr_memory.size = 16 * SIZE_CHR_ROM;
+    cart->chr_memory.data = realloc(cart->chr_memory.data,
+                                    cart->chr_memory.size);
     
     MMC3_init(vm);
 }
@@ -484,7 +486,7 @@ static void MMC2_init(Machine *vm) {
     cart->chr_bank_size = SIZE_CHR_ROM / 2;
     
     // Last three banks are fixed to the end
-    const int n_banks = cart->prg_rom_size / cart->prg_bank_size;
+    const int n_banks = (int)(cart->prg_rom.size / cart->prg_bank_size);
     cart->prg_banks[1] = n_banks - 3;
     cart->prg_banks[2] = n_banks - 2;
     cart->prg_banks[3] = n_banks - 1;
@@ -526,8 +528,9 @@ static void CPROM_init(Machine *vm) {
     
     // Force CHR RAM and expand it to 16kB
     cart->chr_is_ram = true;
-    cart->chr_memory_size = SIZE_CHR_ROM * 2;
-    cart->chr_memory = realloc(cart->chr_memory, cart->chr_memory_size);
+    cart->chr_memory.size = SIZE_CHR_ROM * 2;
+    cart->chr_memory.data = realloc(cart->chr_memory.data,
+                                    cart->chr_memory.size);
     
     init_fixed_prg(vm, CPROM_write_register);
     init_banked_chr(vm);
@@ -620,7 +623,7 @@ static void Sunsoft4_update_nametables(Machine *vm) {
     const bool chr_mode = cart->mapper.sunsoft4_ctrl & (1 << 4);
     for (int i = 0; i < 4; i++) {
         if (chr_mode) {
-            vm->nt_layout[i] = cart->chr_memory + cart->chr_bank_size / 2 *
+            vm->nt_layout[i] = cart->chr_memory.data + cart->chr_bank_size / 2 *
                                cart->chr_banks[layout[i] + 4];
         } else {
             vm->nt_layout[i] = vm->nametables[layout[i]];
@@ -824,14 +827,14 @@ static uint8_t VS_read_prg(Machine *vm, int offset) {
     if (vm->vs_bank) {
         offset += SIZE_PRG_ROM;
     }
-    return vm->cart->prg_rom[offset];
+    return vm->cart->prg_rom.data[offset];
 }
 
 static uint8_t VS_read_chr(Machine *vm, int offset) {
     if (vm->vs_bank) {
         offset += SIZE_CHR_ROM;
     }
-    return vm->cart->chr_memory[offset];
+    return vm->cart->chr_memory.data[offset];
 }
 
 static void VS_init(Machine *vm) {
@@ -839,7 +842,7 @@ static void VS_init(Machine *vm) {
     
     for (int i = 0; i < SIZE_PRG_ROM / 4; i++) {
         vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
-            {(cart->prg_rom_size > SIZE_PRG_ROM ? VS_read_prg : read_fixed_prg),
+            {(cart->prg_rom.size > SIZE_PRG_ROM ? VS_read_prg : read_fixed_prg),
              NULL, i};
     }
     for (int i = SIZE_PRG_ROM / 4; i < SIZE_PRG_ROM; i++) {
@@ -849,7 +852,7 @@ static void VS_init(Machine *vm) {
     
     for (int i = 0; i < SIZE_CHR_ROM; i++) {
         vm->ppu_mm->addrs[i] = (MemoryAddress)
-        {(cart->chr_memory_size > SIZE_CHR_ROM ? VS_read_chr : NULL), NULL, i};
+        {(cart->chr_memory.size > SIZE_CHR_ROM ? VS_read_chr : NULL), NULL, i};
     }
     
     init_sram(vm, SIZE_SRAM);

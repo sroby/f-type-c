@@ -7,7 +7,7 @@
 
 typedef struct Driver Driver;
 
-int ines_loader(Driver *driver, uint8_t *rom_data, int rom_data_size);
+int ines_loader(Driver *driver, blob *rom);
 
 void f_teardown(Driver *driver);
 

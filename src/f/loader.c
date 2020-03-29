@@ -4,41 +4,42 @@
 #include "cartridge.h"
 #include "machine.h"
 
-int ines_loader(Driver *driver, uint8_t *rom_data, int rom_data_size) {
+int ines_loader(Driver *driver, blob *rom) {
     Cartridge cart;
     memset(&cart, 0, sizeof(Cartridge));
 
-    int size = rom_data[4] * 16;
+    int size = rom->data[4] * 16;
     fprintf(stderr, "PRG ROM: %dKB\n", size);
     if (size <= 0) {
         fprintf(stderr, "Unexpected zero size for PRG ROM\n");
         return 1;
     }
-    cart.prg_rom_size = size << 10;
+    cart.prg_rom.size = size << 10;
     
-    size = rom_data[5] * 8;
+    size = rom->data[5] * 8;
     fprintf(stderr, "CHR ROM: ");
     if (size) {
         fprintf(stderr, "%dKB\n", size);
     } else {
         fprintf(stderr, "None (uses RAM instead)\n");
     }
-    cart.chr_memory_size = size << 10;
+    cart.chr_memory.size = size << 10;
 
-    int expected_size = cart.prg_rom_size + cart.chr_memory_size + HEADER_SIZE;
-    if (expected_size > rom_data_size) {
+    size_t expected_size = cart.prg_rom.size + cart.chr_memory.size
+                                             + HEADER_SIZE;
+    if (expected_size > rom->size) {
         fprintf(stderr,
-                "Expected total file size (%d) exceeds actual file size (%d)\n",
-                expected_size, rom_data_size);
+            "Expected total file size (%zu) exceeds actual file size (%zu)\n",
+                expected_size, rom->size);
         return 1;
     }
     
-    cart.prg_rom = rom_data + HEADER_SIZE;
-    if (cart.chr_memory_size) {
-        cart.chr_memory = cart.prg_rom + cart.prg_rom_size;
+    cart.prg_rom.data = rom->data + HEADER_SIZE;
+    if (cart.chr_memory.size) {
+        cart.chr_memory.data = cart.prg_rom.data + cart.prg_rom.size;
     }
     
-    cart.mapper_id = (rom_data[6] >> 4) | (rom_data[7] & 0b11110000);
+    cart.mapper_id = (rom->data[6] >> 4) | (rom->data[7] & 0b11110000);
     const char *mapper_name = "Unidentified";
     bool supported = mapper_check_support(cart.mapper_id, &mapper_name);
     fprintf(stderr, "Mapper: %d (%s)\n", cart.mapper_id, mapper_name);
@@ -48,17 +49,17 @@ int ines_loader(Driver *driver, uint8_t *rom_data, int rom_data_size) {
     }
 
     const char *nm_desc;
-    if (rom_data[6] & 0b1000) {
+    if (rom->data[6] & 0b1000) {
         cart.default_mirroring = NT_FOUR;
         nm_desc = "Four-screen";
     } else {
-        int mirroring_flag = rom_data[6] & 1;
+        int mirroring_flag = rom->data[6] & 1;
         cart.default_mirroring = (mirroring_flag ? NT_VERTICAL : NT_HORIZONTAL);
         nm_desc = (mirroring_flag ? "Vertical" : "Horizontal");
     }
     fprintf(stderr, "Mirroring: %s\n", nm_desc);
 
-    cart.has_battery_backup = rom_data[6] & 0b10;
+    cart.has_battery_backup = rom->data[6] & 0b10;
     fprintf(stderr, "Battery-backed SRAM: %s\n",
           (cart.has_battery_backup ? "Yes" : "No"));
 

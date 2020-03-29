@@ -23,8 +23,9 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "%s: Error determining file size\n", argv[1]);
         return 1;
     }
-    off_t rom_file_size = ftello(rom_file);
-    if (rom_file_size < 1024) {
+    blob rom;
+    rom.size = ftello(rom_file);
+    if (rom.size < 1024) {
         fprintf(stderr, "%s: File is too small\n", argv[1]);
         return 1;
     }
@@ -32,8 +33,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "%s: Error seeking file\n", argv[1]);
         return 1;
     }
-    uint8_t *rom_data = malloc(rom_file_size);
-    if (fread(rom_data, rom_file_size, 1, rom_file) < 1) {
+    rom.data = malloc(rom.size);
+    if (fread(rom.data, rom.size, 1, rom_file) < 1) {
         fprintf(stderr, "%s: Error reading file\n", argv[1]);
         return 1;
     }
@@ -46,13 +47,13 @@ int main(int argc, char *argv[]) {
     // Identify file type and pass to the appropriate loader
     int error_code = 1;
     fprintf(stderr, "%s: ", argv[1]);
-    if (!strncmp((const char *)rom_data, "NES\x1a", 4)) {
+    if (!strncmp((const char *)rom.data, "NES\x1a", 4)) {
         fprintf(stderr, "iNES file format\n");
-        error_code = ines_loader(&driver, rom_data, (int)rom_file_size);
-    } else if (!strncmp((const char *)rom_data, "FDS\x1a", 4)) {
+        error_code = ines_loader(&driver, &rom);
+    } else if (!strncmp((const char *)rom.data, "FDS\x1a", 4)) {
         fprintf(stderr, "FDS disk image\n");
     } else {
-        error_code = s_loader(&driver, rom_data, (int)rom_file_size);
+        error_code = s_loader(&driver, &rom);
     }
     if (error_code) {
         return error_code;
@@ -94,7 +95,7 @@ int main(int argc, char *argv[]) {
     if (driver.teardown_func) {
         (*driver.teardown_func)(&driver);
     }
-    free(rom_data);
+    free(rom.data);
     
     return 0;
 }

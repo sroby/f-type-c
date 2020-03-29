@@ -26,11 +26,11 @@ void machine_init(Machine *vm, Cartridge *cart, InputState *input,
     cpu_65xx_init(vm->cpu, vm->cpu_mm);
     ppu_init(vm->ppu, vm->ppu_mm, vm->cpu, screen, &input->lightgun_pos);
     
-    if (!vm->cart->chr_memory_size) {
-        vm->cart->chr_memory_size = SIZE_CHR_ROM;
+    if (!vm->cart->chr_memory.size) {
+        vm->cart->chr_memory.size = SIZE_CHR_ROM;
         vm->cart->chr_is_ram = true;
-        vm->cart->chr_memory = malloc(SIZE_CHR_ROM);
-        memset(vm->cart->chr_memory, 0, SIZE_CHR_ROM);
+        vm->cart->chr_memory.data = malloc(SIZE_CHR_ROM);
+        memset(vm->cart->chr_memory.data, 0, SIZE_CHR_ROM);
     }
     
     machine_set_nt_mirroring(vm, vm->cart->default_mirroring);
@@ -41,12 +41,12 @@ void machine_init(Machine *vm, Cartridge *cart, InputState *input,
 
 void machine_teardown(Machine *vm) {
     // TODO: Save SRAM
-    if (vm->cart->sram) {
-        free(vm->cart->sram);
+    if (vm->cart->sram.data) {
+        free(vm->cart->sram.data);
     }
     
     if (vm->cart->chr_is_ram) {
-        free(vm->cart->chr_memory);
+        free(vm->cart->chr_memory.data);
     }
     
     free(vm->cart);

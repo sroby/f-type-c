@@ -32,12 +32,12 @@ const char *chip_names[] = {
 
 const char *dest_codes = "JEPW??FHSDIC?KANBUXYZ";
 
-int s_loader(Driver *driver, uint8_t *rom_data, int rom_data_size) {
+int s_loader(Driver *driver, blob *rom) {
     // Round upwards to the nearest kilobyte,
     // to get rid of possible copier headers
-    int size_adjust = rom_data_size % 1024;
-    rom_data += size_adjust;
-    rom_data_size -= size_adjust;
+    int size_adjust = rom->size % 1024;
+    rom->data += size_adjust;
+    rom->size -= size_adjust;
     
     // Look for SFC header
     const int header_offsets[] = {0x7FB0, 0xFFB0, 0x40FFB0};
@@ -47,16 +47,16 @@ int s_loader(Driver *driver, uint8_t *rom_data, int rom_data_size) {
         {0x25, 0x00, 0x00},
     };
     bool valid = false;
-    uint8_t *header = rom_data;
+    uint8_t *header = rom->data;
     char title[22];
     int header_pos = 0;
     CartInfo cart;
     for (int i = 0; i < sizeof(header_offsets) / sizeof(int); i++) {
         header_pos = header_offsets[i];
-        if (rom_data_size < (header_pos + 0x50)) {
+        if (rom->size < (header_pos + 0x50)) {
             break;
         }
-        header = rom_data + header_pos;
+        header = rom->data + header_pos;
         
         cart.map_mode = header[HEADER_MAP_MODE] & ~0b10000;
         for (int j = 0; j < sizeof(valid_map_modes[i]); j++) {
@@ -169,8 +169,7 @@ int s_loader(Driver *driver, uint8_t *rom_data, int rom_data_size) {
         return 1;
     }
     
-    cart.rom = rom_data;
-    cart.rom_size = rom_data_size;
+    cart.rom = *rom;
     
     fprintf(stderr, "Raw SHVC ROM image (header found at 0x%06X)\n",
             header_pos);
@@ -202,11 +201,11 @@ int s_loader(Driver *driver, uint8_t *rom_data, int rom_data_size) {
     fprintf(stderr, "ROM speed: %sns\n", (cart.has_fast_rom ? "120" : "200"));
     fprintf(stderr, "Co-processor: %s\n", chip_names[cart.ex_chip]);
     
-    int reported_rom_size = 1 << header[HEADER_ROM_SIZE];
-    int actual_rom_size = cart.rom_size >> 10;
-    fprintf(stderr, "ROM size: %dKB", reported_rom_size);
+    size_t reported_rom_size = 1 << header[HEADER_ROM_SIZE];
+    size_t actual_rom_size = cart.rom.size >> 10;
+    fprintf(stderr, "ROM size: %zuKB", reported_rom_size);
     if (reported_rom_size != actual_rom_size) {
-        fprintf(stderr, " in header, %dKB actual", actual_rom_size);
+        fprintf(stderr, " in header, %zuKB actual", actual_rom_size);
     }
     fprintf(stderr, "\n");
     if (reported_rom_size < actual_rom_size) {

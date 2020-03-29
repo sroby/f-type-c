@@ -50,17 +50,14 @@ typedef union Mapper {
 
 typedef struct Cartridge {
     // PRG ROM
-    uint8_t *prg_rom;
-    int prg_rom_size;
+    blob prg_rom;
     
     // CHR ROM/RAM
-    uint8_t *chr_memory;
-    int chr_memory_size;
+    blob chr_memory;
     bool chr_is_ram;
     
     // SRAM (aka. PRG RAM)
-    uint8_t *sram;
-    int sram_size;
+    blob sram;
     bool sram_enabled;
     bool has_battery_backup;
     
@@ -69,9 +66,9 @@ typedef struct Cartridge {
     int mapper_id;
     Mapper mapper;
     int prg_banks[MAX_BANKS];
-    int prg_bank_size;
+    size_t prg_bank_size;
     int chr_banks[MAX_BANKS];
-    int chr_bank_size;
+    size_t chr_bank_size;
     int sram_bank;
 } Cartridge;
 

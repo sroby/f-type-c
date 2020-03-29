@@ -15,4 +15,9 @@
 #define BUILD_ID "[unknown]"
 #endif
 
+typedef struct {
+    uint8_t *data;
+    size_t size;
+} blob;
+
 #endif /* common_h */
