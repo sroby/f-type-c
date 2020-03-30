@@ -19,11 +19,11 @@ static void write_wram(Machine *vm, int offset, uint8_t value) {
 }
 
 static uint8_t read_controllers(Machine *vm, int offset) {
-    uint8_t value = vm->cpu_mm->last_read & 0b11100000;
+    uint8_t value = vm->cpu_mm.last_read & 0b11100000;
     value += vm->ctrl_latch[offset] & 1;
     vm->ctrl_latch[offset] >>= 1;
     if (offset) {
-        value |= (!vm->ppu->lightgun_sensor << 3) |
+        value |= (!vm->ppu.lightgun_sensor << 3) |
                  (!vm->input->lightgun_trigger << 4);
     }
     return value;

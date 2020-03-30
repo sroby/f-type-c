@@ -7,46 +7,46 @@
 // GENERIC MAPPER I/O //
 
 static uint8_t read_fixed_prg(Machine *vm, int offset) {
-    return vm->cart->prg_rom.data[offset];
+    return vm->cart.prg_rom.data[offset];
 }
 static uint8_t read_banked_prg(Machine *vm, int offset) {
-    size_t pos = offset % vm->cart->prg_bank_size +
-                 vm->cart->prg_banks[offset / vm->cart->prg_bank_size] *
-                 vm->cart->prg_bank_size;
-    return vm->cart->prg_rom.data[pos];
+    size_t pos = offset % vm->cart.prg_bank_size +
+                 vm->cart.prg_banks[offset / vm->cart.prg_bank_size] *
+                 vm->cart.prg_bank_size;
+    return vm->cart.prg_rom.data[pos];
 }
 
 static uint8_t read_fixed_chr(Machine *vm, int offset) {
-    return vm->cart->chr_memory.data[offset];
+    return vm->cart.chr_memory.data[offset];
 }
 static uint8_t read_banked_chr(Machine *vm, int offset) {
-    size_t pos = offset % vm->cart->chr_bank_size +
-                 vm->cart->chr_banks[offset / vm->cart->chr_bank_size] *
-                 vm->cart->chr_bank_size;
-    return vm->cart->chr_memory.data[pos];
+    size_t pos = offset % vm->cart.chr_bank_size +
+                 vm->cart.chr_banks[offset / vm->cart.chr_bank_size] *
+                 vm->cart.chr_bank_size;
+    return vm->cart.chr_memory.data[pos];
 }
 
 static void write_fixed_chr(Machine *vm, int offset, uint8_t value) {
-    vm->cart->chr_memory.data[offset] = value;
+    vm->cart.chr_memory.data[offset] = value;
 }
 static void write_banked_chr(Machine *vm, int offset, uint8_t value) {
-    size_t pos = offset % vm->cart->chr_bank_size +
-                 vm->cart->chr_banks[offset / vm->cart->chr_bank_size] *
-                 vm->cart->chr_bank_size;
-    vm->cart->chr_memory.data[pos] = value;
+    size_t pos = offset % vm->cart.chr_bank_size +
+                 vm->cart.chr_banks[offset / vm->cart.chr_bank_size] *
+                 vm->cart.chr_bank_size;
+    vm->cart.chr_memory.data[pos] = value;
 }
 
 static uint8_t read_sram(Machine *vm, int offset) {
-    if (vm->cart->sram_enabled) {
-        offset += vm->cart->sram_bank * SIZE_SRAM;
-        return vm->cart->sram.data[offset];
+    if (vm->cart.sram_enabled) {
+        offset += vm->cart.sram_bank * SIZE_SRAM;
+        return vm->cart.sram.data[offset];
     }
-    return vm->cpu_mm->last_read;
+    return vm->cpu_mm.last_read;
 }
 static void write_sram(Machine *vm, int offset, uint8_t value) {
-    if (vm->cart->sram_enabled) {
-        offset += vm->cart->sram_bank * SIZE_SRAM;
-        vm->cart->sram.data[offset] = value;
+    if (vm->cart.sram_enabled) {
+        offset += vm->cart.sram_bank * SIZE_SRAM;
+        vm->cart.sram.data[offset] = value;
     }
 }
 
@@ -54,41 +54,41 @@ static void init_fixed_prg(Machine *vm, void (*register_func)
                                              (Machine *, int, uint8_t)) {
     // 8000-FFFF: PRG ROM (32kB, repeated if 16kB)
     for (int i = 0; i < SIZE_PRG_ROM; i++) {
-        vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
-            {read_fixed_prg, register_func, i % vm->cart->prg_rom.size};
+        vm->cpu_mm.addrs[0x8000 + i] = (MemoryAddress)
+            {read_fixed_prg, register_func, i % vm->cart.prg_rom.size};
     }
 }
 static void init_banked_prg(Machine *vm, void (*register_func)
                                               (Machine *, int, uint8_t)) {
     // 8000-FFFF: PRG ROM (32kB, repeated if 16kB)
     for (int i = 0; i < SIZE_PRG_ROM; i++) {
-        vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
-            {read_banked_prg, register_func, i % vm->cart->prg_rom.size};
+        vm->cpu_mm.addrs[0x8000 + i] = (MemoryAddress)
+            {read_banked_prg, register_func, i % vm->cart.prg_rom.size};
     }
 }
 
 static void init_fixed_chr(Machine *vm) {
     // 0000-1FFF: CHR ROM (8kB)
     for (int i = 0; i < SIZE_CHR_ROM; i++) {
-        vm->ppu_mm->addrs[i] = (MemoryAddress) {read_fixed_chr,
-            (vm->cart->chr_is_ram ? write_fixed_chr : NULL), i};
+        vm->ppu_mm.addrs[i] = (MemoryAddress) {read_fixed_chr,
+            (vm->cart.chr_is_ram ? write_fixed_chr : NULL), i};
     }
 }
 static void init_banked_chr(Machine *vm) {
     // 0000-1FFF: CHR ROM (8kB)
     for (int i = 0; i < SIZE_CHR_ROM; i++) {
-        vm->ppu_mm->addrs[i] = (MemoryAddress) {read_banked_chr,
-            (vm->cart->chr_is_ram ? write_banked_chr : NULL), i};
+        vm->ppu_mm.addrs[i] = (MemoryAddress) {read_banked_chr,
+            (vm->cart.chr_is_ram ? write_banked_chr : NULL), i};
     }
 }
 
 static void init_sram(Machine *vm, int size) {
-    vm->cart->sram.size = size;
-    vm->cart->sram.data = malloc(size);
+    vm->cart.sram.size = size;
+    vm->cart.sram.data = malloc(size);
     
     // 6000-7FFF: SRAM (up to 8kB, repeated if less)
     for (int i = 0; i < SIZE_SRAM; i++) {
-        vm->cpu_mm->addrs[0x6000 + i] = (MemoryAddress)
+        vm->cpu_mm.addrs[0x6000 + i] = (MemoryAddress)
             {read_sram, write_sram, i % size};
     }
 }
@@ -96,7 +96,7 @@ static void init_sram(Machine *vm, int size) {
 static void init_register_sram(Machine *vm,
          void (*register_func)(Machine *, int, uint8_t)) {
     for (int i = 0; i < SIZE_SRAM; i++) {
-        vm->cpu_mm->addrs[0x6000 + i].write_func = register_func;
+        vm->cpu_mm.addrs[0x6000 + i].write_func = register_func;
     }
 }
 
@@ -129,7 +129,7 @@ static void NROM_init(Machine *vm) {
     init_fixed_chr(vm);
     
     // Used by Family BASIC only
-    if (vm->cart->has_battery_backup) {
+    if (vm->cart.has_battery_backup) {
         init_sram(vm, SIZE_SRAM / 2);
     }
 }
@@ -159,7 +159,7 @@ static void MMC1_update_chr_banks(Cartridge *cart) {
 }
 
 static void MMC1_write_register(Machine *vm, int offset, uint8_t value) {
-    MMC1State *mmc1 = &vm->cart->mapper.mmc1;
+    MMC1State *mmc1 = &vm->cart.mapper.mmc1;
     if (value & (1 << 7)) {
         mmc1->shift_reg = mmc1->shift_pos = 0;
         return;
@@ -174,31 +174,31 @@ static void MMC1_write_register(Machine *vm, int offset, uint8_t value) {
         case 0: // 8000-9FFF: Control
             machine_set_nt_mirroring(vm, mmc1->shift_reg & 0b11);
             mmc1->prg_fixed_bank = (mmc1->shift_reg & 0b100) << 2;
-            vm->cart->prg_bank_size =
+            vm->cart.prg_bank_size =
                 (mmc1->shift_reg & (1 << 3) ? SIZE_PRG_ROM / 2 : SIZE_PRG_ROM);
-            vm->cart->chr_bank_size =
+            vm->cart.chr_bank_size =
                 (mmc1->shift_reg & (1 << 4) ? SIZE_CHR_ROM / 2 : SIZE_CHR_ROM);
-            MMC1_update_prg_banks(vm->cart);
-            MMC1_update_chr_banks(vm->cart);
+            MMC1_update_prg_banks(&vm->cart);
+            MMC1_update_chr_banks(&vm->cart);
             break;
         case 1: // A000-BFFF: CHR bank 0
         case 2: // C000-DFFF: CHR bank 1
             mmc1->chr_banks[offset - 1] = mmc1->shift_reg;
-            MMC1_update_chr_banks(vm->cart);
+            MMC1_update_chr_banks(&vm->cart);
             break;
         case 3: // E000-FFFF: PRG bank + SRAM write protect
             mmc1->prg_bank = mmc1->shift_reg & 0b1111;
             if (!mmc1->is_a) {
-                vm->cart->sram_enabled = !(mmc1->shift_reg & (1 << 4));
+                vm->cart.sram_enabled = !(mmc1->shift_reg & (1 << 4));
             }
-            MMC1_update_prg_banks(vm->cart);
+            MMC1_update_prg_banks(&vm->cart);
             break;
     }
     mmc1->shift_reg = mmc1->shift_pos = 0;
 }
 
 static void MMC1_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     memset(&cart->mapper.mmc1, 0, sizeof(MMC1State));
     
     // Booting in 16b+16f PRG mode seems to be the most compatible
@@ -213,7 +213,7 @@ static void MMC1_init(Machine *vm) {
 
 static void MMC1A_init(Machine *vm) {
     MMC1_init(vm);
-    vm->cart->mapper.mmc1.is_a = true;
+    vm->cart.mapper.mmc1.is_a = true;
 }
 
 // MAPPER   2: Nintendo UxROM (16b+16f/8f)                              //
@@ -222,12 +222,12 @@ static void MMC1A_init(Machine *vm) {
 //        180: Nintendo UNROM with 74HC08 (16f+16b/8f)                  //
 
 static void UxROM_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->prg_banks[vm->cart->mapper.uxrom.target_bank] =
-        extract_prg_bank(vm->cart, vm->cart->mapper.uxrom.bit_offset, value);
+    vm->cart.prg_banks[vm->cart.mapper.uxrom.target_bank] =
+        extract_prg_bank(&vm->cart, vm->cart.mapper.uxrom.bit_offset, value);
 }
 
 static void UxROM_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->prg_bank_size = SIZE_PRG_ROM / 2;
     cart->prg_banks[1] = get_last_prg_bank(cart);
     memset(&cart->mapper.uxrom, 0, sizeof(UxROMVariants));
@@ -238,16 +238,16 @@ static void UxROM_init(Machine *vm) {
 
 static void Sunsoft2R_init(Machine *vm) {
     UxROM_init(vm);
-    vm->cart->mapper.uxrom.bit_offset = 4;
+    vm->cart.mapper.uxrom.bit_offset = 4;
 }
 
 static void UN1ROM_init(Machine *vm) {
     UxROM_init(vm);
-    vm->cart->mapper.uxrom.bit_offset = 2;
+    vm->cart.mapper.uxrom.bit_offset = 2;
 }
 
 static void UNROM08_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->prg_bank_size = SIZE_PRG_ROM / 2;
     cart->mapper.uxrom.bit_offset = 0;
     cart->mapper.uxrom.target_bank = 1;
@@ -259,7 +259,7 @@ static void UNROM08_init(Machine *vm) {
 // MAPPER 3: Nintendo CNROM (32f/8b) //
 
 static void CNROM_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->chr_banks[0] = extract_chr_bank(vm->cart, 0, value);
+    vm->cart.chr_banks[0] = extract_chr_bank(&vm->cart, 0, value);
 }
 
 static void CNROM_init(Machine *vm) {
@@ -310,7 +310,7 @@ static void MMC3_update_banks(Cartridge *cart) {
 }
 
 static void MMC3_write_register(Machine *vm, int offset, uint8_t value) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     MMC3State *mmc = &cart->mapper.mmc3;
     int bank;
     offset = offset / 0x2000 * 2 + offset % 2;
@@ -341,7 +341,7 @@ static void MMC3_write_register(Machine *vm, int offset, uint8_t value) {
             break;
         case 6: // IRQ disable
             mmc->irq_enabled = false;
-            vm->cpu->irq &= ~IRQ_MAPPER;
+            vm->cpu.irq &= ~IRQ_MAPPER;
             break;
         case 7: // IRQ enable
             mmc->irq_enabled = true;
@@ -350,7 +350,7 @@ static void MMC3_write_register(Machine *vm, int offset, uint8_t value) {
 }
 
 static uint8_t MMC3_read_chr(Machine *vm, int offset) {
-    MMC3State *mmc = &vm->cart->mapper.mmc3;
+    MMC3State *mmc = &vm->cart.mapper.mmc3;
     bool current_pt = offset & (1 << 12);
     if (!mmc->last_pt && current_pt) {
         if (mmc->irq_counter) {
@@ -359,7 +359,7 @@ static uint8_t MMC3_read_chr(Machine *vm, int offset) {
             mmc->irq_counter = mmc->irq_latch;
         }
         if (!mmc->irq_counter && mmc->irq_enabled) {
-            vm->cpu->irq |= IRQ_MAPPER;
+            vm->cpu.irq |= IRQ_MAPPER;
         }
     }
     mmc->last_pt = current_pt;
@@ -368,7 +368,7 @@ static uint8_t MMC3_read_chr(Machine *vm, int offset) {
 }
 
 static void MMC3_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->prg_bank_size = SIZE_PRG_ROM / 4;
     cart->chr_bank_size = SIZE_CHR_ROM / 8;
     memset(&cart->mapper.mmc3, 0, sizeof(MMC3State));
@@ -378,7 +378,7 @@ static void MMC3_init(Machine *vm) {
     init_banked_prg(vm, MMC3_write_register);
     
     for (int i = 0; i < SIZE_CHR_ROM; i++) {
-        vm->ppu_mm->addrs[i] = (MemoryAddress)
+        vm->ppu_mm.addrs[i] = (MemoryAddress)
             {MMC3_read_chr, (cart->chr_is_ram ? write_banked_chr : NULL), i};
     }
     
@@ -386,7 +386,7 @@ static void MMC3_init(Machine *vm) {
 }
 
 static void MMC3Q_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     
     // Change the CHR to RAM and grow it to 128kB, to match how the bank data
     // register maps the CHR RAM. It's a lazy hack but seems to work, both games
@@ -405,7 +405,7 @@ static void MMC3Q_init(Machine *vm) {
 // MAPPER 7: Nintendo AxROM (32b/8f, A/B control) //
 
 static void AxROM_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->prg_banks[0] = value & 0b111;
+    vm->cart.prg_banks[0] = value & 0b111;
     machine_set_nt_mirroring(vm, (value & 0b10000 ? NT_SINGLE_B : NT_SINGLE_A));
 }
 
@@ -431,23 +431,23 @@ static void MMC24_write_register(Machine *vm, int offset, uint8_t value) {
     offset = offset / 0x1000 - 3;
     switch (offset) {
         case -1: // Axxx: PRG ROM bank select
-            vm->cart->prg_banks[0] = extract_prg_bank(vm->cart, 0, value);
+            vm->cart.prg_banks[0] = extract_prg_bank(&vm->cart, 0, value);
             break;
         case 4: // Fxxx: Mirroring
             machine_set_nt_mirroring(vm,
                                      (value & 1 ? NT_HORIZONTAL : NT_VERTICAL));
             break;
         default: // Bxxx-Exxx: CHR ROM bank selects
-            vm->cart->mapper.mmc24.chr_banks[offset / 2][offset % 2] =
-                extract_chr_bank(vm->cart, 0, value);
-            MMC24_update_chr_banks(vm->cart);
+            vm->cart.mapper.mmc24.chr_banks[offset / 2][offset % 2] =
+                extract_chr_bank(&vm->cart, 0, value);
+            MMC24_update_chr_banks(&vm->cart);
     }
 }
 
 static uint8_t MMC24_read_chr(Machine *vm, int offset) {
     uint8_t value = read_banked_chr(vm, offset);
     
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     MMC24State *mmc = &cart->mapper.mmc24;
     int bank = offset / cart->chr_bank_size;
     offset %= cart->chr_bank_size;
@@ -470,19 +470,19 @@ static uint8_t MMC24_read_chr(Machine *vm, int offset) {
 }
 
 static void MMC24_init_common(Machine *vm) {
-    memset(&vm->cart->mapper.mmc24, 0, sizeof(MMC24State));
+    memset(&vm->cart.mapper.mmc24, 0, sizeof(MMC24State));
     
     init_banked_prg(vm, MMC24_write_register);
     
     for (int i = 0; i < SIZE_CHR_ROM; i++) {
-        vm->ppu_mm->addrs[i] = (MemoryAddress) {MMC24_read_chr, NULL, i};
+        vm->ppu_mm.addrs[i] = (MemoryAddress) {MMC24_read_chr, NULL, i};
     }
 }
 
 static void MMC2_init(Machine *vm) {
     MMC24_init_common(vm);
 
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->mapper.mmc24.is_2 = true;
     cart->prg_bank_size = SIZE_PRG_ROM / 4;
     cart->chr_bank_size = SIZE_CHR_ROM / 2;
@@ -497,7 +497,7 @@ static void MMC2_init(Machine *vm) {
 static void MMC4_init(Machine *vm) {
     MMC24_init_common(vm);
     
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->prg_bank_size = SIZE_PRG_ROM / 2;
     cart->chr_bank_size = SIZE_CHR_ROM / 2;
     cart->prg_banks[1] = get_last_prg_bank(cart);
@@ -509,8 +509,8 @@ static void MMC4_init(Machine *vm) {
 
 static void Color_Dreams_write_register(Machine *vm, int offset,
                                         uint8_t value) {
-    vm->cart->prg_banks[0] = extract_prg_bank(vm->cart, 0, value);
-    vm->cart->chr_banks[0] = extract_chr_bank(vm->cart, 4, value);
+    vm->cart.prg_banks[0] = extract_prg_bank(&vm->cart, 0, value);
+    vm->cart.chr_banks[0] = extract_chr_bank(&vm->cart, 4, value);
 }
 
 static void Color_Dreams_init(Machine *vm) {
@@ -521,11 +521,11 @@ static void Color_Dreams_init(Machine *vm) {
 // MAPPER 13: Nintendo CPROM (32f/4f+4b, 16kB CHR RAM) //
 
 static void CPROM_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->chr_banks[1] = value & 0b11;
+    vm->cart.chr_banks[1] = value & 0b11;
 }
 
 static void CPROM_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->chr_bank_size = SIZE_CHR_ROM / 2;
     
     // Force CHR RAM and expand it to 16kB
@@ -546,7 +546,7 @@ static void CPROM_init(Machine *vm) {
 //        39: Unnamed Subor equivalent //
 
 static void BNROM_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->prg_banks[0] = extract_prg_bank(vm->cart, 0, value);
+    vm->cart.prg_banks[0] = extract_prg_bank(&vm->cart, 0, value);
 }
 
 static void BNROM_init(Machine *vm) {
@@ -557,8 +557,8 @@ static void BNROM_init(Machine *vm) {
 // MAPPER 38: PCI556 (32b/8b) //
 
 static void PCI556_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->prg_banks[0] = extract_prg_bank(vm->cart, 0, value);
-    vm->cart->chr_banks[0] = extract_chr_bank(vm->cart, 2, value);
+    vm->cart.prg_banks[0] = extract_prg_bank(&vm->cart, 0, value);
+    vm->cart.chr_banks[0] = extract_chr_bank(&vm->cart, 2, value);
 }
 
 static void PCI556_init(Machine *vm) {
@@ -567,7 +567,7 @@ static void PCI556_init(Machine *vm) {
     
     // Register is only in the upper half of the SRAM area
     for (int i = 0x7000; i < 0x8000; i++) {
-        vm->cpu_mm->addrs[i] = (MemoryAddress) {NULL, PCI556_write_register, 0};
+        vm->cpu_mm.addrs[i] = (MemoryAddress) {NULL, PCI556_write_register, 0};
     }
 }
 
@@ -577,8 +577,8 @@ static void PCI556_init(Machine *vm) {
 //        152: Bandai 74*161/161/32 single screen (70 with A/B control)   //
 
 static void GxROM_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->prg_banks[0] = extract_prg_bank(vm->cart, 4, value);
-    vm->cart->chr_banks[0] = extract_chr_bank(vm->cart, 0, value);
+    vm->cart.prg_banks[0] = extract_prg_bank(&vm->cart, 4, value);
+    vm->cart.chr_banks[0] = extract_chr_bank(&vm->cart, 0, value);
 }
 
 static void GxROM_init(Machine *vm) {
@@ -587,7 +587,7 @@ static void GxROM_init(Machine *vm) {
 }
 
 static void Bandai74_init_common(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->prg_bank_size = SIZE_PRG_ROM / 2;
     cart->prg_banks[1] = get_last_prg_bank(cart);
 }
@@ -624,7 +624,7 @@ static void Sunsoft4_update_nametables(Machine *vm) {
         0, 0, 0, 0, // SINGLE_A
         1, 1, 1, 1, // SINGLE_B
     };
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     const int *layout = layouts + (cart->mapper.sunsoft4_ctrl & 0b11) * 4;
     const bool chr_mode = cart->mapper.sunsoft4_ctrl & (1 << 4);
     for (int i = 0; i < 4; i++) {
@@ -643,7 +643,7 @@ static void Sunsoft4_write_register_chr(Machine *vm, int offset,
     if (offset >= 4) {
         value |= 128;
     }
-    vm->cart->chr_banks[offset] = value;
+    vm->cart.chr_banks[offset] = value;
     if (offset >= 4) {
         Sunsoft4_update_nametables(vm);
     }
@@ -651,48 +651,48 @@ static void Sunsoft4_write_register_chr(Machine *vm, int offset,
 
 static void Sunsoft4_write_register_ctrl(Machine *vm, int offset,
                                          uint8_t value) {
-    vm->cart->mapper.sunsoft4_ctrl = value;
+    vm->cart.mapper.sunsoft4_ctrl = value;
     Sunsoft4_update_nametables(vm);
 }
 
 static void Sunsoft4_write_register_prg(Machine *vm, int offset,
                                         uint8_t value) {
-    vm->cart->prg_banks[0] = extract_prg_bank(vm->cart, 0, value);
+    vm->cart.prg_banks[0] = extract_prg_bank(&vm->cart, 0, value);
     // TODO: bit 4 enable SRAM
 }
 
 static void Sunsoft4_write_nametables(Machine *vm, int offset, uint8_t value) {
-    if (!(vm->cart->mapper.sunsoft4_ctrl & (1 << 4))) {
+    if (!(vm->cart.mapper.sunsoft4_ctrl & (1 << 4))) {
         vm->nt_layout[offset / SIZE_NAMETABLE]
                      [offset % SIZE_NAMETABLE] = value;
     }
 }
 
 static void Sunsoft4_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->prg_bank_size = SIZE_PRG_ROM / 2;
     cart->chr_bank_size = SIZE_CHR_ROM / 4;
     cart->mapper.sunsoft4_ctrl = 0;
     
     init_banked_prg(vm, NULL);
     for (int i = 0x8000; i < 0xE000; i++) {
-        vm->cpu_mm->addrs[i].write_func = Sunsoft4_write_register_chr;
+        vm->cpu_mm.addrs[i].write_func = Sunsoft4_write_register_chr;
     }
     for (int i = 0xE000; i < 0xF000; i++) {
-        vm->cpu_mm->addrs[i].write_func = Sunsoft4_write_register_ctrl;
+        vm->cpu_mm.addrs[i].write_func = Sunsoft4_write_register_ctrl;
     }
     for (int i = 0xF000; i < 0x10000; i++) {
-        vm->cpu_mm->addrs[i].write_func = Sunsoft4_write_register_prg;
+        vm->cpu_mm.addrs[i].write_func = Sunsoft4_write_register_prg;
     }
     
     init_banked_chr(vm);
     init_sram(vm, SIZE_SRAM);
     
-    vm->cart->prg_banks[1] = get_last_prg_bank(cart);
+    vm->cart.prg_banks[1] = get_last_prg_bank(cart);
     
     // Need to enforce write protection when CHR ROM is mapped to NT
     for (int i = 0; i < 0x1EFF; i++) {
-        vm->ppu_mm->addrs[0x2000 + i].write_func = Sunsoft4_write_nametables;
+        vm->ppu_mm.addrs[0x2000 + i].write_func = Sunsoft4_write_nametables;
     }
 }
 
@@ -700,24 +700,24 @@ static void Sunsoft4_init(Machine *vm) {
 //        151: Duplicate (intended for Vs. System)          //
 
 static void VRC1_write_register_prg(Machine *vm, int offset, uint8_t value) {
-    vm->cart->prg_banks[offset / 0x2000] = extract_prg_bank(vm->cart, 0, value);
+    vm->cart.prg_banks[offset / 0x2000] = extract_prg_bank(&vm->cart, 0, value);
 }
 
 static void VRC1_write_register_misc(Machine *vm, int offset, uint8_t value) {
     machine_set_nt_mirroring(vm, (value & 1 ? NT_HORIZONTAL : NT_VERTICAL));
-    vm->cart->chr_banks[0] = ((value & 0b10) << 3) |
-                             (vm->cart->chr_banks[0] & 0b1111);
-    vm->cart->chr_banks[1] = ((value & 0b100) << 2) |
-                             (vm->cart->chr_banks[1] & 0b1111);
+    vm->cart.chr_banks[0] = ((value & 0b10) << 3) |
+                             (vm->cart.chr_banks[0] & 0b1111);
+    vm->cart.chr_banks[1] = ((value & 0b100) << 2) |
+                             (vm->cart.chr_banks[1] & 0b1111);
 }
 
 static void VRC1_write_register_chr(Machine *vm, int offset, uint8_t value) {
-    int *bank = vm->cart->chr_banks + (offset / 0x1000 - 6);
+    int *bank = vm->cart.chr_banks + (offset / 0x1000 - 6);
     *bank = (*bank & 16) | (value & 0b1111);
 }
 
 static void VRC1_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->prg_bank_size = SIZE_PRG_ROM / 4;
     cart->chr_bank_size = SIZE_CHR_ROM / 2;
     cart->prg_banks[3] = get_last_prg_bank(cart);
@@ -725,14 +725,14 @@ static void VRC1_init(Machine *vm) {
     init_banked_prg(vm, NULL);
     for (int i = 0x8000; i < 0xE000; i += 0x2000) {
         for (int j = 0; j < 0x1000; j++) {
-            vm->cpu_mm->addrs[i + j].write_func = VRC1_write_register_prg;
+            vm->cpu_mm.addrs[i + j].write_func = VRC1_write_register_prg;
         }
     }
     for (int i = 0x9000; i < 0xA000; i++) {
-        vm->cpu_mm->addrs[i].write_func = VRC1_write_register_misc;
+        vm->cpu_mm.addrs[i].write_func = VRC1_write_register_misc;
     }
     for (int i = 0xE000; i < 0x10000; i++) {
-        vm->cpu_mm->addrs[i].write_func = VRC1_write_register_chr;
+        vm->cpu_mm.addrs[i].write_func = VRC1_write_register_chr;
     }
     
     init_banked_chr(vm);
@@ -743,13 +743,13 @@ static void VRC1_init(Machine *vm) {
 //        146: Duplicate of 79                                       //
 
 static void NINA0306_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->prg_banks[0] = extract_prg_bank(vm->cart, 3, value);
-    vm->cart->chr_banks[0] = extract_chr_bank(vm->cart, 0, value);
+    vm->cart.prg_banks[0] = extract_prg_bank(&vm->cart, 3, value);
+    vm->cart.chr_banks[0] = extract_chr_bank(&vm->cart, 0, value);
 }
 
 static void NINA0306MC_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->prg_banks[0] = extract_prg_bank(vm->cart, 3, value);
-    vm->cart->chr_banks[0] = (value & 0b111) | ((value & 64) >> 3);
+    vm->cart.prg_banks[0] = extract_prg_bank(&vm->cart, 3, value);
+    vm->cart.chr_banks[0] = (value & 0b111) | ((value & 64) >> 3);
     machine_set_nt_mirroring(vm, (value & 128 ? NT_VERTICAL : NT_HORIZONTAL));
 }
 
@@ -760,7 +760,7 @@ static void NINA0306_init_common(Machine *vm,
     
     // The register is at a more complicated location but who cares
     for (int i = 0x4100; i < 0x6000; i++) {
-        vm->cpu_mm->addrs[i].write_func = register_func;
+        vm->cpu_mm.addrs[i].write_func = register_func;
     }
 }
 
@@ -776,7 +776,7 @@ static void NINA0306MC_init(Machine *vm) {
 //            (32f/8b, reversed bits in register) //
 
 static void KJT74_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->chr_banks[0] = extract_prg_bank(vm->cart, 0,
+    vm->cart.chr_banks[0] = extract_prg_bank(&vm->cart, 0,
                                               ((value & 1) << 1) |
                                               ((value & 2) >> 1));
 }
@@ -790,13 +790,13 @@ static void KJT74_init(Machine *vm) {
 // MAPPER 89: Sunsoft-2 IC on Sunsoft-3 board (16b+16f/8b, A/B control) //
 
 static void Sunsoft2_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->prg_banks[0] = extract_prg_bank(vm->cart, 4, value);
-    vm->cart->chr_banks[0] = ((value & 128) >> 4) | (value & 0b111);
+    vm->cart.prg_banks[0] = extract_prg_bank(&vm->cart, 4, value);
+    vm->cart.chr_banks[0] = ((value & 128) >> 4) | (value & 0b111);
     machine_set_nt_mirroring(vm, (value & 8 ? NT_SINGLE_B : NT_SINGLE_A));
 }
 
 static void Sunsoft2_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->prg_bank_size = SIZE_PRG_ROM / 2;
     cart->prg_banks[1] = get_last_prg_bank(cart);
     
@@ -811,12 +811,12 @@ static void Sunsoft2_init(Machine *vm) {
 static void TAMS1_write_register(Machine *vm, int offset, uint8_t value) {
     const NametableMirroring modes[] = {NT_SINGLE_A, NT_HORIZONTAL,
                                         NT_VERTICAL, NT_SINGLE_B};
-    vm->cart->prg_banks[1] = extract_prg_bank(vm->cart, 0, value);
+    vm->cart.prg_banks[1] = extract_prg_bank(&vm->cart, 0, value);
     machine_set_nt_mirroring(vm, modes[value >> 6]);
 }
 
 static void TAMS1_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     cart->prg_bank_size = SIZE_PRG_ROM / 2;
     // This is not a typo, it really fixes the *first* bank to the end
     cart->prg_banks[0] = get_last_prg_bank(cart);
@@ -833,31 +833,31 @@ static uint8_t VS_read_prg(Machine *vm, int offset) {
     if (vm->vs_bank) {
         offset += SIZE_PRG_ROM;
     }
-    return vm->cart->prg_rom.data[offset];
+    return vm->cart.prg_rom.data[offset];
 }
 
 static uint8_t VS_read_chr(Machine *vm, int offset) {
     if (vm->vs_bank) {
         offset += SIZE_CHR_ROM;
     }
-    return vm->cart->chr_memory.data[offset];
+    return vm->cart.chr_memory.data[offset];
 }
 
 static void VS_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     
     for (int i = 0; i < SIZE_PRG_ROM / 4; i++) {
-        vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
+        vm->cpu_mm.addrs[0x8000 + i] = (MemoryAddress)
             {(cart->prg_rom.size > SIZE_PRG_ROM ? VS_read_prg : read_fixed_prg),
              NULL, i};
     }
     for (int i = SIZE_PRG_ROM / 4; i < SIZE_PRG_ROM; i++) {
-        vm->cpu_mm->addrs[0x8000 + i] = (MemoryAddress)
+        vm->cpu_mm.addrs[0x8000 + i] = (MemoryAddress)
             {read_fixed_prg, NULL, i};
     }
     
     for (int i = 0; i < SIZE_CHR_ROM; i++) {
-        vm->ppu_mm->addrs[i] = (MemoryAddress)
+        vm->ppu_mm.addrs[i] = (MemoryAddress)
         {(cart->chr_memory.size > SIZE_CHR_ROM ? VS_read_chr : NULL), NULL, i};
     }
     
@@ -867,12 +867,12 @@ static void VS_init(Machine *vm) {
 // MAPPER 184: Sunsoft-1 (32f/4b+4b) //
 
 static void Sunsoft1_write_register(Machine *vm, int offset, uint8_t value) {
-    vm->cart->chr_banks[0] = extract_chr_bank(vm->cart, 0, value);
-    vm->cart->chr_banks[1] = extract_chr_bank(vm->cart, 4, value);
+    vm->cart.chr_banks[0] = extract_chr_bank(&vm->cart, 0, value);
+    vm->cart.chr_banks[1] = extract_chr_bank(&vm->cart, 4, value);
 }
 
 static void Sunsoft1_init(Machine *vm) {
-    vm->cart->chr_bank_size = SIZE_CHR_ROM / 2;
+    vm->cart.chr_bank_size = SIZE_CHR_ROM / 2;
     
     init_fixed_prg(vm, NULL);
     init_banked_chr(vm);
@@ -884,20 +884,20 @@ static void Sunsoft1_init(Machine *vm) {
 
 static uint8_t CNROM_CP_read_chr(Machine *vm, int offset) {
     const uint8_t dummies[] = {0xBE, 0xEF};
-    if (vm->cart->mapper.cp_counter < 2) {
-        return dummies[vm->cart->mapper.cp_counter++];
+    if (vm->cart.mapper.cp_counter < 2) {
+        return dummies[vm->cart.mapper.cp_counter++];
     }
     return read_fixed_chr(vm, offset);
 }
 
 static void CNROM_CP_init(Machine *vm) {
-    vm->cart->mapper.cp_counter = 0;
+    vm->cart.mapper.cp_counter = 0;
     
     init_fixed_prg(vm, NULL);
     
     for (int i = 0; i < SIZE_CHR_ROM; i++) {
-        vm->ppu_mm->addrs[i] = (MemoryAddress) {CNROM_CP_read_chr,
-            (vm->cart->chr_is_ram ? write_fixed_chr : NULL), i};
+        vm->ppu_mm.addrs[i] = (MemoryAddress) {CNROM_CP_read_chr,
+            (vm->cart.chr_is_ram ? write_fixed_chr : NULL), i};
     }
 }
 
@@ -1085,7 +1085,7 @@ bool mapper_check_support(int mapper_id, const char **name) {
 }
 
 void mapper_init(Machine *vm) {
-    Cartridge *cart = vm->cart;
+    Cartridge *cart = &vm->cart;
     memset(cart->prg_banks, 0, sizeof(cart->prg_banks));
     memset(cart->chr_banks, 0, sizeof(cart->chr_banks));
     cart->prg_bank_size = SIZE_PRG_ROM;

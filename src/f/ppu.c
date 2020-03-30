@@ -302,7 +302,7 @@ static void task_update_vert_v_vert_t(PPU *ppu) {
 // MEMORY I/O //
 
 static uint8_t read_register(Machine *vm, int offset) {
-    PPU *ppu = vm->ppu;
+    PPU *ppu = &vm->ppu;
     switch (offset) {
         case PPUSTATUS:
             ppu->reg_latch = (ppu->reg_latch & 0b11111) | ppu->status;
@@ -326,7 +326,7 @@ static uint8_t read_register(Machine *vm, int offset) {
 }
 
 static void write_register(Machine *vm, int offset, uint8_t value) {
-    PPU *ppu = vm->ppu;
+    PPU *ppu = &vm->ppu;
     ppu->reg_latch = value;
     uint8_t old_ctrl;
     uint16_t d;
@@ -339,7 +339,7 @@ static void write_register(Machine *vm, int offset, uint8_t value) {
             if (!(old_ctrl & CTRL_NMI_ON_VBLANK) &&
                 value & CTRL_NMI_ON_VBLANK &&
                 ppu->status & STATUS_VBLANK) {
-                vm->cpu->nmi = true;
+                vm->cpu.nmi = true;
             }
             break;
         case PPUMASK:
@@ -385,24 +385,24 @@ static void write_oam_dma(Machine *vm, int offset, uint8_t value) {
     uint8_t page[0x100];
     uint16_t page_addr = (uint16_t)value << 8;
     for (int i = 0; i < 0x100; i++) {
-        page[i] = mm_read(vm->cpu_mm, page_addr + i);
+        page[i] = mm_read(&vm->cpu_mm, page_addr + i);
     }
-    memcpy(vm->ppu->oam, page, 0x100);
-    cpu_65xx_external_t_increment(vm->cpu, 0x201);
+    memcpy(vm->ppu.oam, page, 0x100);
+    cpu_65xx_external_t_increment(&vm->cpu, 0x201);
 }
 
 static uint8_t read_background_colors(Machine *vm, int offset) {
-    return vm->ppu->background_colors[offset];
+    return vm->ppu.background_colors[offset];
 }
 static void write_background_colors(Machine *vm, int offset, uint8_t value) {
-    vm->ppu->background_colors[offset] = value & MASK_COLOR;
+    vm->ppu.background_colors[offset] = value & MASK_COLOR;
 }
 
 static uint8_t read_palettes(Machine *vm, int offset) {
-    return vm->ppu->palettes[offset];
+    return vm->ppu.palettes[offset];
 }
 static void write_palettes(Machine *vm, int offset, uint8_t value) {
-    vm->ppu->palettes[offset] = value & MASK_COLOR;
+    vm->ppu.palettes[offset] = value & MASK_COLOR;
 }
 
 // PUBLIC FUNCTIONS //

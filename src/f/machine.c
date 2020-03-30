@@ -1,71 +1,53 @@
 #include "machine.h"
 
-#include "../cpu/65xx.h"
 #include "../input.h"
-#include "cartridge.h"
-#include "memory_maps.h"
-#include "ppu.h"
 
 void machine_init(Machine *vm, Cartridge *cart, InputState *input,
                   uint32_t *screen) {
     memset(vm, 0, sizeof(Machine));
     
-    // TODO: Don't copy the cartridge
-    vm->cart = malloc(sizeof(Cartridge));
-    *vm->cart = *cart;
-    
+    vm->cart = *cart;
     vm->input = input;
 
-    // TODO: Convert all to non-pointers (lots of -> to . changes needed)
-    vm->cpu = malloc(sizeof(CPU65xx));
-    vm->ppu = malloc(sizeof(PPU));
-    vm->cpu_mm = malloc(sizeof(MemoryMap));
-    vm->ppu_mm = malloc(sizeof(MemoryMap));
-    memory_map_cpu_init(vm->cpu_mm, vm);
-    memory_map_ppu_init(vm->ppu_mm, vm);
-    cpu_65xx_init(vm->cpu, vm->cpu_mm);
-    ppu_init(vm->ppu, vm->ppu_mm, vm->cpu, screen, &input->lightgun_pos);
+    memory_map_cpu_init(&vm->cpu_mm, vm);
+    memory_map_ppu_init(&vm->ppu_mm, vm);
+    cpu_65xx_init(&vm->cpu, &vm->cpu_mm);
+    ppu_init(&vm->ppu, &vm->ppu_mm, &vm->cpu, screen, &input->lightgun_pos);
     
-    if (!vm->cart->chr_memory.size) {
-        vm->cart->chr_memory.size = SIZE_CHR_ROM;
-        vm->cart->chr_is_ram = true;
-        vm->cart->chr_memory.data = malloc(SIZE_CHR_ROM);
-        memset(vm->cart->chr_memory.data, 0, SIZE_CHR_ROM);
+    if (!vm->cart.chr_memory.size) {
+        vm->cart.chr_memory.size = SIZE_CHR_ROM;
+        vm->cart.chr_is_ram = true;
+        vm->cart.chr_memory.data = malloc(SIZE_CHR_ROM);
+        memset(vm->cart.chr_memory.data, 0, SIZE_CHR_ROM);
     }
     
-    machine_set_nt_mirroring(vm, vm->cart->default_mirroring);
+    machine_set_nt_mirroring(vm, vm->cart.default_mirroring);
     mapper_init(vm);
     
-    cpu_65xx_reset(vm->cpu, false);
+    cpu_65xx_reset(&vm->cpu, false);
 }
 
 void machine_teardown(Machine *vm) {
     // TODO: Save SRAM
-    if (vm->cart->sram.data) {
-        free(vm->cart->sram.data);
+    if (vm->cart.sram.data) {
+        free(vm->cart.sram.data);
     }
     
-    if (vm->cart->chr_is_ram) {
-        free(vm->cart->chr_memory.data);
+    if (vm->cart.chr_is_ram) {
+        free(vm->cart.chr_memory.data);
     }
-    
-    free(vm->cart);
-    free(vm->ppu_mm);
-    free(vm->cpu_mm);
-    free(vm->ppu);
-    free(vm->cpu);
 }
 
 bool machine_advance_frame(Machine *vm, bool verbose) {
     bool done;
     do {
-        if (vm->ppu->time > vm->cpu->time * T_CPU_MULTIPLIER) {
+        if (vm->ppu.time > vm->cpu.time * T_CPU_MULTIPLIER) {
             // Check for debug label
             bool is_endless_loop = false;
             if (verbose && vm->dbg_map) {
                 int i = 0;
                 while (vm->dbg_map[i].label[0]) {
-                    if (vm->dbg_map[i].addr == vm->cpu->pc) {
+                    if (vm->dbg_map[i].addr == vm->cpu.pc) {
                         const char *label = vm->dbg_map[i].label;
                         if (strcmp(label, "EndlessLoop")) {
                             printf(":%s\n", vm->dbg_map[i].label);
@@ -79,12 +61,12 @@ bool machine_advance_frame(Machine *vm, bool verbose) {
             }
             
             // Run next CPU instruction
-            if (cpu_65xx_step(vm->cpu, verbose && !is_endless_loop) != 0x100) {
+            if (cpu_65xx_step(&vm->cpu, verbose && !is_endless_loop) != 0x100) {
                 return false;
             }
         }
         
-        done = ppu_step(vm->ppu, verbose);
+        done = ppu_step(&vm->ppu, verbose);
     } while (!done);
     return true;
 }

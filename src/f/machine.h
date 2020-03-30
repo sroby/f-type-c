@@ -3,6 +3,11 @@
 
 #include "../common.h"
 
+#include "../cpu/65xx.h"
+#include "cartridge.h"
+#include "memory_maps.h"
+#include "ppu.h"
+
 // Size of various memory structures
 #define SIZE_WRAM 0x800
 #define SIZE_PRG_ROM 0x8000
@@ -20,11 +25,7 @@
 #define HEIGHT 240
 
 // Forward decalarations
-typedef struct Cartridge Cartridge;
-typedef struct CPU65xx CPU65xx;
 typedef struct InputState InputState;
-typedef struct MemoryMap MemoryMap;
-typedef struct PPU PPU;
 
 typedef struct {
     uint16_t addr;
@@ -32,11 +33,12 @@ typedef struct {
 } DebugMap;
 
 typedef struct Machine {
-    CPU65xx *cpu;
-    PPU *ppu;
-    MemoryMap *cpu_mm;
-    MemoryMap *ppu_mm;
-    Cartridge *cart;
+    CPU65xx cpu;
+    PPU ppu;
+    MemoryMap cpu_mm;
+    MemoryMap ppu_mm;
+    Cartridge cart;
+    
     const DebugMap *dbg_map;
     
     // System RAM
