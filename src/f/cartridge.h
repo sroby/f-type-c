@@ -62,8 +62,6 @@ typedef struct Cartridge {
     bool has_battery_backup;
     
     // Memory mapper
-    int default_mirroring;
-    int mapper_id;
     Mapper mapper;
     int prg_banks[MAX_BANKS];
     size_t prg_bank_size;
@@ -80,6 +78,6 @@ typedef struct MapperInfo {
 
 bool mapper_check_support(int mapper_id, const char **name);
 
-void mapper_init(Machine *vm);
+void mapper_init(Machine *vm, int mapper_id);
 
 #endif /* f_cartridge_h */

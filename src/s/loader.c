@@ -50,7 +50,8 @@ int s_loader(Driver *driver, blob *rom) {
     uint8_t *header = rom->data;
     char title[22];
     int header_pos = 0;
-    CartInfo cart;
+    SCartInfo cart;
+    memset(&cart, 0, sizeof(SCartInfo));
     for (int i = 0; i < sizeof(header_offsets) / sizeof(int); i++) {
         header_pos = header_offsets[i];
         if (rom->size < (header_pos + 0x50)) {

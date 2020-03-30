@@ -1084,7 +1084,7 @@ bool mapper_check_support(int mapper_id, const char **name) {
     return false;
 }
 
-void mapper_init(Machine *vm) {
+void mapper_init(Machine *vm, int mapper_id) {
     Cartridge *cart = &vm->cart;
     memset(cart->prg_banks, 0, sizeof(cart->prg_banks));
     memset(cart->chr_banks, 0, sizeof(cart->chr_banks));
@@ -1094,7 +1094,7 @@ void mapper_init(Machine *vm) {
     cart->sram_bank = 0;
     
     for (int i = 0; i < mappers_len; i++) {
-        if (mappers[i].ines_id == cart->mapper_id) {
+        if (mappers[i].ines_id == mapper_id) {
             (*mappers[i].init_func)(vm);
             break;
         }

@@ -25,6 +25,7 @@
 #define HEIGHT 240
 
 // Forward decalarations
+typedef struct FCartInfo FCartInfo;
 typedef struct InputState InputState;
 
 typedef struct {
@@ -60,7 +61,7 @@ typedef enum {
     NT_FOUR = 4,
 } NametableMirroring;
 
-void machine_init(Machine *vm, Cartridge *cart, InputState *input,
+void machine_init(Machine *vm, FCartInfo *carti, InputState *input,
                   uint32_t *screen);
 void machine_teardown(Machine *vm);
 

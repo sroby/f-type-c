@@ -1,13 +1,17 @@
 #include "machine.h"
 
 #include "../input.h"
+#include "loader.h"
 
-void machine_init(Machine *vm, Cartridge *cart, InputState *input,
+void machine_init(Machine *vm, FCartInfo *carti, InputState *input,
                   uint32_t *screen) {
     memset(vm, 0, sizeof(Machine));
     
-    vm->cart = *cart;
     vm->input = input;
+    
+    vm->cart.prg_rom = carti->prg_rom;
+    vm->cart.chr_memory = carti->chr_rom;
+    vm->cart.has_battery_backup = carti->has_battery_backup;
 
     memory_map_cpu_init(&vm->cpu_mm, vm);
     memory_map_ppu_init(&vm->ppu_mm, vm);
@@ -21,8 +25,8 @@ void machine_init(Machine *vm, Cartridge *cart, InputState *input,
         memset(vm->cart.chr_memory.data, 0, SIZE_CHR_ROM);
     }
     
-    machine_set_nt_mirroring(vm, vm->cart.default_mirroring);
-    mapper_init(vm);
+    machine_set_nt_mirroring(vm, carti->default_mirroring);
+    mapper_init(vm, carti->mapper_id);
     
     cpu_65xx_reset(&vm->cpu, false);
 }

@@ -5,8 +5,8 @@
 #include "machine.h"
 
 int ines_loader(Driver *driver, blob *rom) {
-    Cartridge cart;
-    memset(&cart, 0, sizeof(Cartridge));
+    FCartInfo cart;
+    memset(&cart, 0, sizeof(FCartInfo));
 
     int size = rom->data[4] * 16;
     fprintf(stderr, "PRG ROM: %dKB\n", size);
@@ -23,10 +23,9 @@ int ines_loader(Driver *driver, blob *rom) {
     } else {
         fprintf(stderr, "None (uses RAM instead)\n");
     }
-    cart.chr_memory.size = size << 10;
+    cart.chr_rom.size = size << 10;
 
-    size_t expected_size = cart.prg_rom.size + cart.chr_memory.size
-                                             + HEADER_SIZE;
+    size_t expected_size = cart.prg_rom.size + cart.chr_rom.size + HEADER_SIZE;
     if (expected_size > rom->size) {
         fprintf(stderr,
             "Expected total file size (%zu) exceeds actual file size (%zu)\n",
@@ -35,8 +34,8 @@ int ines_loader(Driver *driver, blob *rom) {
     }
     
     cart.prg_rom.data = rom->data + HEADER_SIZE;
-    if (cart.chr_memory.size) {
-        cart.chr_memory.data = cart.prg_rom.data + cart.prg_rom.size;
+    if (cart.chr_rom.size) {
+        cart.chr_rom.data = cart.prg_rom.data + cart.prg_rom.size;
     }
     
     cart.mapper_id = (rom->data[6] >> 4) | (rom->data[7] & 0b11110000);

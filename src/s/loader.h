@@ -38,7 +38,7 @@ typedef enum ExChipType {
     EXCHIP_CX4,
 } ExChipType;
 
-typedef struct CartInfo {
+typedef struct SCartInfo {
     // ROM
     blob rom;
     bool has_fast_rom;
@@ -51,7 +51,7 @@ typedef struct CartInfo {
     // Mapper
     int map_mode;
     ExChipType ex_chip;
-} CartInfo;
+} SCartInfo;
 
 int s_loader(Driver *driver, blob *rom);
 
