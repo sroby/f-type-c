@@ -301,6 +301,10 @@ static void op_SED(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_D, true);
 }
 
+static void op_KIL(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    cpu->killed = true;
+}
+
 // PUBLIC FUNCTIONS //
 
 void cpu_65xx_init(CPU65xx *cpu, MemoryMap *mm) {
@@ -309,7 +313,13 @@ void cpu_65xx_init(CPU65xx *cpu, MemoryMap *mm) {
     cpu->pc = 0;
     cpu->time = 0;
     cpu->mm = mm;
-    memset(cpu->opcodes, 0, sizeof(cpu->opcodes));
+    
+    // Initialize opcode lookup to KIL instruction
+    // TODO: Add more illegal opcodes
+    Opcode kill = {"KIL", 0, 0, 0, op_KIL, AM_IMPLIED};
+    for (int i = 0; i < 0x100; i++) {
+        cpu->opcodes[i] = kill;
+    }
     
     uint8_t *a = &cpu->a;
     uint8_t *x = &cpu->x;
@@ -492,7 +502,11 @@ void cpu_65xx_init(CPU65xx *cpu, MemoryMap *mm) {
     cpu->opcodes[0xEA] = (Opcode) {"NOP", 0, 0, 2, NULL, AM_IMPLIED};
 }
 
-int cpu_65xx_step(CPU65xx *cpu, bool verbose) {
+void cpu_65xx_step(CPU65xx *cpu, bool verbose) {
+    if (cpu->killed) {
+        return;
+    }
+    
     if (verbose) {
         printf("$%04x ", cpu->pc);
     }
@@ -503,23 +517,19 @@ int cpu_65xx_step(CPU65xx *cpu, bool verbose) {
             printf("/NMI\n");
         }
         interrupt(cpu, false, IVT_NMI);
-        return 0x100;
+        return;
     }
     if (cpu->irq && !get_p_flag(cpu, P_I)) {
         if (verbose) {
             printf("/IRQ\n");
         }
         interrupt(cpu, false, IVT_IRQ);
-        return 0x100;
+        return;
     }
     
     // Fetch next instruction
     uint8_t inst = mm_read(cpu->mm, cpu->pc++);
     const Opcode *op = &cpu->opcodes[inst];
-    if (!op->name) {
-        printf("Invalid Opcode 0x%02x\n", inst);
-        return inst;
-    }
     
     // Fetch parameter, if any
     OpParam p1, p2;
@@ -612,11 +622,11 @@ int cpu_65xx_step(CPU65xx *cpu, bool verbose) {
     if (op->func) {
         (*op->func)(cpu, op, p2);
     }
-    
-    return 0x100;
+    return;
 }
 
 void cpu_65xx_reset(CPU65xx *cpu, bool verbose) {
+    cpu->killed = false;
     if (verbose) {
         printf("$%04x /RESET", cpu->pc);
     }

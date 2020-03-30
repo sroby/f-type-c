@@ -69,13 +69,14 @@ struct CPU65xx {
     // Interrupt lines
     bool nmi;
     int irq;
+    bool killed;
     // Opcode lookup table
     Opcode opcodes[0x100];
 };
 
 void cpu_65xx_init(CPU65xx *cpu, MemoryMap *mm);
 
-int cpu_65xx_step(CPU65xx *cpu, bool verbose);
+void cpu_65xx_step(CPU65xx *cpu, bool verbose);
 void cpu_65xx_reset(CPU65xx *cpu, bool verbose);
 
 void cpu_65xx_external_t_increment(CPU65xx *cpu, int amount);

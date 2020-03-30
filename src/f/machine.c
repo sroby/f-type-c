@@ -65,9 +65,7 @@ bool machine_advance_frame(Machine *vm, bool verbose) {
             }
             
             // Run next CPU instruction
-            if (cpu_65xx_step(&vm->cpu, verbose && !is_endless_loop) != 0x100) {
-                return false;
-            }
+            cpu_65xx_step(&vm->cpu, verbose && !is_endless_loop);
         }
         
         done = ppu_step(&vm->ppu, verbose);
