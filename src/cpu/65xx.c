@@ -301,6 +301,10 @@ static void op_SED(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_D, true);
 }
 
+static void op_NOP(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    // ...
+}
+
 static void op_KIL(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->killed = true;
 }
@@ -499,7 +503,7 @@ void cpu_65xx_init(CPU65xx *cpu, MemoryMap *mm) {
     cpu->opcodes[0x78] = (Opcode) {"SEI", 0, 0, 2, op_SEI, AM_IMPLIED};
     cpu->opcodes[0xF8] = (Opcode) {"SED", 0, 0, 2, op_SED, AM_IMPLIED};
 
-    cpu->opcodes[0xEA] = (Opcode) {"NOP", 0, 0, 2, NULL, AM_IMPLIED};
+    cpu->opcodes[0xEA] = (Opcode) {"NOP", 0, 0, 2, op_NOP, AM_IMPLIED};
 }
 
 void cpu_65xx_step(CPU65xx *cpu, bool verbose) {
@@ -619,9 +623,8 @@ void cpu_65xx_step(CPU65xx *cpu, bool verbose) {
         printf("\n");
     }
     
-    if (op->func) {
-        (*op->func)(cpu, op, p2);
-    }
+    // And finally, run the instruction
+    (*op->func)(cpu, op, p2);
     return;
 }
 
