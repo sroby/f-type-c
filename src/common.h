@@ -1,6 +1,10 @@
 #ifndef common_h
 #define common_h
 
+#ifdef _WIN32
+#define __USE_MINGW_ANSI_STDIO 1
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
