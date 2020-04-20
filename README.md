@@ -43,6 +43,8 @@ In addition to the Makefile, an Xcode project is also included, although it stil
 
 ### Windows
 
+Precompiled binaries can be downloaded [here](https://1drv.ms/u/s!AqDn20f1VmBm916hFqpv-q-PIfJM) (updated occasionally, might not be up to date).
+
 Building for Windows is only supported via [mingw-w64](http://mingw-w64.org/doku.php) for now (and only 32-bit is confirmed to work). Get the mingw development libraries from the [SDL2 download page](http://libsdl.org/download-2.0.php). To build with the Makefile, you'll probably need to override a few variables to specify the compiler and proper invocation of `sdl2-config`:
 
     $ export SDL_PATH=<where you extracted SDL2-devel-2.0.x-mingw.tar.gz>/i686-w64-mingw32
