@@ -33,11 +33,15 @@ const char *chip_names[] = {
 const char *dest_codes = "JEPW??FHSDIC?KANBUXYZ";
 
 int s_loader(Driver *driver, blob *rom) {
+    SCartInfo cart;
+    memset(&cart, 0, sizeof(SCartInfo));
+    cart.rom = *rom;
+
     // Round upwards to the nearest kilobyte,
     // to get rid of possible copier headers
-    int size_adjust = rom->size % 1024;
-    rom->data += size_adjust;
-    rom->size -= size_adjust;
+    int size_adjust = cart.rom.size % 1024;
+    cart.rom.data += size_adjust;
+    cart.rom.size -= size_adjust;
     
     // Look for SFC header
     const int header_offsets[] = {0x7FB0, 0xFFB0, 0x40FFB0};
@@ -47,17 +51,15 @@ int s_loader(Driver *driver, blob *rom) {
         {0x25, 0x00, 0x00},
     };
     bool valid = false;
-    uint8_t *header = rom->data;
+    uint8_t *header = NULL;
     char title[22];
     int header_pos = 0;
-    SCartInfo cart;
-    memset(&cart, 0, sizeof(SCartInfo));
     for (int i = 0; i < sizeof(header_offsets) / sizeof(int); i++) {
         header_pos = header_offsets[i];
-        if (rom->size < (header_pos + 0x50)) {
+        if (cart.rom.size < (header_pos + 0x50)) {
             break;
         }
-        header = rom->data + header_pos;
+        header = cart.rom.data + header_pos;
         
         cart.map_mode = header[HEADER_MAP_MODE] & ~0b10000;
         for (int j = 0; j < sizeof(valid_map_modes[i]); j++) {
@@ -169,8 +171,6 @@ int s_loader(Driver *driver, blob *rom) {
         fprintf(stderr, "Could not identify file type\n");
         return 1;
     }
-    
-    cart.rom = *rom;
     
     fprintf(stderr, "Raw SHVC ROM image (header found at 0x%06X)\n",
             header_pos);
