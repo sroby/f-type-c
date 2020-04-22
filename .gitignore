@@ -1,6 +1,8 @@
 # Avoid accidentally committing ROMs
 *.nes
 
-# Makefile output
+# Build products and dependencies
 f-type
 f-type.dSYM
+f-type.exe
+SDL2.dll
