@@ -55,7 +55,7 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
         SDL_Joystick *js = SDL_JoystickOpen(i);
         if (js) {
             const char *js_name = SDL_JoystickName(js);
-            if (!strcasecmp(js_name, "snes retroport")) {
+            if (!strcasecmp(js_name, "retrousb.com snes retroport")) {
                 wnd->buttons[assigned_js] = buttons_snes_retroport;
             } else if (!strncasecmp(js_name, "8bitdo", 6)) {
                 wnd->buttons[assigned_js] = buttons_8bitdo;

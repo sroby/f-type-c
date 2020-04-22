@@ -43,6 +43,11 @@ void machine_teardown(Machine *vm) {
 }
 
 bool machine_advance_frame(Machine *vm, bool verbose) {
+    for (int i = 0;
+         i < PPU_CYCLES_PER_SCANLINE * PPU_SCANLINES_PER_FRAME;
+         i++) {
+        
+    }
     bool done;
     do {
         if (vm->ppu.time > vm->cpu.time * T_CPU_MULTIPLIER) {

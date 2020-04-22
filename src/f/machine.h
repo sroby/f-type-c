@@ -51,6 +51,9 @@ typedef struct Machine {
     uint8_t ctrl_latch[2];
     bool vs_bank;
     InputState *input;
+    
+    // Master clock (actually the PPU dot clock)
+    uint64_t mclk;
 } Machine;
 
 typedef enum {
