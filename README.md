@@ -52,6 +52,8 @@ Building for Windows is only supported via [mingw-w64](http://mingw-w64.org/doku
 
 You will also need to copy `SDL2.dll` from `$SDL_PATH/bin` to the same directory as the executable.
 
+**NOTE:** The Windows version lacks a standard output (so far). Drag and drop a ROM file to the executable to run it. 
+
 ## Documentation credits
 This project wouldn't be possible without the following sources:
 * [Nesdev Wiki](http://wiki.nesdev.com/w/index.php/Nesdev_Wiki)
