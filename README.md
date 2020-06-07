@@ -5,6 +5,7 @@
 ## Current features
 * As platform-agnostic as possible, should compile and run on any platform supported by SDL2
 * Mostly complete, mostly accurate NTSC/RGB PPU rendering
+* Sound (very rough but implements all built-in channels)
 * Regular controller input
 * Lightgun input (via mouse)
 * Mapper support:
@@ -12,7 +13,6 @@
     * Third-party: 11, 38, 39, 68, 70, 75, 79, 87, 89, 93, 97, 113, 140, 146, 151, 152, 184
 
 ## Feature wishlist
-* Sound!
 * Debugger!
 * GUI!
 * ...and lots more

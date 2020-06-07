@@ -30,6 +30,7 @@ typedef struct Window {
     SDL_Rect display_area;
     SDL_Rect mouse_area;
     SDL_Cursor *cursor;
+    SDL_AudioDeviceID audio_id;
     SDL_Joystick *js[2];
     bool js_use_axis[2];
     const int *buttons[2];

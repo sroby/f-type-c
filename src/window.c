@@ -37,7 +37,9 @@ static void update_lightgun_pos(Driver *driver, const SDL_Rect *area,
 
 int window_init(Window *wnd, Driver *driver, const char *filename) {
     // Init SDL
-    int error_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
+    int error_code = SDL_Init(SDL_INIT_VIDEO |
+                              SDL_INIT_AUDIO |
+                              SDL_INIT_JOYSTICK);
     if (error_code) {
         fprintf(stderr, "%s\n", SDL_GetError());
         return error_code;
@@ -140,6 +142,20 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
         return 1;
     }
     
+    // Init sound
+    SDL_AudioSpec desired, obtained;
+    SDL_memset(&desired, 0, sizeof(desired));
+    desired.freq = 44100;
+    desired.format = AUDIO_S16SYS;
+    desired.channels = 1;
+    desired.samples = 4096;
+    wnd->audio_id = SDL_OpenAudioDevice(NULL, 0, &desired, &obtained, 0);
+    if (wnd->audio_id <= 0) {
+        printf("%s\n", SDL_GetError());
+        return 1;
+    }
+    SDL_PauseAudioDevice(wnd->audio_id, 0);
+
     // Use the system crosshair cursor, if available
     wnd->cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
     if (wnd->cursor) {
@@ -155,6 +171,7 @@ void window_cleanup(Window *wnd) {
     if (wnd->cursor) {
         SDL_FreeCursor(wnd->cursor);
     }
+    SDL_CloseAudioDevice(wnd->audio_id);
     SDL_DestroyTexture(wnd->texture);
     SDL_DestroyRenderer(wnd->renderer);
     SDL_DestroyWindow(wnd->window);
@@ -303,6 +320,9 @@ void window_loop(Window *wnd, Driver *driver) {
         if (!(*driver->advance_frame_func)(driver->vm, verbose)) {
             break;
         }
+        
+        SDL_QueueAudio(wnd->audio_id, driver->audio_frame,
+                       sizeof(driver->audio_frame));
         
         // Render the frame
         SDL_UpdateTexture(wnd->texture, NULL, driver->screen,

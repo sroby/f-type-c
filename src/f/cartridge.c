@@ -341,7 +341,7 @@ static void MMC3_write_register(Machine *vm, int offset, uint8_t value) {
             break;
         case 6: // IRQ disable
             mmc->irq_enabled = false;
-            vm->cpu.irq &= ~IRQ_MAPPER;
+            BIT_CLEAR(vm->cpu.irq, IRQ_MAPPER);
             break;
         case 7: // IRQ enable
             mmc->irq_enabled = true;
@@ -358,9 +358,8 @@ static uint8_t MMC3_read_chr(Machine *vm, int offset) {
         } else {
             mmc->irq_counter = mmc->irq_latch;
         }
-        if (!mmc->irq_counter && mmc->irq_enabled) {
-            vm->cpu.irq |= IRQ_MAPPER;
-        }
+        BIT_SET_IF(vm->cpu.irq, IRQ_MAPPER,
+                   !mmc->irq_counter && mmc->irq_enabled);
     }
     mmc->last_pt = current_pt;
     

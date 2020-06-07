@@ -1,13 +1,12 @@
 #include "machine.h"
 
-#include "../input.h"
+#include "../driver.h"
 #include "loader.h"
 
-void machine_init(Machine *vm, FCartInfo *carti, InputState *input,
-                  uint32_t *screen) {
+void machine_init(Machine *vm, FCartInfo *carti, Driver *driver) {
     memset(vm, 0, sizeof(Machine));
     
-    vm->input = input;
+    vm->input = &driver->input;
     
     vm->cart.prg_rom = carti->prg_rom;
     vm->cart.chr_memory = carti->chr_rom;
@@ -16,7 +15,9 @@ void machine_init(Machine *vm, FCartInfo *carti, InputState *input,
     memory_map_cpu_init(&vm->cpu_mm, vm);
     memory_map_ppu_init(&vm->ppu_mm, vm);
     cpu_65xx_init(&vm->cpu, &vm->cpu_mm);
-    ppu_init(&vm->ppu, &vm->ppu_mm, &vm->cpu, screen, &input->lightgun_pos);
+    ppu_init(&vm->ppu, &vm->ppu_mm, &vm->cpu,
+             driver->screen, &driver->input.lightgun_pos);
+    apu_init(&vm->apu, &vm->cpu, driver->audio_frame);
     
     if (!vm->cart.chr_memory.size) {
         vm->cart.chr_memory.size = SIZE_CHR_ROM;
@@ -44,6 +45,7 @@ void machine_teardown(Machine *vm) {
 
 bool machine_advance_frame(Machine *vm, bool verbose) {
     bool done;
+    int pos = 0;
     do {
         if (vm->ppu.time > vm->cpu.time * T_CPU_MULTIPLIER) {
             // Check for debug label
@@ -68,7 +70,17 @@ bool machine_advance_frame(Machine *vm, bool verbose) {
             cpu_65xx_step(&vm->cpu, verbose && !is_endless_loop);
         }
         
+        if (vm->ppu.time > vm->apu.time * T_APU_MULTIPLIER) {
+            apu_step(&vm->apu);
+        }
+        // Yeah this needs to be done better
+        if (!(pos % 121)) {
+            apu_sample(&vm->apu, pos / 121);
+        }
+        
         done = ppu_step(&vm->ppu, verbose);
+        
+        ++pos;
     } while (!done);
     return true;
 }

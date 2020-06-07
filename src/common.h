@@ -24,4 +24,18 @@ typedef struct {
     size_t size;
 } blob;
 
+#define BIT_SET(x, n)       (x) |= (    1 << (n))
+#define BIT_SET_IF(x, n, v) (x) |= (!!(v) << (n))
+
+#define BIT_CLEAR(x, n)       (x) &= ~(    1 << (n))
+#define BIT_CLEAR_IF(x, n, v) (x) &= ~(!!(v) << (n))
+
+#define BIT_TOGGLE(x, n)       (x) ^= (    1 << (n))
+#define BIT_TOGGLE_IF(x, n, v) (x) ^= (!!(v) << (n))
+
+#define BIT_AS(x, n, v) (x) = ((x) | (-(!!(v)) & (1 << (n)))) \
+                            & ~(-(!(v)) & (1 << (n)))
+
+#define BIT_CHECK(x, n) ((x) & (1 << (n)))
+
 #endif /* common_h */

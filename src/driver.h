@@ -15,6 +15,7 @@ typedef struct Driver {
     uint32_t *screen;
     int screen_w;
     int screen_h;
+    int16_t audio_frame[44100 / 60];
     AdvanceFrameFuncPtr advance_frame_func;
     void (*teardown_func)(Driver *);
 } Driver;

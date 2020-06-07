@@ -66,7 +66,7 @@ int ines_loader(Driver *driver, blob *rom) {
     driver->screen_w = WIDTH;
     driver->screen_h = HEIGHT;
     Machine *vm = malloc(sizeof(Machine));
-    machine_init(vm, &cart, &driver->input, driver->screen);
+    machine_init(vm, &cart, driver);
     driver->vm = vm;
     driver->advance_frame_func = (AdvanceFrameFuncPtr)machine_advance_frame;
     driver->teardown_func = f_teardown;

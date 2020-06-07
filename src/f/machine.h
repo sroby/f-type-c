@@ -4,6 +4,7 @@
 #include "../common.h"
 
 #include "../cpu/65xx.h"
+#include "apu.h"
 #include "cartridge.h"
 #include "memory_maps.h"
 #include "ppu.h"
@@ -16,17 +17,23 @@
 
 // Timing constants
 #define T_CPU_MULTIPLIER 3
-
-// IRQ lines
-#define IRQ_MAPPER 1
+#define T_APU_MULTIPLIER 6
 
 // Screen dimensions
 #define WIDTH 256
 #define HEIGHT 240
 
 // Forward decalarations
+typedef struct Driver Driver;
 typedef struct FCartInfo FCartInfo;
 typedef struct InputState InputState;
+
+// IRQ bits
+typedef enum {
+    IRQ_APU_FRAME = 0,
+    IRQ_APU_DMC,
+    IRQ_MAPPER,
+} IRQFlag;
 
 typedef struct {
     uint16_t addr;
@@ -36,6 +43,7 @@ typedef struct {
 typedef struct Machine {
     CPU65xx cpu;
     PPU ppu;
+    APU apu;
     MemoryMap cpu_mm;
     MemoryMap ppu_mm;
     Cartridge cart;
@@ -61,8 +69,7 @@ typedef enum {
     NT_FOUR = 4,
 } NametableMirroring;
 
-void machine_init(Machine *vm, FCartInfo *carti, InputState *input,
-                  uint32_t *screen);
+void machine_init(Machine *vm, FCartInfo *carti, Driver *driver);
 void machine_teardown(Machine *vm);
 
 bool machine_advance_frame(Machine *vm, bool verbose);
