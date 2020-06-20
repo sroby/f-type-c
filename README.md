@@ -31,7 +31,7 @@ See the next sub-sections for platform-specific instructions.
 
 ### Linux
 
-Make sure you have the SDL2 devel package installed via your distribution's package manager, then use the Makefile to build.
+Make sure you have the SDL2 development package installed via your distribution's package manager (`libsdl2-dev` on Debian/Ubuntu), then use the Makefile to build.
 
 ### macOS
 
@@ -43,6 +43,8 @@ In addition to the Makefile, an Xcode project is also included, although it stil
 
 ### Windows
 
+**NOTE:** The Windows version lacks a standard output (so far). Drag and drop a ROM file to the executable to run it. 
+
 Precompiled binaries can be downloaded [here](https://1drv.ms/u/s!AqDn20f1VmBm916hFqpv-q-PIfJM) (updated occasionally, might not be up to date).
 
 Building for Windows is only supported via [mingw-w64](http://mingw-w64.org/doku.php) for now (and only 32-bit is confirmed to work). Get the mingw development libraries from the [SDL2 download page](http://libsdl.org/download-2.0.php). To build with the Makefile, you'll probably need to override a few variables to specify the compiler and proper invocation of `sdl2-config`:
@@ -51,8 +53,6 @@ Building for Windows is only supported via [mingw-w64](http://mingw-w64.org/doku
     $ make TARGET=f-type.exe CC=i686-w64-mingw32-gcc SDL2_CONFIG="$SDL_PATH/bin/sdl2-config --prefix=$SDL_PATH"
 
 You will also need to copy `SDL2.dll` from `$SDL_PATH/bin` to the same directory as the executable.
-
-**NOTE:** The Windows version lacks a standard output (so far). Drag and drop a ROM file to the executable to run it. 
 
 ## Documentation credits
 This project wouldn't be possible without the following sources:
