@@ -38,4 +38,6 @@ typedef struct {
 
 #define BIT_CHECK(x, n) ((x) & (1 << (n)))
 
+#define eprintf(...) fprintf(stderr, __VA_ARGS__)
+
 #endif /* common_h */

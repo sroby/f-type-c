@@ -168,13 +168,13 @@ int s_loader(Driver *driver, blob *rom) {
         }
     }
     if (!valid) {
-        fprintf(stderr, "Could not identify file type\n");
+        eprintf("Could not identify file type\n");
         return 1;
     }
     
-    fprintf(stderr, "Raw SHVC ROM image (header found at 0x%06X)\n",
+    eprintf("Raw SHVC ROM image (header found at 0x%06X)\n",
             header_pos);
-    fprintf(stderr, "Game title: %s\n", title);
+    eprintf("Game title: %s\n", title);
     
     const char *code_display = STR_NOT_IN_HEADER;
     char code[5];
@@ -184,33 +184,33 @@ int s_loader(Driver *driver, blob *rom) {
         code[4] = 0;
         code_display = code;
     }
-    fprintf(stderr, "Game code: %s\n", code_display);
+    eprintf("Game code: %s\n", code_display);
     
-    fprintf(stderr, "Maker code: ");
+    eprintf("Maker code: ");
     if (has_ext_header) {
         char mcode[3];
         memcpy(mcode, header + HEADER_EXT_MAKER_CODE, 2);
         mcode[2] = 0;
-        fprintf(stderr, "%s\n", mcode);
+        eprintf("%s\n", mcode);
     } else {
-        fprintf(stderr, "%02X\n", header[HEADER_OLD_MAKER_CODE]);
+        eprintf("%02X\n", header[HEADER_OLD_MAKER_CODE]);
     }
     
-    fprintf(stderr, "Map mode: %X (%s)\n",
+    eprintf("Map mode: %X (%s)\n",
             cart.map_mode, map_mode_names[cart.map_mode & 0xF]);
     cart.has_fast_rom = header[HEADER_MAP_MODE] & 0x10;
-    fprintf(stderr, "ROM speed: %sns\n", (cart.has_fast_rom ? "120" : "200"));
-    fprintf(stderr, "Co-processor: %s\n", chip_names[cart.ex_chip]);
+    eprintf("ROM speed: %sns\n", (cart.has_fast_rom ? "120" : "200"));
+    eprintf("Co-processor: %s\n", chip_names[cart.ex_chip]);
     
     size_t reported_rom_size = 1 << header[HEADER_ROM_SIZE];
     size_t actual_rom_size = cart.rom.size >> 10;
-    fprintf(stderr, "ROM size: %zuKB", reported_rom_size);
+    eprintf("ROM size: %zuKB", reported_rom_size);
     if (reported_rom_size != actual_rom_size) {
-        fprintf(stderr, " in header, %zuKB actual", actual_rom_size);
+        eprintf(" in header, %zuKB actual", actual_rom_size);
     }
-    fprintf(stderr, "\n");
+    eprintf("\n");
     if (reported_rom_size < actual_rom_size) {
-        fprintf(stderr, "File size is smaller than expected\n");
+        eprintf("File size is smaller than expected\n");
         return 1;
     }
     
@@ -221,33 +221,33 @@ int s_loader(Driver *driver, blob *rom) {
         exp_ram_size = 1 << header[HEADER_EXT_RAM_SIZE];
     }
     cart.exp_ram_size = exp_ram_size << 10;
-    fprintf(stderr, "RAM size: %dKB + %dKB\n", ram_size, exp_ram_size);
+    eprintf("RAM size: %dKB + %dKB\n", ram_size, exp_ram_size);
 
-    fprintf(stderr, "Battery-backed RAM: %s\n",
+    eprintf("Battery-backed RAM: %s\n",
            (cart.has_battery_backup ? "Yes" : "No"));
     
-    fprintf(stderr, "Destination code: ");
+    eprintf("Destination code: ");
     if (header[HEADER_DEST_CODE] < sizeof(dest_codes)) {
-        fprintf(stderr, "%c\n", dest_codes[header[HEADER_DEST_CODE]]);
+        eprintf("%c\n", dest_codes[header[HEADER_DEST_CODE]]);
     } else {
-        fprintf(stderr, "(%d?)\n", header[HEADER_DEST_CODE]);
+        eprintf("(%d?)\n", header[HEADER_DEST_CODE]);
     }
     
-    fprintf(stderr, "Mask ROM version: %d\n",
+    eprintf("Mask ROM version: %d\n",
             header[HEADER_MASK_ROM_VERSION]);
-    fprintf(stderr, "Special version: ");
+    eprintf("Special version: ");
     if (has_ext_header) {
-        fprintf(stderr, "%d\n", header[HEADER_EXT_SPECIAL]);
+        eprintf("%d\n", header[HEADER_EXT_SPECIAL]);
     } else {
-        fprintf(stderr, "%s\n", STR_NOT_IN_HEADER);
+        eprintf("%s\n", STR_NOT_IN_HEADER);
     }
     
     int complement = header[HEADER_COMPLEMENT] |
                      (header[HEADER_COMPLEMENT + 1] << 8);
-    fprintf(stderr, "Complement check: 0x%04X\n", complement);
+    eprintf("Complement check: 0x%04X\n", complement);
     int checksum = header[HEADER_CHECKSUM] |
                    (header[HEADER_CHECKSUM + 1] << 8);
-    fprintf(stderr, "Checksum: 0x%04X\n", checksum);
+    eprintf("Checksum: 0x%04X\n", checksum);
     
     return 1;
 }

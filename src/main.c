@@ -7,35 +7,35 @@
 #include "window.h"
 
 int main(int argc, char *argv[]) {
-    fprintf(stderr, "%s build %s (%s)\n", APP_NAME, BUILD_ID, APP_HOMEPAGE);
+    eprintf("%s build %s (%s)\n", APP_NAME, BUILD_ID, APP_HOMEPAGE);
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s rom_file [debug.map]\n", argv[0]);
+        eprintf("Usage: %s rom_file [debug.map]\n", argv[0]);
         return 1;
     }
     
     // Load the entire file in memory
     FILE *rom_file = fopen(argv[1], "rb");
     if (!rom_file) {
-        fprintf(stderr, "%s: Error opening file\n", argv[1]);
+        eprintf("%s: Error opening file\n", argv[1]);
         return 1;
     }
     if (fseeko(rom_file, 0, SEEK_END)) {
-        fprintf(stderr, "%s: Error determining file size\n", argv[1]);
+        eprintf("%s: Error determining file size\n", argv[1]);
         return 1;
     }
     blob rom;
     rom.size = ftello(rom_file);
     if (rom.size < 1024) {
-        fprintf(stderr, "%s: File is too small\n", argv[1]);
+        eprintf("%s: File is too small\n", argv[1]);
         return 1;
     }
     if (fseeko(rom_file, 0, SEEK_SET)) {
-        fprintf(stderr, "%s: Error seeking file\n", argv[1]);
+        eprintf("%s: Error seeking file\n", argv[1]);
         return 1;
     }
     rom.data = malloc(rom.size);
     if (fread(rom.data, rom.size, 1, rom_file) < 1) {
-        fprintf(stderr, "%s: Error reading file\n", argv[1]);
+        eprintf("%s: Error reading file\n", argv[1]);
         return 1;
     }
     fclose(rom_file);
@@ -46,12 +46,12 @@ int main(int argc, char *argv[]) {
     
     // Identify file type and pass to the appropriate loader
     int error_code = 1;
-    fprintf(stderr, "%s: ", argv[1]);
+    eprintf("%s: ", argv[1]);
     if (!strncmp((const char *)rom.data, "NES\x1a", 4)) {
-        fprintf(stderr, "iNES file format\n");
+        eprintf("iNES file format\n");
         error_code = ines_loader(&driver, &rom);
     } else if (!strncmp((const char *)rom.data, "FDS\x1a", 4)) {
-        fprintf(stderr, "FDS disk image\n");
+        eprintf("FDS disk image\n");
     } else {
         error_code = s_loader(&driver, &rom);
     }
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
             i++;
         }
         dbg_map[i + 1].label[0] = 0;
-        fprintf(stderr, "Read %d entries from %s\n", i, argv[2]);
+        eprintf("Read %d entries from %s\n", i, argv[2]);
         fclose(map_file);
     }*/
         
