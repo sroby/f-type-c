@@ -5,23 +5,26 @@
 
 #define SIZE_SRAM 0x2000
 
+#define SIZE_PRG_BANK (SIZE_PRG_ROM / 4)
+#define SIZE_CHR_BANK (SIZE_CHR_ROM / 8)
+
 #define MAX_BANKS 8
 
 // Forward declarations
 typedef struct Machine Machine;
 
 typedef struct MMC1State {
-    int shift_reg;
     int shift_pos;
-    int prg_fixed_bank;
-    int prg_bank;
-    int chr_banks[2];
+    uint8_t shift_reg;
+    uint8_t ctrl_flags;
+    uint8_t prg_bank;
+    uint8_t chr_banks[2];
     bool is_a;
 } MMC1State;
 
 typedef struct MMC24State {
     int chr_banks[2][2];
-    int chr_latches[2];
+    bool chr_latches[2];
     bool is_2;
 } MMC24State;
 
@@ -39,22 +42,31 @@ typedef struct UxROMVariants {
     int target_bank;
 } UxROMVariants;
 
+typedef struct Sunsoft4State {
+    uint8_t ctrl;
+    uint8_t *chr_nt_banks[2];
+} Sunsoft4State;
+
 typedef union Mapper {
     MMC1State mmc1;
     MMC24State mmc24;
     MMC3State mmc3;
     UxROMVariants uxrom;
-    uint8_t sunsoft4_ctrl;
+    Sunsoft4State sunsoft4;
     int cp_counter;
+    uint8_t vrc1_chr_banks[2];
+    void (*hijacked_reg)(Machine *, uint16_t, uint8_t);
 } Mapper;
 
 typedef struct Cartridge {
     // PRG ROM
     blob prg_rom;
+    uint8_t *prg_banks[4];
     
     // CHR ROM/RAM
     blob chr_memory;
     bool chr_is_ram;
+    uint8_t *chr_banks[8];
     
     // SRAM (aka. PRG RAM)
     blob sram;
@@ -63,11 +75,6 @@ typedef struct Cartridge {
     
     // Memory mapper
     Mapper mapper;
-    int prg_banks[MAX_BANKS];
-    size_t prg_bank_size;
-    int chr_banks[MAX_BANKS];
-    size_t chr_bank_size;
-    int sram_bank;
 } Cartridge;
 
 typedef struct MapperInfo {

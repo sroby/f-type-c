@@ -301,9 +301,9 @@ static void task_update_vert_v_vert_t(PPU *ppu) {
 
 // MEMORY I/O //
 
-static uint8_t read_register(Machine *vm, int offset) {
+static uint8_t read_register(Machine *vm, uint16_t addr) {
     PPU *ppu = &vm->ppu;
-    switch (offset) {
+    switch (addr & 7) {
         case PPUSTATUS:
             ppu->reg_latch = (ppu->reg_latch & 0b11111) | ppu->status;
             ppu->status &= ~(STATUS_VBLANK); // VBlank is cleared at read
@@ -325,12 +325,12 @@ static uint8_t read_register(Machine *vm, int offset) {
     return ppu->reg_latch;
 }
 
-static void write_register(Machine *vm, int offset, uint8_t value) {
+static void write_register(Machine *vm, uint16_t addr, uint8_t value) {
     PPU *ppu = &vm->ppu;
     ppu->reg_latch = value;
     uint8_t old_ctrl;
     uint16_t d;
-    switch (offset) {
+    switch (addr & 7) {
         case PPUCTRL:
             old_ctrl = ppu->ctrl;
             ppu->ctrl = value;
@@ -378,7 +378,7 @@ static void write_register(Machine *vm, int offset, uint8_t value) {
     }
 }
 
-static void write_oam_dma(Machine *vm, int offset, uint8_t value) {
+static void write_oam_dma(Machine *vm, uint16_t addr, uint8_t value) {
     if (value == 0x40) {
         return; // Avoid a (very unlikely) infinite loop
     }
@@ -391,18 +391,19 @@ static void write_oam_dma(Machine *vm, int offset, uint8_t value) {
     cpu_65xx_external_t_increment(&vm->cpu, 0x201);
 }
 
-static uint8_t read_background_colors(Machine *vm, int offset) {
-    return vm->ppu.background_colors[offset];
+static uint8_t read_background_colors(Machine *vm, uint16_t addr) {
+    return vm->ppu.background_colors[(addr >> 2) & 3];
 }
-static void write_background_colors(Machine *vm, int offset, uint8_t value) {
-    vm->ppu.background_colors[offset] = value & MASK_COLOR;
+static void write_background_colors(Machine *vm, uint16_t addr, uint8_t value) {
+    vm->ppu.background_colors[(addr >> 2) & 3] = value & MASK_COLOR;
 }
 
-static uint8_t read_palettes(Machine *vm, int offset) {
-    return vm->ppu.palettes[offset];
+static uint8_t read_palettes(Machine *vm, uint16_t addr) {
+    return vm->ppu.palettes[3 * ((addr >> 2) & 7) + (addr & 3) - 1];
 }
-static void write_palettes(Machine *vm, int offset, uint8_t value) {
-    vm->ppu.palettes[offset] = value & MASK_COLOR;
+static void write_palettes(Machine *vm, uint16_t addr, uint8_t value) {
+    vm->ppu.palettes[3 * ((addr >> 2) & 7) + (addr & 3) - 1] = value &
+                                                               MASK_COLOR;
 }
 
 // PUBLIC FUNCTIONS //
@@ -448,23 +449,21 @@ void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, uint32_t *screen,
     ppu->tasks[336][TASK_UPDATE] = task_update_inc_hori_v;
     
     // CPU 2000-3FFF: PPU registers (8, repeated)
-    for (int i = 0; i < 0x2000; i++) {
-        cpu->mm->addrs[0x2000 + i] = (MemoryAddress)
-            {read_register, write_register, i % 8};
+    for (int i = 0x2000; i < 0x4000; i++) {
+        cpu->mm->read[i] = read_register;
+        cpu->mm->write[i] = write_register;
     }
     // CPU 4014: OAM DMA register
-    cpu->mm->addrs[0x4014].write_func = write_oam_dma;
+    cpu->mm->write[0x4014] = write_oam_dma;
     
     // PPU 3F00-3FFF: Palettes
-    for (int i = 0x3F00; i < 0x4000; i += 0x20) {
-        for (int j = 0; j < 8; j++) {
-            mm->addrs[i + (j * 0x04)] = (MemoryAddress)
-                {read_background_colors, write_background_colors, j % 4};
-        }
-        for (int j = 0; j < 24; j++) {
-            mm->addrs[i + (j / 3 * 4) + (j % 3) + 1] = (MemoryAddress)
-                {read_palettes, write_palettes, j};
-        }
+    for (int i = 0x3F00; i < 0x4000; i++) {
+        mm->read[i] = read_palettes;
+        mm->write[i] = write_palettes;
+    }
+    for (int i = 0x3F00; i < 0x4000; i += 4) {
+        mm->read[i] = read_background_colors;
+        mm->write[i] = write_background_colors;
     }
 }
 

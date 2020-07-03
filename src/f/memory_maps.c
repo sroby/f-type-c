@@ -9,43 +9,53 @@ static void init_common(MemoryMap *mm, Machine *vm) {
     mm->vm = vm;
 }
 
+static void write_open_bus(Machine *vm, uint16_t addr, uint8_t value) {
+    // Does nothing, obviously
+}
+
 // CPU MEMORY MAP ACCESSES //
 
-static uint8_t read_wram(Machine *vm, int offset) {
-    return vm->wram[offset];
-}
-static void write_wram(Machine *vm, int offset, uint8_t value) {
-    vm->wram[offset] = value;
+static uint8_t read_cpu_open_bus(Machine *vm, uint16_t addr) {
+    return vm->cpu_mm.last_read;
 }
 
-static uint8_t read_controllers(Machine *vm, int offset) {
+static uint8_t read_wram(Machine *vm, uint16_t addr) {
+    return vm->wram[addr];
+}
+static void write_wram(Machine *vm, uint16_t addr, uint8_t value) {
+    vm->wram[addr] = value;
+}
+
+static uint8_t read_controllers(Machine *vm, uint16_t addr) {
+    int port = addr & 1;
     uint8_t value = vm->cpu_mm.last_read & 0b11100000;
-    value += vm->ctrl_latch[offset] & 1;
-    vm->ctrl_latch[offset] >>= 1;
-    if (offset) {
+    value += vm->ctrl_latch[port] & 1;
+    vm->ctrl_latch[port] >>= 1;
+    if (port) {
         value |= (!vm->ppu.lightgun_sensor << 3) |
                  (!vm->input->lightgun_trigger << 4);
     }
     return value;
 }
 
-static void write_controller_latch(Machine *vm, int offset, uint8_t value) {
+static void write_controller_latch(Machine *vm, uint16_t addr, uint8_t value) {
     if (value & 1) {
         vm->ctrl_latch[0] = vm->input->controllers[0];
         vm->ctrl_latch[1] = vm->input->controllers[1];
     }
-    vm->vs_bank = value & 0b100;
 }
 
 // PPU MEMORY MAP ACCESSES //
 
-static uint8_t read_nametables(Machine *vm, int offset) {
-    return vm->nt_layout[(unsigned int)offset / SIZE_NAMETABLE]
-                        [(unsigned int)offset % SIZE_NAMETABLE];
+static uint8_t read_ppu_open_bus(Machine *vm, uint16_t addr) {
+    return vm->ppu_mm.last_read;
 }
-static void write_nametables(Machine *vm, int offset, uint8_t value) {
-    vm->nt_layout[(unsigned int)offset / SIZE_NAMETABLE]
-                 [(unsigned int)offset % SIZE_NAMETABLE] = value;
+
+static uint8_t read_nametables(Machine *vm, uint16_t addr) {
+    return vm->nt_layout[(addr >> 10) & 0b11][addr & 0x3FF];
+}
+static void write_nametables(Machine *vm, uint16_t addr, uint8_t value) {
+    vm->nt_layout[(addr >> 10) & 0b11][addr & 0x3FF] = value;
 }
 
 // PUBLIC FUNCTIONS //
@@ -54,18 +64,22 @@ void memory_map_cpu_init(MemoryMap *mm, Machine *vm) {
     init_common(mm, vm);
     mm->addr_mask = 0xFFFF;
     
+    for (int i = 0; i < 0x10000; i++) {
+        mm->read[i] = read_cpu_open_bus;
+        mm->write[i] = write_open_bus;
+    }
+    
     // Populate the address map
     // 0000-1FFF: WRAM (2kB, repeated)
     for (int i = 0; i < SIZE_WRAM; i++) {
-        mm->addrs[i] = (MemoryAddress) {read_wram, write_wram, i % SIZE_WRAM};
+        mm->read[i] = read_wram;
+        mm->write[i] = write_wram;
     }
     // 2000-4015: PPU and APU registers, defined by their respective inits
     // 4016-4017: Controller I/O
-    mm->addrs[0x4016] = (MemoryAddress)
-        {read_controllers, write_controller_latch, 0};
-    mm->addrs[0x4017] = (MemoryAddress)
-        {read_controllers, NULL, 1}; // Also APU on write
-    // 4018-401F: Unused
+    mm->read[0x4016] = mm->read[0x4017] = read_controllers;
+    mm->write[0x4016] = write_controller_latch;
+    // 4018-401F: Test mode registers, not implemented
     // 4020-FFFF: Cartridge I/O, defined by the mapper's init
 }
 
@@ -73,12 +87,17 @@ void memory_map_ppu_init(MemoryMap *mm, Machine *vm) {
     init_common(mm, vm);
     mm->addr_mask = 0x3FFF;
     
+    for (int i = 0; i < 0x4000; i++) {
+        mm->read[i] = read_ppu_open_bus;
+        mm->write[i] = write_open_bus;
+    }
+    
     // Populate the address map
     // 0000-1FFF: Cartridge I/O, defined by the mapper's init
     // 2000-3EFF: Nametables
-    for (int i = 0; i < 0x1EFF; i++) {
-        mm->addrs[0x2000 + i] = (MemoryAddress)
-            {read_nametables, write_nametables, i % (SIZE_NAMETABLE * 4)};
+    for (int i = 0x2000; i < 0x3F00; i++) {
+        mm->read[i] = read_nametables;
+        mm->write[i] = write_nametables;
     }
     // 3F00-3FFF: Palettes, defined by ppu_init()
     // 4000-FFFF: Over the 14 bit range
@@ -86,10 +105,7 @@ void memory_map_ppu_init(MemoryMap *mm, Machine *vm) {
 
 uint8_t mm_read(MemoryMap *mm, uint16_t addr) {
     addr &= mm->addr_mask;
-    MemoryAddress *f = &mm->addrs[addr];
-    if (f->read_func) {
-        mm->last_read = (*f->read_func)(mm->vm, f->offset);
-    }
+    mm->last_read = (mm->read[addr])(mm->vm, addr);
     return mm->last_read;
 }
 uint16_t mm_read_word(MemoryMap *mm, uint16_t addr) {
@@ -98,10 +114,7 @@ uint16_t mm_read_word(MemoryMap *mm, uint16_t addr) {
 
 void mm_write(MemoryMap *mm, uint16_t addr, uint8_t value) {
     addr &= mm->addr_mask;
-    MemoryAddress *f = &mm->addrs[addr];
-    if (f->write_func) {
-        (*f->write_func)(mm->vm, f->offset, value);
-    }
+    (mm->write[addr])(mm->vm, addr, value);
 }
 void mm_write_word(MemoryMap *mm, uint16_t addr, uint16_t value) {
     mm_write(mm, addr, value & 0xff);

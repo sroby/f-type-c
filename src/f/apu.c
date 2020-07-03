@@ -67,17 +67,17 @@ const uint16_t sequence_lengths[] = {8, 8, 32};
 
 // MEMORY I/O //
 
-static void write_envelope_volume(Machine *vm, int offset, uint8_t value) {
+static void write_envelope_volume(Machine *vm, uint16_t addr, uint8_t value) {
     // Pulse, Noise
-    WaveformChannel *ch = vm->apu.channels + offset;
+    WaveformChannel *ch = vm->apu.channels + ((addr >> 2) & 7);
     ch->duty = value >> 6;
     BIT_AS(ch->flags, CHF_HALT, BIT_CHECK(value, 5));
     BIT_AS(ch->flags, CHF_ENV_DISABLE, BIT_CHECK(value, 4));
     ch->volume = value & 0xF;
 }
 
-static void write_pulse_sweep(Machine *vm, int offset, uint8_t value) {
-    WaveformChannel *ch = vm->apu.channels + offset;
+static void write_pulse_sweep(Machine *vm, uint16_t addr, uint8_t value) {
+    WaveformChannel *ch = vm->apu.channels + ((addr >> 2) & 7);
     BIT_AS(ch->flags, CHF_SWEEP_ENABLE, BIT_CHECK(value, 7));
     ch->sweep_counter_load = (value >> 4) & 7;
     BIT_AS(ch->flags, CHF_SWEEP_NEGATE, BIT_CHECK(value, 3));
@@ -85,45 +85,46 @@ static void write_pulse_sweep(Machine *vm, int offset, uint8_t value) {
     BIT_SET(ch->flags, CHF_SWEEP_RELOAD);
 }
 
-static void write_timer_low(Machine *vm, int offset, uint8_t value) {
+static void write_timer_low(Machine *vm, uint16_t addr, uint8_t value) {
     // Pulse, Triangle
-    WaveformChannel *ch = vm->apu.channels + offset;
+    WaveformChannel *ch = vm->apu.channels + ((addr >> 2) & 7);
     ch->timer_load = (ch->timer_load & 0xFF00) | value;
 }
 
-static void write_length_counter_timer_high(Machine *vm, int offset,
+static void write_length_counter_timer_high(Machine *vm, uint16_t addr,
                                             uint8_t value) {
     // Pulse, Triangle, Noise
-    WaveformChannel *ch = vm->apu.channels + offset;
-    if (BIT_CHECK(vm->apu.ch_enabled, offset)) {
+    ChannelIndex n = ((addr >> 2) & 7);
+    WaveformChannel *ch = vm->apu.channels + n;
+    if (BIT_CHECK(vm->apu.ch_enabled, n)) {
         ch->length_counter = counter_lengths[value >> 3];
     }
-    if (offset != CH_NOISE) {
+    if (n != CH_NOISE) {
         ch->timer_load = (ch->timer_load & 0xFF) | ((value & 0b111) << 8);
     }
-    if (offset <= CH_PULSE_2) {
+    if (n <= CH_PULSE_2) {
         ch->sequence = 0;
     }
-    if (offset == CH_TRIANGLE) {
+    if (n == CH_TRIANGLE) {
         BIT_SET(vm->apu.flags, AF_LINEAR_COUNTER_RELOAD);
     }
     BIT_SET(ch->flags, CHF_ENV_START);
 }
 
-static void write_triangle_linear_counter(Machine *vm, int offset,
+static void write_triangle_linear_counter(Machine *vm, uint16_t addr,
                                           uint8_t value) {
     APU *apu = &vm->apu;
-    BIT_AS(apu->channels[offset].flags, CHF_HALT, BIT_CHECK(value, 7));
+    BIT_AS(apu->channels[CH_TRIANGLE].flags, CHF_HALT, BIT_CHECK(value, 7));
     apu->linear_counter_load = value & 0x7F;
 }
 
-static void write_noise_mode_period(Machine *vm, int offset, uint8_t value) {
-    WaveformChannel *ch = vm->apu.channels + offset;
+static void write_noise_mode_period(Machine *vm, uint16_t addr, uint8_t value) {
+    WaveformChannel *ch = vm->apu.channels + CH_NOISE;
     BIT_AS(ch->flags, CHF_NOISE_MODE, BIT_CHECK(value, 7));
     ch->timer_load = noise_periods[value & 0xF] / 2; // TODO do we need the /2?
 }
 
-static void write_dmc_flags_rate(Machine *vm, int offset, uint8_t value) {
+static void write_dmc_flags_rate(Machine *vm, uint16_t addr, uint8_t value) {
     APU *apu = &vm->apu;
     
     bool irq_set = BIT_CHECK(value, 7);
@@ -135,19 +136,19 @@ static void write_dmc_flags_rate(Machine *vm, int offset, uint8_t value) {
     apu->dmc_timer_load = dmc_rates[value & 0xF] / 2;
 }
 
-static void write_dmc_load(Machine *vm, int offset, uint8_t value) {
+static void write_dmc_load(Machine *vm, uint16_t addr, uint8_t value) {
     vm->apu.dmc_delta = value & 0x7F;
 }
 
-static void write_dmc_addr(Machine *vm, int offset, uint8_t value) {
+static void write_dmc_addr(Machine *vm, uint16_t addr, uint8_t value) {
     vm->apu.dmc_addr_load = 0xC000 + (value << 6);
 }
 
-static void write_dmc_length(Machine *vm, int offset, uint8_t value) {
+static void write_dmc_length(Machine *vm, uint16_t addr, uint8_t value) {
     vm->apu.dmc_length = (value << 4) + 1;
 }
 
-static uint8_t read_status(Machine *vm, int offset) {
+static uint8_t read_status(Machine *vm, uint16_t addr) {
     APU *apu = &vm->apu;
     CPU65xx *cpu = &vm->cpu;
     uint8_t status = 0;
@@ -161,7 +162,7 @@ static uint8_t read_status(Machine *vm, int offset) {
     return status;
 }
 
-static void write_control(Machine *vm, int offset, uint8_t value) {
+static void write_control(Machine *vm, uint16_t addr, uint8_t value) {
     APU *apu = &vm->apu;
     vm->apu.ch_enabled = value & 0b11111;
     for (int i = 0; i < 4; i++) {
@@ -180,7 +181,7 @@ static void write_control(Machine *vm, int offset, uint8_t value) {
     BIT_CLEAR(vm->cpu.irq, IRQ_APU_DMC);
 }
 
-static void write_frame_counter(Machine *vm, int offset, uint8_t value) {
+static void write_frame_counter(Machine *vm, uint16_t addr, uint8_t value) {
     APU *apu = &vm->apu;
     bool irq_set = BIT_CHECK(value, 6);
     BIT_AS(apu->flags, AF_FC_IRQ_DISABLE, irq_set);
@@ -270,38 +271,32 @@ void apu_init(APU *apu, CPU65xx *cpu, int16_t *frame) {
     MemoryMap *mm = cpu->mm;
     
     // 4000-4007: Pulse channels
-    for (int i = 0; i < 2; i++) {
-        mm->addrs[0x4000 + i * 4] = (MemoryAddress)
-            {NULL, write_envelope_volume, i};
-        mm->addrs[0x4001 + i * 4] = (MemoryAddress)
-            {NULL, write_pulse_sweep, i};
-        mm->addrs[0x4002 + i * 4] = (MemoryAddress) {NULL, write_timer_low, i};
-        mm->addrs[0x4003 + i * 4] = (MemoryAddress)
-            {NULL, write_length_counter_timer_high, i};
+    for (int i = 0; i < 8; i += 4) {
+        mm->write[0x4000 + i] = write_envelope_volume;
+        mm->write[0x4001 + i] = write_pulse_sweep;
+        mm->write[0x4002 + i] = write_timer_low;
+        mm->write[0x4003 + i] = write_length_counter_timer_high;
     }
     // 4008-400B: Triangle channel
-    mm->addrs[0x4008] = (MemoryAddress)
-        {NULL, write_triangle_linear_counter, CH_TRIANGLE};
+    mm->write[0x4008] = write_triangle_linear_counter;
     //        0x4009 Unused
-    mm->addrs[0x400A] = (MemoryAddress) {NULL, write_timer_low, CH_TRIANGLE};
-    mm->addrs[0x400B] = (MemoryAddress)
-        {NULL, write_length_counter_timer_high, CH_TRIANGLE};
+    mm->write[0x400A] = write_timer_low;
+    mm->write[0x400B] = write_length_counter_timer_high;
     // 400C-400F: Noise channel
-    mm->addrs[0x400C] = (MemoryAddress) {NULL, write_envelope_volume, CH_NOISE};
+    mm->write[0x400C] = write_envelope_volume;
     //        0x400D Unused
-    mm->addrs[0x400E] = (MemoryAddress)
-        {NULL, write_noise_mode_period, CH_NOISE};
-    mm->addrs[0x400F] = (MemoryAddress)
-        {NULL, write_length_counter_timer_high, CH_NOISE};
+    mm->write[0x400E] = write_noise_mode_period;
+    mm->write[0x400F] = write_length_counter_timer_high;
     // 4010-4013: DMC channel
-    mm->addrs[0x4010] = (MemoryAddress) {NULL, write_dmc_flags_rate, CH_DMC};
-    mm->addrs[0x4011] = (MemoryAddress) {NULL, write_dmc_load, CH_DMC};
-    mm->addrs[0x4012] = (MemoryAddress) {NULL, write_dmc_addr, CH_DMC};
-    mm->addrs[0x4013] = (MemoryAddress) {NULL, write_dmc_length, CH_DMC};
+    mm->write[0x4010] = write_dmc_flags_rate;
+    mm->write[0x4011] = write_dmc_load;
+    mm->write[0x4012] = write_dmc_addr;
+    mm->write[0x4013] = write_dmc_length;
     // 4015: Status and control
-    mm->addrs[0x4015] = (MemoryAddress) {read_status, write_control, 0};
+    mm->read[0x4015] = read_status;
+    mm->write[0x4015] = write_control;
     // 4017: Frame control (write only, overlaps controller #2 on read)
-    mm->addrs[0x4017].write_func = write_frame_counter;
+    mm->write[0x4017] = write_frame_counter;
 }
 
 void apu_step(APU *apu) {

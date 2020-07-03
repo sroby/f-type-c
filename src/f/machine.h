@@ -57,7 +57,6 @@ typedef struct Machine {
     
     // Controller I/O
     uint8_t ctrl_latch[2];
-    bool vs_bank;
     InputState *input;
 } Machine;
 
