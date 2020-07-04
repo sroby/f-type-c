@@ -289,43 +289,47 @@ static void MMC3_update_banks(Cartridge *cart) {
     }
 }
 
-static void MMC3_write_register(Machine *vm, uint16_t addr, uint8_t value) {
+static void MMC3_write_register_bank_select(Machine *vm, uint16_t addr,
+                                            uint8_t value) {
+    vm->cart.mapper.mmc3.bank_select = value;
+    MMC3_update_banks(&vm->cart);
+}
+
+static void MMC3_write_register_bank_data(Machine *vm, uint16_t addr,
+                                          uint8_t value) {
     Cartridge *cart = &vm->cart;
-    MMC3State *mmc = &cart->mapper.mmc3;
-    int bank;
-    switch (((addr & 0x6000) >> 12) | (addr & 1)) {
-        case 0: // Bank select
-            mmc->bank_select = value;
-            MMC3_update_banks(cart);
-            break;
-        case 1: // Bank data
-            bank = mmc->bank_select & 0b111;
-            if (bank < 2) {
-                value &= ~1;
-            }
-            mmc->banks[bank] = value;
-            MMC3_update_banks(cart);
-            break;
-        case 2: // Mirroring
-            machine_set_nt_mirroring(vm,
-                                     (value & 1 ? NT_HORIZONTAL : NT_VERTICAL));
-            break;
-        // 3: SRAM protect, intentionally not implemented to ensure
-        //    cross-compatibility with MMC6 which shares the same mapper ID
-        case 4: // IRQ latch
-            mmc->irq_latch = value;
-            break;
-        case 5: // IRQ reload
-            mmc->irq_counter = 0;
-            break;
-        case 6: // IRQ disable
-            mmc->irq_enabled = false;
-            BIT_CLEAR(vm->cpu.irq, IRQ_MAPPER);
-            break;
-        case 7: // IRQ enable
-            mmc->irq_enabled = true;
-            break;
+    int bank = cart->mapper.mmc3.bank_select & 7;
+    if (bank < 2) {
+        value &= ~1;
     }
+    cart->mapper.mmc3.banks[bank] = value;
+    MMC3_update_banks(cart);
+}
+
+static void MMC3_write_register_mirroring(Machine *vm, uint16_t addr,
+                                          uint8_t value) {
+    machine_set_nt_mirroring(vm, (value & 1 ? NT_HORIZONTAL : NT_VERTICAL));
+}
+
+static void MMC3_write_register_irq_latch(Machine *vm, uint16_t addr,
+                                          uint8_t value) {
+    vm->cart.mapper.mmc3.irq_latch = value;
+}
+
+static void MMC3_write_register_irq_reload(Machine *vm, uint16_t addr,
+                                            uint8_t value) {
+    vm->cart.mapper.mmc3.irq_counter = 0;
+}
+
+static void MMC3_write_register_irq_disable(Machine *vm, uint16_t addr,
+                                            uint8_t value) {
+    vm->cart.mapper.mmc3.irq_enabled = false;
+    BIT_CLEAR(vm->cpu.irq, IRQ_MAPPER);
+}
+
+static void MMC3_write_register_irq_enable(Machine *vm, uint16_t addr,
+                                           uint8_t value) {
+    vm->cart.mapper.mmc3.irq_enabled = true;
 }
 
 static uint8_t MMC3_read_chr(Machine *vm, uint16_t addr) {
@@ -352,7 +356,24 @@ static void MMC3_init(Machine *vm) {
     select_prg_quarter(cart, 3, get_prg_last_quarter(cart, 1));
     MMC3_update_banks(cart);
     
-    init_register_prg(vm, MMC3_write_register);
+    int i = 0x8000;
+    while (i < 0xA000) {
+        vm->cpu_mm.write[i++] = MMC3_write_register_bank_select;
+        vm->cpu_mm.write[i++] = MMC3_write_register_bank_data;
+    }
+    while (i < 0xC000) {
+        vm->cpu_mm.write[i++] = MMC3_write_register_mirroring;
+        i++;    // SRAM protect, intentionally not implemented to ensure
+                // cross-compatibility with MMC6 which shares the same mapper ID
+    }
+    while (i < 0xE000) {
+        vm->cpu_mm.write[i++] = MMC3_write_register_irq_latch;
+        vm->cpu_mm.write[i++] = MMC3_write_register_irq_reload;
+    }
+    while (i < 0x10000) {
+        vm->cpu_mm.write[i++] = MMC3_write_register_irq_disable;
+        vm->cpu_mm.write[i++] = MMC3_write_register_irq_enable;
+    }
     
     for (int i = 0; i < SIZE_CHR_ROM; i++) {
         vm->ppu_mm.read[i] = MMC3_read_chr;
@@ -399,26 +420,24 @@ static void MMC24_update_chr_banks(Cartridge *cart) {
     }
 }
 
-static void MMC24_write_register(Machine *vm, uint16_t addr, uint8_t value) {
-    int offset = ((addr >> 12) & 7) - 3;
-    switch (offset) {
-        case -3: case -2: // 8xxx, 9xxx: Unused
-            break;
-        case -1: // Axxx: PRG ROM bank select
-            if (vm->cart.mapper.mmc24.is_2) {
-                select_prg_quarter(&vm->cart, 0, value);
-            } else {
-                select_prg_half(&vm->cart, 0, value);
-            }
-            break;
-        case 4: // Fxxx: Mirroring
-            machine_set_nt_mirroring(vm,
-                                     (value & 1 ? NT_HORIZONTAL : NT_VERTICAL));
-            break;
-        default: // Bxxx-Exxx: CHR ROM bank selects
-            vm->cart.mapper.mmc24.chr_banks[offset / 2][offset % 2] = value;
-            MMC24_update_chr_banks(&vm->cart);
-    }
+static void MMC2_write_register_prg(Machine *vm, uint16_t addr, uint8_t value) {
+    select_prg_quarter(&vm->cart, 0, value);
+}
+
+static void MMC4_write_register_prg(Machine *vm, uint16_t addr, uint8_t value) {
+    select_prg_half(&vm->cart, 0, value);
+}
+
+static void MMC24_write_register_chr(Machine *vm, uint16_t addr,
+                                     uint8_t value) {
+    int bank = ((addr >> 12) & 7) - 3;
+    vm->cart.mapper.mmc24.chr_banks[bank / 2][bank % 2] = value;
+    MMC24_update_chr_banks(&vm->cart);
+}
+
+static void MMC24_write_register_mirroring(Machine *vm, uint16_t addr,
+                                           uint8_t value) {
+    machine_set_nt_mirroring(vm, (value & 1 ? NT_HORIZONTAL : NT_VERTICAL));
 }
 
 static uint8_t MMC24_read_chr(Machine *vm, uint16_t addr) {
@@ -450,10 +469,19 @@ static uint8_t MMC24_read_chr(Machine *vm, uint16_t addr) {
     return value;
 }
 
-static void MMC24_init_common(Machine *vm) {
+static void MMC24_init_common(Machine *vm, WriteFunc register_prg_func) {
     memset(&vm->cart.mapper.mmc24, 0, sizeof(MMC24State));
     
-    init_register_prg(vm, MMC24_write_register);
+    int i = 0xA000;
+    while (i < 0xB000) {
+        vm->cpu_mm.write[i++] = register_prg_func;
+    }
+    while (i < 0xF000) {
+        vm->cpu_mm.write[i++] = MMC24_write_register_chr;
+    }
+    while (i < 0x10000) {
+        vm->cpu_mm.write[i++] = MMC24_write_register_mirroring;
+    }
     
     for (int i = 0; i < SIZE_CHR_ROM; i++) {
         vm->ppu_mm.read[i] = MMC24_read_chr;
@@ -461,7 +489,7 @@ static void MMC24_init_common(Machine *vm) {
 }
 
 static void MMC2_init(Machine *vm) {
-    MMC24_init_common(vm);
+    MMC24_init_common(vm, MMC2_write_register_prg);
 
     Cartridge *cart = &vm->cart;
     cart->mapper.mmc24.is_2 = true;
@@ -474,7 +502,7 @@ static void MMC2_init(Machine *vm) {
 }
 
 static void MMC4_init(Machine *vm) {
-    MMC24_init_common(vm);
+    MMC24_init_common(vm, MMC4_write_register_prg);
     
     Cartridge *cart = &vm->cart;
     select_prg_half(cart, 1, get_prg_last_half(cart, 1));
