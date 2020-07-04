@@ -57,6 +57,9 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
         SDL_Joystick *js = SDL_JoystickOpen(i);
         if (js) {
             const char *js_name = SDL_JoystickName(js);
+            char js_guid[33];
+            SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(js),
+                                      js_guid, sizeof(js_guid));
             if (!strcasecmp(js_name, "retrousb.com snes retroport")) {
                 wnd->buttons[assigned_js] = buttons_snes_retroport;
             } else if (!strncasecmp(js_name, "8bitdo", 6)) {
@@ -67,8 +70,8 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
                 wnd->buttons[assigned_js] = buttons;
             }
             wnd->js[assigned_js++] = js;
-            eprintf("Assigned \"%s\" as controller #%d\n",
-                    js_name, assigned_js);
+            eprintf("Assigned \"%s\" (%s) as controller #%d\n",
+                    js_name, js_guid, assigned_js);
             if (assigned_js >= 2) {
                 break;
             }
