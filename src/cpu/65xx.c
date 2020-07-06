@@ -1,13 +1,25 @@
 #include "65xx.h"
 
-#include "../f/memory_maps.h"
-
 // MISC. //
 
 static void apply_page_boundary_penalty(CPU65xx *cpu, uint16_t a, uint16_t b) {
     if ((a >> 8) != (b >> 8)) {
         cpu->time++;
     }
+}
+
+// MEMORY I/O //
+
+static inline uint8_t mem_read(CPU65xx *cpu, uint16_t addr) {
+    return (*cpu->read_func)(cpu->mm, addr);
+}
+
+static inline void mem_write(CPU65xx *cpu, uint16_t addr, uint8_t value) {
+    (*cpu->write_func)(cpu->mm, addr, value);
+}
+
+static inline uint16_t mem_read_word(CPU65xx *cpu, uint16_t addr) {
+    return mem_read(cpu, addr) + (mem_read(cpu, addr + 1) << 8);
 }
 
 // P.STATUS REGISTER //
@@ -34,7 +46,7 @@ static uint16_t get_stack_addr(CPU65xx *cpu) {
 }
 
 static void stack_push(CPU65xx *cpu, uint8_t value) {
-    mm_write(cpu->mm, get_stack_addr(cpu), value);
+    mem_write(cpu, get_stack_addr(cpu), value);
     (cpu->s)--;
 }
 static void stack_push_word(CPU65xx *cpu, uint16_t value) {
@@ -44,7 +56,7 @@ static void stack_push_word(CPU65xx *cpu, uint16_t value) {
 
 static uint8_t stack_pull(CPU65xx *cpu) {
     (cpu->s)++;
-    return mm_read(cpu->mm, get_stack_addr(cpu));
+    return mem_read(cpu, get_stack_addr(cpu));
 }
 static uint16_t stack_pull_word(CPU65xx *cpu) {
     uint16_t lower = stack_pull(cpu);
@@ -62,7 +74,7 @@ static void interrupt(CPU65xx *cpu, bool b_flag, uint16_t ivt_addr) {
         stack_push(cpu, cpu->p);
     }
     set_p_flag(cpu, P_I, true);
-    cpu->pc = mm_read_word(cpu->mm, ivt_addr);
+    cpu->pc = mem_read_word(cpu, ivt_addr);
     cpu->time += 7;
 }
 
@@ -72,7 +84,7 @@ static uint8_t get_param_value(CPU65xx *cpu, const Opcode *op, OpParam param) {
     if (op->am == AM_IMMEDIATE) {
         return param.immediate_value;
     }
-    return mm_read(cpu->mm, param.addr);
+    return mem_read(cpu, param.addr);
 }
 
 static void op_T(CPU65xx *cpu, const Opcode *op, OpParam param) {
@@ -88,7 +100,7 @@ static void op_LD(CPU65xx *cpu, const Opcode *op, OpParam param) {
 }
 
 static void op_ST(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    mm_write(cpu->mm, param.addr, *op->reg1);
+    mem_write(cpu, param.addr, *op->reg1);
 }
 
 static void op_PH(CPU65xx *cpu, const Opcode *op, OpParam param) {
@@ -158,7 +170,7 @@ static void op_BIT(CPU65xx *cpu, const Opcode *op, OpParam param) {
 
 static void op_INC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t result = get_param_value(cpu, op, param) + 1;
-    mm_write(cpu->mm, param.addr, result);
+    mem_write(cpu, param.addr, result);
     apply_p_nz(cpu, result);
 }
 
@@ -168,7 +180,7 @@ static void op_IN(CPU65xx *cpu, const Opcode *op, OpParam param) {
 
 static void op_DEC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t result = get_param_value(cpu, op, param) - 1;
-    mm_write(cpu->mm, param.addr, result);
+    mem_write(cpu, param.addr, result);
     apply_p_nz(cpu, result);
 }
 
@@ -188,7 +200,7 @@ static void shift_left(CPU65xx *cpu, const Opcode *op, OpParam param,
         set_p_flag(cpu, P_C, value & (1 << 7));
         value <<= 1;
         value |= carry;
-        mm_write(cpu->mm, param.addr, value);
+        mem_write(cpu, param.addr, value);
         apply_p_nz(cpu, value);
     }
 }
@@ -211,7 +223,7 @@ static void shift_right(CPU65xx *cpu, const Opcode *op, OpParam param,
         set_p_flag(cpu, P_C, value & 1);
         value >>= 1;
         value |= carry;
-        mm_write(cpu->mm, param.addr, value);
+        mem_write(cpu, param.addr, value);
         apply_p_nz(cpu, value);
     }
 }
@@ -311,12 +323,16 @@ static void op_KIL(CPU65xx *cpu, const Opcode *op, OpParam param) {
 
 // PUBLIC FUNCTIONS //
 
-void cpu_65xx_init(CPU65xx *cpu, MemoryMap *mm) {
+void cpu_65xx_init(CPU65xx *cpu, void *mm,
+                   CPU65xxReadFunc read_func, CPU65xxWriteFunc write_func) {
     cpu->a = cpu->x = cpu->y = cpu->s = 0;
     cpu->p = P__;
     cpu->pc = 0;
     cpu->time = 0;
+    
     cpu->mm = mm;
+    cpu->read_func = read_func;
+    cpu->write_func = write_func;
     
     // Initialize opcode lookup to KIL instruction
     // TODO: Add more illegal opcodes
@@ -532,7 +548,7 @@ void cpu_65xx_step(CPU65xx *cpu, bool verbose) {
     }
     
     // Fetch next instruction
-    uint8_t inst = mm_read(cpu->mm, cpu->pc++);
+    uint8_t inst = mem_read(cpu, cpu->pc++);
     const Opcode *op = &cpu->opcodes[inst];
     
     // Fetch parameter, if any
@@ -541,43 +557,41 @@ void cpu_65xx_step(CPU65xx *cpu, bool verbose) {
     switch (op->am) {
         case AM_IMPLIED:
             // Implied always does a dummy parameter read of the next byte
-            mm_read(cpu->mm, cpu->pc);
+            mem_read(cpu, cpu->pc);
             break;
         case AM_IMMEDIATE:
-            p1.immediate_value = p2.immediate_value = mm_read(cpu->mm,
-                                                              cpu->pc++);
+            p1.immediate_value = p2.immediate_value = mem_read(cpu, cpu->pc++);
             break;
         case AM_ZP:
-            p1.immediate_value = p2.immediate_value = mm_read(cpu->mm,
-                                                              cpu->pc++);
+            p1.immediate_value = p2.immediate_value = mem_read(cpu, cpu->pc++);
             if (op->reg2) {
                 p2.immediate_value += *op->reg2;
             }
             p2.addr = p2.immediate_value;
             break;
         case AM_ABSOLUTE:
-            p1.addr = p2.addr = mm_read_word(cpu->mm, cpu->pc);
+            p1.addr = p2.addr = mem_read_word(cpu, cpu->pc);
             cpu->pc += 2;
             if (op->reg2) {
                 p2.addr += *op->reg2;
             }
             break;
         case AM_INDIRECT_WORD:
-            p1.addr = mm_read_word(cpu->mm, cpu->pc);
+            p1.addr = mem_read_word(cpu, cpu->pc);
             cpu->pc += 2;
-            p2.addr = mm_read_word(cpu->mm, p1.addr);
+            p2.addr = mem_read_word(cpu, p1.addr);
             break;
         case AM_INDIRECT_X:
-            p1.immediate_value = mm_read(cpu->mm, cpu->pc++);
+            p1.immediate_value = mem_read(cpu, cpu->pc++);
             p2.immediate_value = p1.immediate_value + cpu->x;
-            p2.addr = mm_read_word(cpu->mm, p2.immediate_value);
+            p2.addr = mem_read_word(cpu, p2.immediate_value);
             break;
         case AM_INDIRECT_Y:
-            p1.immediate_value = mm_read(cpu->mm, cpu->pc++);
-            p2.addr = mm_read_word(cpu->mm, p1.immediate_value) + cpu->y;
+            p1.immediate_value = mem_read(cpu, cpu->pc++);
+            p2.addr = mem_read_word(cpu, p1.immediate_value) + cpu->y;
             break;
         case AM_RELATIVE:
-            p1.relative_addr = p2.relative_addr = mm_read(cpu->mm, cpu->pc++);
+            p1.relative_addr = p2.relative_addr = mem_read(cpu, cpu->pc++);
             break;
     }
     
@@ -651,7 +665,7 @@ void cpu_65xx_debug_print_state(CPU65xx *cpu) {
     }
     printf("] S=%02x{", cpu->s);
     for (int i = 0xff; i > cpu->s; i--) {
-        printf(" %02x", mm_read(cpu->mm, 0x100 + i));
+        printf(" %02x", mem_read(cpu, 0x100 + i));
     }
     printf(" }\n");
 }

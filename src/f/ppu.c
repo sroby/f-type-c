@@ -449,12 +449,13 @@ void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, uint32_t *screen,
     ppu->tasks[336][TASK_UPDATE] = task_update_inc_hori_v;
     
     // CPU 2000-3FFF: PPU registers (8, repeated)
+    MemoryMap *cpu_mm = cpu->mm;
     for (int i = 0x2000; i < 0x4000; i++) {
-        cpu->mm->read[i] = read_register;
-        cpu->mm->write[i] = write_register;
+        cpu_mm->read[i] = read_register;
+        cpu_mm->write[i] = write_register;
     }
     // CPU 4014: OAM DMA register
-    cpu->mm->write[0x4014] = write_oam_dma;
+    cpu_mm->write[0x4014] = write_oam_dma;
     
     // PPU 3F00-3FFF: Palettes
     for (int i = 0x3F00; i < 0x4000; i++) {

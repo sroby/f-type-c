@@ -23,7 +23,9 @@ typedef enum {
 // Forward declarations
 typedef struct CPU65xx CPU65xx;
 typedef struct Opcode Opcode;
-typedef struct MemoryMap MemoryMap;
+
+typedef uint8_t (*CPU65xxReadFunc)(void *, uint16_t);
+typedef void (*CPU65xxWriteFunc)(void *, uint16_t, uint8_t);
 
 typedef enum {
     AM_IMPLIED,
@@ -64,8 +66,10 @@ struct CPU65xx {
     uint16_t pc;
     // Total cycle counter
     uint64_t time;
-    // Memory map
-    MemoryMap *mm;
+    // Memory I/O
+    void *mm;
+    CPU65xxReadFunc read_func;
+    CPU65xxWriteFunc write_func;
     // Interrupt lines
     bool nmi;
     int irq;
@@ -74,7 +78,8 @@ struct CPU65xx {
     Opcode opcodes[0x100];
 };
 
-void cpu_65xx_init(CPU65xx *cpu, MemoryMap *mm);
+void cpu_65xx_init(CPU65xx *cpu, void *mm,
+                   CPU65xxReadFunc read_func, CPU65xxWriteFunc write_func);
 
 void cpu_65xx_step(CPU65xx *cpu, bool verbose);
 void cpu_65xx_reset(CPU65xx *cpu, bool verbose);
