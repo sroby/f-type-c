@@ -2,10 +2,8 @@
 
 // MISC. //
 
-static void apply_page_boundary_penalty(CPU65xx *cpu, uint16_t a, uint16_t b) {
-    if ((a >> 8) != (b >> 8)) {
-        cpu->time++;
-    }
+static int apply_page_boundary_penalty(uint16_t a, uint16_t b) {
+    return (a >> 8) != (b >> 8);
 }
 
 // MEMORY I/O //
@@ -65,7 +63,7 @@ static uint16_t stack_pull_word(CPU65xx *cpu) {
 
 // INTERRUPT HANDLING //
 
-static void interrupt(CPU65xx *cpu, bool b_flag, uint16_t ivt_addr) {
+static int interrupt(CPU65xx *cpu, bool b_flag, uint16_t ivt_addr) {
     set_p_flag(cpu, P_B, b_flag);
     if (ivt_addr == IVT_RESET) {
         cpu->s -= 3;
@@ -75,7 +73,7 @@ static void interrupt(CPU65xx *cpu, bool b_flag, uint16_t ivt_addr) {
     }
     set_p_flag(cpu, P_I, true);
     cpu->pc = mem_read_word(cpu, ivt_addr);
-    cpu->time += 7;
+    return 7;
 }
 
 // OPCODES //
@@ -87,40 +85,45 @@ static uint8_t get_param_value(CPU65xx *cpu, const Opcode *op, OpParam param) {
     return mem_read(cpu, param.addr);
 }
 
-static void op_T(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_T(CPU65xx *cpu, const Opcode *op, OpParam param) {
     *op->reg2 = *op->reg1;
     if (op->reg2 != &cpu->s) {
         apply_p_nz(cpu, *op->reg2);
     }
+    return 0;
 }
 
-static void op_LD(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_LD(CPU65xx *cpu, const Opcode *op, OpParam param) {
     *op->reg1 = get_param_value(cpu, op, param);
     apply_p_nz(cpu, *op->reg1);
+    return 0;
 }
 
-static void op_ST(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_ST(CPU65xx *cpu, const Opcode *op, OpParam param) {
     mem_write(cpu, param.addr, *op->reg1);
+    return 0;
 }
 
-static void op_PH(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_PH(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t value = *op->reg1;
     if (op->reg1 == &cpu->p) {
         value |= P_B | P__;
     }
     stack_push(cpu, value);
+    return 0;
 }
 
-static void op_PL(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_PL(CPU65xx *cpu, const Opcode *op, OpParam param) {
     *op->reg1 = stack_pull(cpu);
     if (op->reg1 == &cpu->p) {
         *op->reg1 &= ~(P_B | P__);
     } else {
         apply_p_nz(cpu, *op->reg1);
     }
+    return 0;
 }
 
-static void op_ADC(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_ADC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t value = get_param_value(cpu, op, param);
     uint8_t carry = get_p_flag(cpu, P_C);
     set_p_flag(cpu, P_C, ((int)(cpu->a) + (int)carry + (int)value) >= 0x100);
@@ -128,9 +131,10 @@ static void op_ADC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_V, (result & (1 << 7)) != (cpu->a & (1 << 7)));
     cpu->a = result;
     apply_p_nz(cpu, cpu->a);
+    return 0;
 }
 
-static void op_SBC(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_SBC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t value = get_param_value(cpu, op, param);
     uint8_t carry = get_p_flag(cpu, P_C);
     set_p_flag(cpu, P_C, ((int)(cpu->a) + (int)carry - 1 - (int)value) >= 0);
@@ -138,54 +142,64 @@ static void op_SBC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_V, (result & (1 << 7)) != (cpu->a & (1 << 7)));
     cpu->a = result;
     apply_p_nz(cpu, cpu->a);
+    return 0;
 }
 
-static void op_AND(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_AND(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->a &= get_param_value(cpu, op, param);
     apply_p_nz(cpu, cpu->a);
+    return 0;
 }
 
-static void op_EOR(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_EOR(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->a ^= get_param_value(cpu, op, param);
     apply_p_nz(cpu, cpu->a);
+    return 0;
 }
 
-static void op_ORA(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_ORA(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->a |= get_param_value(cpu, op, param);
     apply_p_nz(cpu, cpu->a);
+    return 0;
 }
 
-static void op_CMP(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_CMP(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t value = get_param_value(cpu, op, param);
     set_p_flag(cpu, P_C, ((int)(*op->reg1) - (int)value) >= 0);
     apply_p_nz(cpu, *op->reg1 - value);
+    return 0;
 }
 
-static void op_BIT(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_BIT(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t value = get_param_value(cpu, op, param);
     set_p_flag(cpu, P_Z, !(cpu->a & value));
     set_p_flag(cpu, P_N, value & (1 << 7));
     set_p_flag(cpu, P_V, value & (1 << 6));
+    return 0;
 }
 
-static void op_INC(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_INC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t result = get_param_value(cpu, op, param) + 1;
     mem_write(cpu, param.addr, result);
     apply_p_nz(cpu, result);
+    return 0;
 }
 
-static void op_IN(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_IN(CPU65xx *cpu, const Opcode *op, OpParam param) {
     apply_p_nz(cpu, ++(*op->reg1));
+    return 0;
 }
 
-static void op_DEC(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_DEC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     uint8_t result = get_param_value(cpu, op, param) - 1;
     mem_write(cpu, param.addr, result);
     apply_p_nz(cpu, result);
+    return 0;
 }
 
-static void op_DE(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_DE(CPU65xx *cpu, const Opcode *op, OpParam param) {
     apply_p_nz(cpu, --(*op->reg1));
+    return 0;
 }
 
 static void shift_left(CPU65xx *cpu, const Opcode *op, OpParam param,
@@ -204,11 +218,13 @@ static void shift_left(CPU65xx *cpu, const Opcode *op, OpParam param,
         apply_p_nz(cpu, value);
     }
 }
-static void op_ASL(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_ASL(CPU65xx *cpu, const Opcode *op, OpParam param) {
     shift_left(cpu, op, param, 0);
+    return 0;
 }
-static void op_ROL(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_ROL(CPU65xx *cpu, const Opcode *op, OpParam param) {
     shift_left(cpu, op, param, get_p_flag(cpu, P_C));
+    return 0;
 }
 
 static void shift_right(CPU65xx *cpu, const Opcode *op, OpParam param,
@@ -227,98 +243,107 @@ static void shift_right(CPU65xx *cpu, const Opcode *op, OpParam param,
         apply_p_nz(cpu, value);
     }
 }
-static void op_LSR(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_LSR(CPU65xx *cpu, const Opcode *op, OpParam param) {
     shift_right(cpu, op, param, 0);
+    return 0;
 }
-static void op_ROR(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_ROR(CPU65xx *cpu, const Opcode *op, OpParam param) {
     shift_right(cpu, op, param, get_p_flag(cpu, P_C) << 7);
+    return 0;
 }
 
-static void op_JMP(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_JMP(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->pc = param.addr;
+    return 0;
 }
 
-static void op_JSR(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_JSR(CPU65xx *cpu, const Opcode *op, OpParam param) {
     stack_push_word(cpu, cpu->pc - 1);
     cpu->pc = param.addr;
+    return 0;
 }
 
-static void op_RTI(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_RTI(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->p = stack_pull(cpu) & ~(P_B | P__);
     cpu->pc = stack_pull_word(cpu);
+    return 0;
 }
 
-static void op_RTS(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_RTS(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->pc = stack_pull_word(cpu) + 1;
+    return 0;
 }
 
-static void cond_branch(CPU65xx *cpu, OpParam param, PFlag flag, bool value) {
+static int cond_branch(CPU65xx *cpu, OpParam param, PFlag flag, bool value) {
     if (get_p_flag(cpu, flag) != value) {
-        return;
+        return 0;
     }
-    cpu->time++;
     uint16_t new_pc = cpu->pc + param.relative_addr;
-    apply_page_boundary_penalty(cpu, cpu->pc, new_pc);
+    int t = 1 + apply_page_boundary_penalty(cpu->pc, new_pc);
     cpu->pc = new_pc;
+    return t;
 }
-static void op_BPL(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    cond_branch(cpu, param, P_N, false);
+static int op_BPL(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    return cond_branch(cpu, param, P_N, false);
 }
-static void op_BMI(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    cond_branch(cpu, param, P_N, true);
+static int op_BMI(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    return cond_branch(cpu, param, P_N, true);
 }
-static void op_BVC(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    cond_branch(cpu, param, P_V, false);
+static int op_BVC(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    return cond_branch(cpu, param, P_V, false);
 }
-static void op_BVS(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    cond_branch(cpu, param, P_V, true);
+static int op_BVS(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    return cond_branch(cpu, param, P_V, true);
 }
-static void op_BCC(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    cond_branch(cpu, param, P_C, false);
+static int op_BCC(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    return cond_branch(cpu, param, P_C, false);
 }
-static void op_BCS(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    cond_branch(cpu, param, P_C, true);
+static int op_BCS(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    return cond_branch(cpu, param, P_C, true);
 }
-static void op_BNE(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    cond_branch(cpu, param, P_Z, false);
+static int op_BNE(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    return cond_branch(cpu, param, P_Z, false);
 }
-static void op_BEQ(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    cond_branch(cpu, param, P_Z, true);
+static int op_BEQ(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    return cond_branch(cpu, param, P_Z, true);
 }
 
-static void op_BRK(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_BRK(CPU65xx *cpu, const Opcode *op, OpParam param) {
     cpu->pc++; // Puts PC one extra byte further, for some reason
-    interrupt(cpu, true, IVT_IRQ);
+    return interrupt(cpu, true, IVT_IRQ);
 }
 
-static void op_CLC(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_CLC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_C, false);
+    return 0;
 }
-static void op_CLI(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_CLI(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_I, false);
+    return 0;
 }
-static void op_CLD(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_CLD(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_D, false);
+    return 0;
 }
-static void op_CLV(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_CLV(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_V, false);
+    return 0;
 }
-static void op_SEC(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_SEC(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_C, true);
+    return 0;
 }
-static void op_SEI(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_SEI(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_I, true);
+    return 0;
 }
-static void op_SED(CPU65xx *cpu, const Opcode *op, OpParam param) {
+static int op_SED(CPU65xx *cpu, const Opcode *op, OpParam param) {
     set_p_flag(cpu, P_D, true);
+    return 0;
 }
 
-static void op_NOP(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    // ...
-}
-
-static void op_KIL(CPU65xx *cpu, const Opcode *op, OpParam param) {
-    cpu->killed = true;
+static int op_NOP(CPU65xx *cpu, const Opcode *op, OpParam param) {
+    return 0;
 }
 
 // PUBLIC FUNCTIONS //
@@ -328,7 +353,6 @@ void cpu_65xx_init(CPU65xx *cpu, void *mm,
     cpu->a = cpu->x = cpu->y = cpu->s = 0;
     cpu->p = P__;
     cpu->pc = 0;
-    cpu->time = 0;
     
     cpu->mm = mm;
     cpu->read_func = read_func;
@@ -336,7 +360,7 @@ void cpu_65xx_init(CPU65xx *cpu, void *mm,
     
     // Initialize opcode lookup to KIL instruction
     // TODO: Add more illegal opcodes
-    Opcode kill = {"KIL", 0, 0, 0, op_KIL, AM_IMPLIED};
+    Opcode kill = {"KIL", 0, 0, -1, op_NOP, AM_IMPLIED};
     for (int i = 0; i < 0x100; i++) {
         cpu->opcodes[i] = kill;
     }
@@ -522,11 +546,7 @@ void cpu_65xx_init(CPU65xx *cpu, void *mm,
     cpu->opcodes[0xEA] = (Opcode) {"NOP", 0, 0, 2, op_NOP, AM_IMPLIED};
 }
 
-void cpu_65xx_step(CPU65xx *cpu, bool verbose) {
-    if (cpu->killed) {
-        return;
-    }
-    
+int cpu_65xx_step(CPU65xx *cpu, bool verbose) {
     if (verbose) {
         printf("$%04x ", cpu->pc);
     }
@@ -536,15 +556,13 @@ void cpu_65xx_step(CPU65xx *cpu, bool verbose) {
         if (verbose) {
             printf("/NMI\n");
         }
-        interrupt(cpu, false, IVT_NMI);
-        return;
+        return interrupt(cpu, false, IVT_NMI);
     }
     if (cpu->irq && !get_p_flag(cpu, P_I)) {
         if (verbose) {
             printf("/IRQ\n");
         }
-        interrupt(cpu, false, IVT_IRQ);
-        return;
+        return interrupt(cpu, false, IVT_IRQ);
     }
     
     // Fetch next instruction
@@ -595,11 +613,6 @@ void cpu_65xx_step(CPU65xx *cpu, bool verbose) {
             break;
     }
     
-    if (op->cycles < 0) {
-        apply_page_boundary_penalty(cpu, p1.addr, p2.addr);
-    }
-    cpu->time += abs(op->cycles);
-    
     if (verbose) {
         printf("%s", op->name);
         switch (op->am) {
@@ -638,23 +651,18 @@ void cpu_65xx_step(CPU65xx *cpu, bool verbose) {
     }
     
     // And finally, run the instruction
-    (*op->func)(cpu, op, p2);
-    return;
+    int t = abs(op->cycles) + (*op->func)(cpu, op, p2);
+    if (op->cycles < 0) {
+        t += apply_page_boundary_penalty(p1.addr, p2.addr);
+    }
+    return t;
 }
 
-void cpu_65xx_reset(CPU65xx *cpu, bool verbose) {
-    cpu->killed = false;
+int cpu_65xx_reset(CPU65xx *cpu, bool verbose) {
     if (verbose) {
         printf("$%04x /RESET", cpu->pc);
     }
-    interrupt(cpu, true, IVT_RESET);
-}
-
-void cpu_65xx_external_t_increment(CPU65xx *cpu, int amount) {
-    if (cpu->time % 2) {
-        cpu->time++;
-    }
-    cpu->time += amount;
+    return interrupt(cpu, true, IVT_RESET);
 }
 
 void cpu_65xx_debug_print_state(CPU65xx *cpu) {

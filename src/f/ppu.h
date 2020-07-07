@@ -52,6 +52,7 @@
 #define TASK_UPDATE 2
 
 #define PPU_CYCLES_PER_SCANLINE 341
+#define PPU_SCANLINES_PER_FRAME 262
 
 #define LIGHTGUN_COOLDOWN 26
 
@@ -59,6 +60,13 @@
 typedef struct CPU65xx CPU65xx;
 typedef struct PPU PPU;
 typedef struct MemoryMap MemoryMap;
+
+typedef struct RenderPos {
+    int scanline;
+    int cycle;
+} RenderPos;
+
+typedef void (*TaskFunc)(PPU *, const RenderPos *);
 
 struct PPU {
     CPU65xx *cpu;
@@ -88,14 +96,8 @@ struct PPU {
     uint8_t reg_latch;
     uint8_t ppudata_latch;
     
-    // Execution counters
-    uint64_t time;
-    int cycle;
-    int scanline;
-    int frame;
-    
     // Rendering pipeline
-    void (*tasks[PPU_CYCLES_PER_SCANLINE][4])(PPU *);
+    TaskFunc tasks[PPU_CYCLES_PER_SCANLINE][4];
     uint16_t f_nt, f_pt0, f_pt1;
     uint8_t f_at;
     uint16_t bg_pt0, bg_pt1;
@@ -116,6 +118,6 @@ struct PPU {
 
 void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, uint32_t *screen,
               int *lightgun_pos);
-bool ppu_step(PPU *ppu, bool verbose);
+void ppu_step(PPU *ppu, const RenderPos *pos, bool verbose);
 
 #endif /* f_ppu_h */

@@ -70,8 +70,8 @@ static inline bool is_rendering(PPU *ppu) {
 
 // CYCLE TASKS //
 
-static void task_render_pixel(PPU *ppu) {
-    if (ppu->scanline < 0) {
+static void task_render_pixel(PPU *ppu, const RenderPos *pos) {
+    if (pos->scanline < 0) {
         return;
     }
     
@@ -88,7 +88,7 @@ static void task_render_pixel(PPU *ppu) {
                 ppu->s_x[s]--;
             } else {
                 if (!s_index && (ppu->mask & MASK_NOCLIP_SPRITES ||
-                                 ppu->cycle >= 8)) {
+                                 pos->cycle >= 8)) {
                     s_index = ((ppu->s_pt0[s] & 128) >> 7) |
                               ((ppu->s_pt1[s] & 128) >> 6);
                     if (s_index) {
@@ -102,7 +102,7 @@ static void task_render_pixel(PPU *ppu) {
         }
     }
     if (ppu->mask & MASK_RENDER_BACKGROUND) {
-        if (ppu->mask & MASK_NOCLIP_BACKGROUND || ppu->cycle >= 8) {
+        if (ppu->mask & MASK_NOCLIP_BACKGROUND || pos->cycle >= 8) {
             bg_index = (((ppu->bg_pt0 << ppu->x) & 32768) >> 15) |
                        (((ppu->bg_pt1 << ppu->x) & 32768) >> 14);
         }
@@ -124,9 +124,9 @@ static void task_render_pixel(PPU *ppu) {
         color = ppu->background_colors[0];
     }
     
-    int pos = ppu->scanline * WIDTH + ppu->cycle;
-    ppu->screen[pos] = colors_ntsc[color];
-    if (pos == *ppu->lightgun_pos && (color == 0x20 || color == 0x30)) {
+    int pixel = pos->scanline * WIDTH + pos->cycle;
+    ppu->screen[pixel] = colors_ntsc[color];
+    if (pixel == *ppu->lightgun_pos && (color == 0x20 || color == 0x30)) {
         ppu->lightgun_sensor = LIGHTGUN_COOLDOWN;
     }
 
@@ -136,22 +136,22 @@ static void task_render_pixel(PPU *ppu) {
     ppu->bg_pt1 <<= 1;
 }
 
-static void task_sprite_clear(PPU *ppu) {
-    if (ppu->scanline < 0) {
+static void task_sprite_clear(PPU *ppu, const RenderPos *pos) {
+    if (pos->scanline < 0) {
         return;
     }
     memset(ppu->oam2, 0xFF, sizeof(ppu->oam2));
     ppu->s_total = 0;
 }
 
-static void task_sprite_eval(PPU *ppu) {
-    if (ppu->scanline < 0) {
+static void task_sprite_eval(PPU *ppu, const RenderPos *pos) {
+    if (pos->scanline < 0) {
         return;
     }
-    const uint8_t *spr = ppu->oam + ((ppu->cycle - 65) / 3 * 4);
+    const uint8_t *spr = ppu->oam + ((pos->cycle - 65) / 3 * 4);
     const int sprite_height = (ppu->ctrl & CTRL_8x16_SPRITES ? 16 : 8);
-    if (spr[OAM_Y] <= ppu->scanline &&
-        (spr[OAM_Y] + sprite_height - 1) >= ppu->scanline) {
+    if (spr[OAM_Y] <= pos->scanline &&
+        (spr[OAM_Y] + sprite_height - 1) >= pos->scanline) {
         if (ppu->s_total >= 8) {
             // Not accurate behaviour, but very rarely used
             ppu->status |= STATUS_SPRITE_OVERFLOW;
@@ -165,11 +165,11 @@ static void task_sprite_eval(PPU *ppu) {
     }
 }
 
-static void task_fetch_nt(PPU *ppu) {
+static void task_fetch_nt(PPU *ppu, const RenderPos *pos) {
     ppu->f_nt = mm_read(ppu->mm, 0x2000 | (ppu->v & 0x0FFF));
 }
 
-static void task_fetch_at(PPU *ppu) {
+static void task_fetch_at(PPU *ppu, const RenderPos *pos) {
     ppu->f_at = mm_read(ppu->mm, 0x23C0 | (ppu->v & 0x0C00) |
                                           ((ppu->v >> 4) & 0x38) |
                                           ((ppu->v >> 2) & 0x07));
@@ -183,15 +183,15 @@ static uint8_t fetch_bg_pt(PPU *ppu, int offset) {
     return mm_read(ppu->mm, pt_addr);
 }
 
-static void task_fetch_bg_pt0(PPU *ppu) {
+static void task_fetch_bg_pt0(PPU *ppu, const RenderPos *pos) {
     ppu->f_pt0 = fetch_bg_pt(ppu, 0);
 }
 
-static void task_fetch_bg_pt1(PPU *ppu) {
+static void task_fetch_bg_pt1(PPU *ppu, const RenderPos *pos) {
     ppu->f_pt1 = fetch_bg_pt(ppu, 8);
 
     // Fill the stacks
-    if (ppu->cycle > 256) {
+    if (pos->cycle > 256) {
         ppu->bg_pt0 <<= 8;
         ppu->bg_pt1 <<= 8;
         ppu->bg_at0 <<= 8;
@@ -216,10 +216,10 @@ static void task_fetch_bg_pt1(PPU *ppu) {
     }
 }
 
-static uint8_t fetch_spr_pt(PPU *ppu, int i, int offset) {
+static uint8_t fetch_spr_pt(PPU *ppu, int scanline, int i, int offset) {
     const bool sprite_16mode = (ppu->ctrl & CTRL_8x16_SPRITES);
     uint8_t *spr = ppu->oam2 + (i * 4);
-    int row = ppu->scanline - spr[OAM_Y];
+    int row = scanline - spr[OAM_Y];
     if (spr[OAM_ATTRS] & OAM_ATTR_FLIP_V) {
         row = (sprite_16mode ? 16 : 8) - row - 1;
     }
@@ -246,23 +246,23 @@ static uint8_t fetch_spr_pt(PPU *ppu, int i, int offset) {
     return p;
 }
 
-static void task_fetch_spr_pt0(PPU *ppu) {
-    int i = (ppu->cycle - 261) / 8;
-    ppu->s_pt0[i] = fetch_spr_pt(ppu, i, 0);
+static void task_fetch_spr_pt0(PPU *ppu, const RenderPos *pos) {
+    int i = (pos->cycle - 261) / 8;
+    ppu->s_pt0[i] = fetch_spr_pt(ppu, pos->scanline, i, 0);
     
     ppu->s_attrs[i] = ppu->oam2[i * 4 + OAM_ATTRS];
 }
 
-static void task_fetch_spr_pt1(PPU *ppu) {
-    int i = (ppu->cycle - 263) / 8;
-    ppu->s_pt1[i] = fetch_spr_pt(ppu, i, 8);
+static void task_fetch_spr_pt1(PPU *ppu, const RenderPos *pos) {
+    int i = (pos->cycle - 263) / 8;
+    ppu->s_pt1[i] = fetch_spr_pt(ppu, pos->scanline, i, 8);
     
     ppu->s_x[i] = ppu->oam2[i * 4 + OAM_X];
     
     ppu->s_has_zero = ppu->s_has_zero_next;
 }
 
-static void task_update_inc_hori_v(PPU *ppu) {
+static void task_update_inc_hori_v(PPU *ppu, const RenderPos *pos) {
     if ((ppu->v & 0b11111) == 0b11111) {
         ppu->v &= ~0b11111;
         ppu->v ^= (1 << 10);
@@ -271,7 +271,7 @@ static void task_update_inc_hori_v(PPU *ppu) {
     }
 }
 
-static void task_update_inc_vert_v(PPU *ppu) {
+static void task_update_inc_vert_v(PPU *ppu, const RenderPos *pos) {
     if ((ppu->v & 0x7000) == 0x7000) {
         ppu->v &= ~0x7000;
         uint16_t y = (ppu->v & 0x3E0) >> 5;
@@ -289,12 +289,14 @@ static void task_update_inc_vert_v(PPU *ppu) {
     }
 }
 
-static void task_update_hori_v_hori_t(PPU *ppu) {
+static void task_update_hori_v_hori_t(PPU *ppu,
+                                      const RenderPos *pos) {
     ppu->v = (ppu->v & ~0x41F) | (ppu->t & 0x41F);
 }
 
-static void task_update_vert_v_vert_t(PPU *ppu) {
-    if (ppu->scanline == -1) {
+static void task_update_vert_v_vert_t(PPU *ppu,
+                                      const RenderPos *pos) {
+    if (pos->scanline == -1) {
         ppu->v = (ppu->v & ~0x7BE0) | (ppu->t & 0x7BE0);
     }
 }
@@ -388,7 +390,7 @@ static void write_oam_dma(Machine *vm, uint16_t addr, uint8_t value) {
         page[i] = mm_read(&vm->cpu_mm, page_addr + i);
     }
     memcpy(vm->ppu.oam, page, 0x100);
-    cpu_65xx_external_t_increment(&vm->cpu, 0x201);
+    machine_stall_cpu(vm, 0x200);
 }
 
 static uint8_t read_background_colors(Machine *vm, uint16_t addr) {
@@ -415,7 +417,6 @@ void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, uint32_t *screen,
     ppu->cpu = cpu;
     ppu->screen = screen;
     ppu->lightgun_pos = lightgun_pos;
-    ppu->scanline = -1;
     
     // Fill the tasks array
     // sprite
@@ -468,28 +469,28 @@ void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, uint32_t *screen,
     }
 }
 
-bool ppu_step(PPU *ppu, bool verbose) {
-    if (verbose && !ppu->cycle) {
-        printf("-- Scanline %d --\n", ppu->scanline);
+void ppu_step(PPU *ppu, const RenderPos *pos, bool verbose) {
+    if (verbose && !pos->cycle) {
+        printf("-- Scanline %d --\n", pos->scanline);
     }
     
-    if (ppu->scanline >= 0 && ppu->scanline < HEIGHT &&
-        ppu->cycle < WIDTH) {
-        task_render_pixel(ppu);
+    if (pos->scanline >= 0 && pos->scanline < HEIGHT &&
+        pos->cycle < WIDTH) {
+        task_render_pixel(ppu, pos);
     }
     
     // Execute all tasks for that cycle
-    if (ppu->scanline < 240 && is_rendering(ppu)) {
+    if (pos->scanline < 240 && is_rendering(ppu)) {
         for (int i = 0; i < 3; i++) {
-            if (ppu->tasks[ppu->cycle][i]) {
-                (*ppu->tasks[ppu->cycle][i])(ppu);
+            if (ppu->tasks[pos->cycle][i]) {
+                (*ppu->tasks[pos->cycle][i])(ppu, pos);
             }
         }
     }
     
     // Check for flag operations
-    if (ppu->cycle == 1) {
-        switch (ppu->scanline) {
+    if (pos->cycle == 1) {
+        switch (pos->scanline) {
             case -1:
                 ppu->status &= ~(STATUS_VBLANK |
                                  STATUS_SPRITE0_HIT | STATUS_SPRITE_OVERFLOW);
@@ -503,24 +504,7 @@ bool ppu_step(PPU *ppu, bool verbose) {
         }
     }
     
-    // Increment the counters
-    ppu->time++;
-    ppu->cycle = (ppu->cycle + 1) % PPU_CYCLES_PER_SCANLINE;
-    if (ppu->scanline == -1 && ppu->cycle == PPU_CYCLES_PER_SCANLINE - 1 &&
-        ppu->frame % 2) {
-        // Skip last cycle of the pre-render line on odd frames
-        ppu->cycle = 0;
+    if (!pos->cycle && (ppu->lightgun_sensor > 0)) {
+        ppu->lightgun_sensor--;
     }
-    if (!ppu->cycle) {
-        ppu->scanline++;
-        if (ppu->lightgun_sensor > 0) {
-            ppu->lightgun_sensor--;
-        }
-        if (ppu->scanline == 261) {
-            ppu->scanline = -1;
-            ppu->frame++;
-            return true;
-        }
-    }
-    return false;
 }

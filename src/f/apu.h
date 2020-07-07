@@ -85,8 +85,6 @@ typedef struct APU {
     // Frame counter
     int fc_timer;
     
-    uint64_t time;
-    
     int16_t *frame;
 } APU;
 

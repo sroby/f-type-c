@@ -44,46 +44,51 @@ void machine_teardown(Machine *vm) {
     }
 }
 
-bool machine_advance_frame(Machine *vm, bool verbose) {
-    bool done;
-    int pos = 0;
+void machine_advance_frame(Machine *vm, bool verbose) {
+    // TODO: Skip last cycle of the pre-render line on odd frames
+    RenderPos pos = {-1, 0};
+    int t = 0;
     do {
-        if (vm->ppu.time > vm->cpu.time * T_CPU_MULTIPLIER) {
-            // Check for debug label
-            bool is_endless_loop = false;
-            if (verbose && vm->dbg_map) {
-                int i = 0;
-                while (vm->dbg_map[i].label[0]) {
-                    if (vm->dbg_map[i].addr == vm->cpu.pc) {
-                        const char *label = vm->dbg_map[i].label;
-                        if (strcmp(label, "EndlessLoop")) {
-                            printf(":%s\n", vm->dbg_map[i].label);
-                        } else {
-                            is_endless_loop = true;
+        do {
+            if (!vm->cpu_wait) {
+                // Check for debug label
+                bool is_endless_loop = false;
+                if (verbose && vm->dbg_map) {
+                    int i = 0;
+                    while (vm->dbg_map[i].label[0]) {
+                        if (vm->dbg_map[i].addr == vm->cpu.pc) {
+                            const char *label = vm->dbg_map[i].label;
+                            if (strcmp(label, "EndlessLoop")) {
+                                printf(":%s\n", vm->dbg_map[i].label);
+                            } else {
+                                is_endless_loop = true;
+                            }
+                            break;
                         }
-                        break;
+                        i++;
                     }
-                    i++;
                 }
+                vm->cpu_wait = cpu_65xx_step(&vm->cpu,
+                                             verbose && !is_endless_loop) *
+                               T_CPU_MULTIPLIER;
             }
             
-            // Run next CPU instruction
-            cpu_65xx_step(&vm->cpu, verbose && !is_endless_loop);
-        }
-        
-        if (vm->ppu.time > vm->apu.time * T_APU_MULTIPLIER) {
-            apu_step(&vm->apu);
-        }
-        // Yeah this needs to be done better
-        if (!(pos % 121)) {
-            apu_sample(&vm->apu, pos / 121);
-        }
-        
-        done = ppu_step(&vm->ppu, verbose);
-        
-        ++pos;
-    } while (!done);
-    return true;
+            if (!(vm->mclk % T_APU_MULTIPLIER)) {
+                apu_step(&vm->apu);
+            }
+            // Yeah this needs to be done better
+            if (!(t % 121)) {
+                apu_sample(&vm->apu, t / 121);
+            }
+
+            ppu_step(&vm->ppu, &pos, verbose);
+            
+            ++vm->mclk;
+            ++t;
+            --vm->cpu_wait;
+        } while (++pos.cycle < PPU_CYCLES_PER_SCANLINE);
+        pos.cycle = 0;
+    } while (++pos.scanline < (PPU_SCANLINES_PER_FRAME - 1));
 }
 
 void machine_set_nt_mirroring(Machine *vm, NametableMirroring nm) {
@@ -98,4 +103,9 @@ void machine_set_nt_mirroring(Machine *vm, NametableMirroring nm) {
     for (int i = 0; i < 4; i++) {
         vm->nt_layout[i] = vm->nametables[layout[i]];
     }
+}
+
+void machine_stall_cpu(Machine *vm, int cycles) {
+    // TODO: +1 if on a odd CPU cycle
+    vm->cpu_wait += cycles * T_CPU_MULTIPLIER;
 }

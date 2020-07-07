@@ -395,8 +395,6 @@ void apu_step(APU *apu) {
             }
         }
     }
-    
-    ++apu->time;
 }
 
 void apu_sample(APU *apu, int pos) {

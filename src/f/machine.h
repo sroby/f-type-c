@@ -58,6 +58,10 @@ typedef struct Machine {
     // Controller I/O
     uint8_t ctrl_latch[2];
     InputState *input;
+    
+    // Time tracking
+    uint64_t mclk; // "Master" clock (actually PPU clock)
+    int cpu_wait;
 } Machine;
 
 typedef enum {
@@ -71,8 +75,10 @@ typedef enum {
 void machine_init(Machine *vm, FCartInfo *carti, Driver *driver);
 void machine_teardown(Machine *vm);
 
-bool machine_advance_frame(Machine *vm, bool verbose);
+void machine_advance_frame(Machine *vm, bool verbose);
 
 void machine_set_nt_mirroring(Machine *vm, NametableMirroring m);
+
+void machine_stall_cpu(Machine *vm, int cycles);
 
 #endif /* f_machine_h */

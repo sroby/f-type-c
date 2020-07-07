@@ -44,12 +44,14 @@ typedef union {
     int8_t relative_addr;
 } OpParam;
 
+typedef int (*OpcodeFunc)(CPU65xx *, const Opcode *, OpParam);
+
 struct Opcode {
     const char *name;
     uint8_t *reg1;
     uint8_t *reg2;
     int cycles;
-    void (*func)(CPU65xx *, const Opcode *, OpParam);
+    OpcodeFunc func;
     AddressingMode am;
 };
 
@@ -64,8 +66,6 @@ struct CPU65xx {
     uint8_t p;
     // Program counter
     uint16_t pc;
-    // Total cycle counter
-    uint64_t time;
     // Memory I/O
     void *mm;
     CPU65xxReadFunc read_func;
@@ -73,7 +73,6 @@ struct CPU65xx {
     // Interrupt lines
     bool nmi;
     int irq;
-    bool killed;
     // Opcode lookup table
     Opcode opcodes[0x100];
 };
@@ -81,10 +80,8 @@ struct CPU65xx {
 void cpu_65xx_init(CPU65xx *cpu, void *mm,
                    CPU65xxReadFunc read_func, CPU65xxWriteFunc write_func);
 
-void cpu_65xx_step(CPU65xx *cpu, bool verbose);
-void cpu_65xx_reset(CPU65xx *cpu, bool verbose);
-
-void cpu_65xx_external_t_increment(CPU65xx *cpu, int amount);
+int cpu_65xx_step(CPU65xx *cpu, bool verbose);
+int cpu_65xx_reset(CPU65xx *cpu, bool verbose);
 
 void cpu_65xx_debug_print_state(CPU65xx *cpu);
 

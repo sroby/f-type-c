@@ -6,7 +6,7 @@
 
 typedef struct Driver Driver;
 
-typedef bool (*AdvanceFrameFuncPtr)(void *, bool);
+typedef void (*AdvanceFrameFuncPtr)(void *, bool);
 typedef uint32_t *(*GetScreenFuncPtr)(void *);
 
 typedef struct Driver {

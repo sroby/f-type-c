@@ -319,9 +319,7 @@ void window_loop(Window *wnd, Driver *driver) {
         }
         
         // Advance one frame
-        if (!(*driver->advance_frame_func)(driver->vm, verbose)) {
-            break;
-        }
+        (*driver->advance_frame_func)(driver->vm, verbose);
         
         SDL_QueueAudio(wnd->audio_id, driver->audio_frame,
                        sizeof(driver->audio_frame));
