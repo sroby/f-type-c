@@ -261,10 +261,11 @@ static void fc_half(APU *apu) {
 
 // PUBLIC FUNCTIONS //
 
-void apu_init(APU *apu, CPU65xx *cpu, int16_t *frame) {
+void apu_init(APU *apu, CPU65xx *cpu, int16_t *audio_buffer, int *audio_pos) {
     memset(apu, 0, sizeof(APU));
     apu->cpu = cpu;
-    apu->frame = frame;
+    apu->audio_buffer = audio_buffer;
+    apu->audio_pos = audio_pos;
     
     apu->channels[CH_NOISE].sequence = 1;
     
@@ -397,12 +398,7 @@ void apu_step(APU *apu) {
     }
 }
 
-void apu_sample(APU *apu, int pos) {
-    // really stupid workaround to avoid going out of bounds
-    if (pos >= 735) {
-        return;
-    }
-    
+void apu_sample(APU *apu) {
     int pulse_out = 0;
     for (int i = 0; i < 2; i++) {
         WaveformChannel *p = apu->channels + i;
@@ -422,6 +418,7 @@ void apu_sample(APU *apu, int pos) {
         (!!n->length_counter && (n->sequence & 1)) *
         (BIT_CHECK(n->flags, CHF_ENV_DISABLE) ? n->volume : n->env_decay);
     
-    apu->frame[pos] = pulse_mix[pulse_out]
+    apu->audio_buffer[(*apu->audio_pos)++] = pulse_mix[pulse_out]
                     + tnd_mix[triangle_out + noise_out + apu->dmc_delta];
+    *apu->audio_pos %= 8192;
 }

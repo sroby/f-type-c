@@ -18,7 +18,7 @@ void machine_init(Machine *vm, FCartInfo *carti, Driver *driver) {
                   (CPU65xxReadFunc)mm_read, (CPU65xxWriteFunc)mm_write);
     ppu_init(&vm->ppu, &vm->ppu_mm, &vm->cpu,
              driver->screen, &driver->input.lightgun_pos);
-    apu_init(&vm->apu, &vm->cpu, driver->audio_frame);
+    apu_init(&vm->apu, &vm->cpu, driver->audio_buffer, &driver->audio_pos);
     
     if (!vm->cart.chr_memory.size) {
         vm->cart.chr_memory.size = SIZE_CHR_ROM;
@@ -47,7 +47,6 @@ void machine_teardown(Machine *vm) {
 void machine_advance_frame(Machine *vm, bool verbose) {
     // TODO: Skip last cycle of the pre-render line on odd frames
     RenderPos pos = {-1, 0};
-    int t = 0;
     do {
         do {
             if (!vm->cpu_wait) {
@@ -77,14 +76,13 @@ void machine_advance_frame(Machine *vm, bool verbose) {
                 apu_step(&vm->apu);
             }
             // Yeah this needs to be done better
-            if (!(t % 121)) {
-                apu_sample(&vm->apu, t / 121);
+            if (!(vm->mclk % 121)) {
+                apu_sample(&vm->apu);
             }
 
             ppu_step(&vm->ppu, &pos, verbose);
             
             ++vm->mclk;
-            ++t;
             --vm->cpu_wait;
         } while (++pos.cycle < PPU_CYCLES_PER_SCANLINE);
         pos.cycle = 0;

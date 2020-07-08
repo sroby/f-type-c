@@ -33,6 +33,15 @@ static void update_lightgun_pos(Driver *driver, const SDL_Rect *area,
     }
 }
 
+static void audio_callback(Driver *driver, uint16_t *stream, int len) {
+    len /= sizeof(int16_t);
+    int pos = driver->audio_pos + 4096;
+    for (int i = 0; i < len; i++) {
+        pos %= 8192;
+        stream[i] = driver->audio_buffer[pos++];
+    }
+}
+
 // PUBLIC FUNCTIONS //
 
 int window_init(Window *wnd, Driver *driver, const char *filename) {
@@ -151,12 +160,13 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     desired.format = AUDIO_S16SYS;
     desired.channels = 1;
     desired.samples = 4096;
+    desired.callback = (SDL_AudioCallback) audio_callback;
+    desired.userdata = driver;
     wnd->audio_id = SDL_OpenAudioDevice(NULL, 0, &desired, &obtained, 0);
     if (wnd->audio_id <= 0) {
         eprintf("%s\n", SDL_GetError());
         return 1;
     }
-    SDL_PauseAudioDevice(wnd->audio_id, 0);
 
     // Use the system crosshair cursor, if available
     wnd->cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
@@ -192,10 +202,16 @@ void window_loop(Window *wnd, Driver *driver) {
     const bool verbose = verb_char ? *verb_char - '0' : false;
     uint32_t *ctrls = driver->input.controllers;
     
+    const uint64_t frame_length =
+        (SDL_GetPerformanceFrequency() * 10000) / 600988;
+    const uint64_t delay_div = SDL_GetPerformanceFrequency() / 1000;
+    
+    SDL_PauseAudioDevice(wnd->audio_id, 0);
+    
     // Main loop
     int frame = 0;
     int quit_request = 0;
-    uint32_t t_next = 0;
+    uint64_t t_next = SDL_GetPerformanceCounter();
     while(true) {
         // Process events
         bool quitting = false;
@@ -321,24 +337,24 @@ void window_loop(Window *wnd, Driver *driver) {
         // Advance one frame
         (*driver->advance_frame_func)(driver->vm, verbose);
         
-        SDL_QueueAudio(wnd->audio_id, driver->audio_frame,
-                       sizeof(driver->audio_frame));
+        // Render the frame unless we're behind schedule
+        t_next += frame_length;
+        int64_t t_left = t_next - SDL_GetPerformanceCounter();
+        if (t_left > 0) {
+            SDL_UpdateTexture(wnd->texture, NULL, driver->screen,
+                              driver->screen_w * sizeof(uint32_t));
+            SDL_RenderClear(wnd->renderer);
+            SDL_RenderCopy(wnd->renderer, wnd->texture, NULL, &wnd->display_area);
+            SDL_RenderPresent(wnd->renderer);
+            
+            // Add extra delay if we're more than one frame over schedule
+            if (t_left > (frame_length + delay_div)) {
+                SDL_Delay((uint32_t)((t_left - frame_length) / delay_div));
+            }
+        }/* else {
+            printf("%lld\n", t_left);
+        }*/
         
-        // Render the frame
-        SDL_UpdateTexture(wnd->texture, NULL, driver->screen,
-                          driver->screen_w * sizeof(uint32_t));
-        SDL_RenderClear(wnd->renderer);
-        SDL_RenderCopy(wnd->renderer, wnd->texture, NULL, &wnd->display_area);
-        SDL_RenderPresent(wnd->renderer);
-
-        // Throttle the execution until we are due for a new frame
-        uint32_t t_current = SDL_GetTicks();
-        if (t_current < t_next) {
-            SDL_Delay(t_next - t_current);
-        } else {
-            t_next = t_current;
-        }
-        t_next += FRAME_DURATION;
         frame++;
     }
     

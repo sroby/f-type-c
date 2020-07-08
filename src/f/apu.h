@@ -85,12 +85,13 @@ typedef struct APU {
     // Frame counter
     int fc_timer;
     
-    int16_t *frame;
+    int16_t *audio_buffer;
+    int *audio_pos;
 } APU;
 
-void apu_init(APU *apu, CPU65xx *cpu, int16_t *frame);
+void apu_init(APU *apu, CPU65xx *cpu, int16_t *audio_buffer, int *audio_pos);
 
 void apu_step(APU *apu);
-void apu_sample(APU *apu, int pos);
+void apu_sample(APU *apu);
 
 #endif /* f_apu_h */
