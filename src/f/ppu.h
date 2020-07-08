@@ -97,7 +97,7 @@ struct PPU {
     uint8_t ppudata_latch;
     
     // Rendering pipeline
-    TaskFunc tasks[PPU_CYCLES_PER_SCANLINE][4];
+    TaskFunc tasks[PPU_CYCLES_PER_SCANLINE][3];
     uint16_t f_nt, f_pt0, f_pt1;
     uint8_t f_at;
     uint16_t bg_pt0, bg_pt1;

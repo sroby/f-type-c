@@ -71,10 +71,6 @@ static inline bool is_rendering(PPU *ppu) {
 // CYCLE TASKS //
 
 static void task_render_pixel(PPU *ppu, const RenderPos *pos) {
-    if (pos->scanline < 0) {
-        return;
-    }
-    
     int s_index = 0;
     uint8_t s_attrs = 0;
     bool s_is_zero = false;
