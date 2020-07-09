@@ -2,6 +2,12 @@
 
 #include "driver.h"
 
+#ifdef DEBUG
+#define FULLSCREEN_DEFAULT false
+#else
+#define FULLSCREEN_DEFAULT true
+#endif
+
 // Button assignments
 // A, B, Select, Start, Up, Down, Left, Right
 // Default is PS4/Switch, others are specific checks of the controller name
@@ -9,6 +15,15 @@ static const int buttons[] = {0, 2, 4, 6, 11, 12, 13, 14};
 static const int buttons_snes_retroport[] = {2, 0, 4, 6, -1, -1, -1, -1};
 static const int buttons_8bitdo[] = {0, 1, 10, 11, -1, -1, -1, -1};
 static const int buttons_ds3[] = {14, 15, 0, 3, 4, 6, 7, 5};
+
+static bool get_env_bool(const char *name, bool *value) {
+    const char *content = getenv(name);
+    if (content) {
+        *value = content[0] && strcmp(content, "0");
+        return true;
+    }
+    return false;
+}
 
 static int identify_js(Window *wnd, SDL_JoystickID which) {
     for (int i = 0; i < 2; i++) {
@@ -95,11 +110,16 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     // TODO: Everything below shouldn't assume a 8:7 anamorphic aspect ratio
     int width_adjusted = driver->screen_w * 8 / 7;
     
+    bool fullscreen = FULLSCREEN_DEFAULT;
+    get_env_bool("FULLSCREEN", &fullscreen);
+    uint32_t flags = SDL_WINDOW_ALLOW_HIGHDPI |
+        (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+
     // Create window and renderer
     wnd->window = SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED,
                                              SDL_WINDOWPOS_UNDEFINED,
                                              width_adjusted, driver->screen_h,
-                                             SDL_WINDOW_ALLOW_HIGHDPI);
+                                             flags);
     if (!wnd->window) {
         eprintf("%s\n", SDL_GetError());
         return 1;
@@ -198,8 +218,9 @@ void window_cleanup(Window *wnd) {
 }
 
 void window_loop(Window *wnd, Driver *driver) {
-    const char *const verb_char = getenv("VERBOSE");
-    const bool verbose = verb_char ? *verb_char - '0' : false;
+    bool verbose = false;
+    get_env_bool("VERBOSE", &verbose);
+    
     uint32_t *ctrls = driver->input.controllers;
     
     const uint64_t frame_length =
