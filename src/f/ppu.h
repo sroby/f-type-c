@@ -54,6 +54,7 @@
 // Screen dimensions
 #define WIDTH 256
 #define HEIGHT 240
+#define HEIGHT_CROPPED 224
 
 #define PPU_CYCLES_PER_SCANLINE 341
 #define PPU_SCANLINES_PER_FRAME 262

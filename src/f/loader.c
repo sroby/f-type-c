@@ -63,12 +63,12 @@ int ines_loader(Driver *driver, blob *rom) {
           (cart.has_battery_backup ? "Yes" : "No"));
 
     driver->screen_w = WIDTH;
-    driver->screen_h = HEIGHT;
+    driver->screen_h = HEIGHT_CROPPED;
     Machine *vm = malloc(sizeof(Machine));
     machine_init(vm, &cart, driver);
     driver->vm = vm;
     driver->refresh_rate = REFRESH_RATE;
-    driver->screen = vm->ppu.screen;
+    driver->screen = vm->ppu.screen + ((HEIGHT - HEIGHT_CROPPED) / 2) * WIDTH;
     driver->advance_frame_func = (AdvanceFrameFuncPtr)machine_advance_frame;
     driver->teardown_func = f_teardown;
     return 0;
