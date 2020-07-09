@@ -51,6 +51,10 @@
 #define TASK_FETCH 1
 #define TASK_UPDATE 2
 
+// Screen dimensions
+#define WIDTH 256
+#define HEIGHT 240
+
 #define PPU_CYCLES_PER_SCANLINE 341
 #define PPU_SCANLINES_PER_FRAME 262
 
@@ -109,15 +113,14 @@ struct PPU {
     bool s_has_zero, s_has_zero_next;
     
     // Raw screen data, in ARGB8888 format
-    uint32_t *screen;
+    uint32_t screen[WIDTH * HEIGHT];
     
     // Lightgun sensor handling
     int *lightgun_pos;
     int lightgun_sensor;
 };
 
-void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, uint32_t *screen,
-              int *lightgun_pos);
+void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, int *lightgun_pos);
 void ppu_step(PPU *ppu, const RenderPos *pos, bool verbose);
 
 #endif /* f_ppu_h */

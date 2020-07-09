@@ -406,12 +406,10 @@ static void write_palettes(Machine *vm, uint16_t addr, uint8_t value) {
 
 // PUBLIC FUNCTIONS //
 
-void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, uint32_t *screen,
-              int *lightgun_pos) {
+void ppu_init(PPU *ppu, MemoryMap *mm, CPU65xx *cpu, int *lightgun_pos) {
     memset(ppu, 0, sizeof(PPU));
     ppu->mm = mm;
     ppu->cpu = cpu;
-    ppu->screen = screen;
     ppu->lightgun_pos = lightgun_pos;
     
     // Fill the tasks array

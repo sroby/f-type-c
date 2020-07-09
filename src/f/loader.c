@@ -62,12 +62,13 @@ int ines_loader(Driver *driver, blob *rom) {
     eprintf("Battery-backed SRAM: %s\n",
           (cart.has_battery_backup ? "Yes" : "No"));
 
-    driver->screen = malloc(sizeof(uint32_t) * WIDTH * HEIGHT);
     driver->screen_w = WIDTH;
     driver->screen_h = HEIGHT;
     Machine *vm = malloc(sizeof(Machine));
     machine_init(vm, &cart, driver);
     driver->vm = vm;
+    driver->refresh_rate = REFRESH_RATE;
+    driver->screen = vm->ppu.screen;
     driver->advance_frame_func = (AdvanceFrameFuncPtr)machine_advance_frame;
     driver->teardown_func = f_teardown;
     return 0;
@@ -77,5 +78,4 @@ void f_teardown(Driver *driver) {
     Machine *vm = driver->vm;
     machine_teardown(vm);
     free(driver->vm);
-    free(driver->screen);
 }

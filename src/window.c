@@ -203,7 +203,7 @@ void window_loop(Window *wnd, Driver *driver) {
     uint32_t *ctrls = driver->input.controllers;
     
     const uint64_t frame_length =
-        (SDL_GetPerformanceFrequency() * 10000) / 600988;
+        (SDL_GetPerformanceFrequency() * 10000) / driver->refresh_rate;
     const uint64_t delay_div = SDL_GetPerformanceFrequency() / 1000;
     
     SDL_PauseAudioDevice(wnd->audio_id, 0);

@@ -19,10 +19,6 @@
 #define T_CPU_MULTIPLIER 3
 #define T_APU_MULTIPLIER 6
 
-// Screen dimensions
-#define WIDTH 256
-#define HEIGHT 240
-
 // Forward decalarations
 typedef struct Driver Driver;
 typedef struct FCartInfo FCartInfo;

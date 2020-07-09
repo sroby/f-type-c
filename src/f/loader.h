@@ -5,6 +5,8 @@
 
 #define HEADER_SIZE 0x10
 
+#define REFRESH_RATE 600988
+
 typedef struct Driver Driver;
 
 typedef struct FCartInfo {

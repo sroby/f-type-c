@@ -12,6 +12,7 @@ typedef uint32_t *(*GetScreenFuncPtr)(void *);
 typedef struct Driver {
     void *vm;
     InputState input;
+    uint64_t refresh_rate;
     uint32_t *screen;
     int screen_w;
     int screen_h;

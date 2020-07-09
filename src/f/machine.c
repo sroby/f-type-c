@@ -16,8 +16,7 @@ void machine_init(Machine *vm, FCartInfo *carti, Driver *driver) {
     memory_map_ppu_init(&vm->ppu_mm, vm);
     cpu_65xx_init(&vm->cpu, &vm->cpu_mm, (CPU65xxReadFuncPtr)mm_read,
                                          (CPU65xxWriteFuncPtr)mm_write);
-    ppu_init(&vm->ppu, &vm->ppu_mm, &vm->cpu,
-             driver->screen, &driver->input.lightgun_pos);
+    ppu_init(&vm->ppu, &vm->ppu_mm, &vm->cpu, &driver->input.lightgun_pos);
     apu_init(&vm->apu, &vm->cpu, driver->audio_buffer, &driver->audio_pos);
     
     if (!vm->cart.chr_memory.size) {
