@@ -24,8 +24,8 @@ typedef enum {
 typedef struct CPU65xx CPU65xx;
 typedef struct Opcode Opcode;
 
-typedef uint8_t (*CPU65xxReadFunc)(void *, uint16_t);
-typedef void (*CPU65xxWriteFunc)(void *, uint16_t, uint8_t);
+typedef uint8_t (*CPU65xxReadFuncPtr)(void *, uint16_t);
+typedef void (*CPU65xxWriteFuncPtr)(void *, uint16_t, uint8_t);
 
 typedef enum {
     AM_IMPLIED,
@@ -68,8 +68,8 @@ struct CPU65xx {
     uint16_t pc;
     // Memory I/O
     void *mm;
-    CPU65xxReadFunc read_func;
-    CPU65xxWriteFunc write_func;
+    CPU65xxReadFuncPtr read_func;
+    CPU65xxWriteFuncPtr write_func;
     // Interrupt lines
     bool nmi;
     int irq;
@@ -77,8 +77,8 @@ struct CPU65xx {
     Opcode opcodes[0x100];
 };
 
-void cpu_65xx_init(CPU65xx *cpu, void *mm,
-                   CPU65xxReadFunc read_func, CPU65xxWriteFunc write_func);
+void cpu_65xx_init(CPU65xx *cpu, void *mm, CPU65xxReadFuncPtr read_func,
+                                           CPU65xxWriteFuncPtr write_func);
 
 int cpu_65xx_step(CPU65xx *cpu, bool verbose);
 int cpu_65xx_reset(CPU65xx *cpu, bool verbose);

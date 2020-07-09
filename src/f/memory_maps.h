@@ -8,15 +8,15 @@
 // Forward declarations
 typedef struct Machine Machine;
 
-typedef uint8_t (*ReadFunc)(Machine *, uint16_t);
-typedef void (*WriteFunc)(Machine *, uint16_t, uint8_t);
+typedef uint8_t (*ReadFuncPtr)(Machine *, uint16_t);
+typedef void (*WriteFuncPtr)(Machine *, uint16_t, uint8_t);
 
 typedef struct MemoryMap {
     Machine *vm;
     uint8_t last_read;
     uint16_t addr_mask;
-    ReadFunc read[0x10000];
-    WriteFunc write[0x10000];
+    ReadFuncPtr read[0x10000];
+    WriteFuncPtr write[0x10000];
 } MemoryMap;
 
 void memory_map_cpu_init(MemoryMap *mm, Machine *vm);

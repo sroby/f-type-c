@@ -42,13 +42,13 @@ static void init_sram(Machine *vm, int size) {
     }
 }
 
-static void init_register_prg(Machine *vm, WriteFunc register_func) {
+static void init_register_prg(Machine *vm, WriteFuncPtr register_func) {
     for (int i = 0; i < SIZE_PRG_ROM; i++) {
         vm->cpu_mm.write[0x8000 + i] = register_func;
     }
 }
 
-static void init_register_sram(Machine *vm, WriteFunc register_func) {
+static void init_register_sram(Machine *vm, WriteFuncPtr register_func) {
     for (int i = 0; i < SIZE_SRAM; i++) {
         vm->cpu_mm.write[0x6000 + i] = register_func;
     }
@@ -469,7 +469,7 @@ static uint8_t MMC24_read_chr(Machine *vm, uint16_t addr) {
     return value;
 }
 
-static void MMC24_init_common(Machine *vm, WriteFunc register_prg_func) {
+static void MMC24_init_common(Machine *vm, WriteFuncPtr register_prg_func) {
     memset(&vm->cart.mapper.mmc24, 0, sizeof(MMC24State));
     
     int i = 0xA000;
@@ -678,7 +678,7 @@ static void Bandai74s_write_register(Machine *vm, uint16_t addr, uint8_t value) 
                                                       : NT_SINGLE_A));
 }
 
-static void Bandai74_init_common(Machine *vm, WriteFunc register_func) {
+static void Bandai74_init_common(Machine *vm, WriteFuncPtr register_func) {
     Cartridge *cart = &vm->cart;
     select_prg_half(cart, 1, get_prg_last_half(cart, 1));
     init_register_prg(vm, register_func);
@@ -755,7 +755,7 @@ static void NINA0306MC_write_register(Machine *vm, uint16_t addr,
                                                       : NT_HORIZONTAL));
 }
 
-static void NINA0306_init_register(Machine *vm, WriteFunc register_func) {
+static void NINA0306_init_register(Machine *vm, WriteFuncPtr register_func) {
     // The register is at a more complicated location but who cares
     for (int i = 0x4100; i < 0x6000; i++) {
         vm->cpu_mm.write[i] = register_func;

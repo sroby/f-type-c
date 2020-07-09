@@ -348,8 +348,8 @@ static int op_NOP(CPU65xx *cpu, const Opcode *op, OpParam param) {
 
 // PUBLIC FUNCTIONS //
 
-void cpu_65xx_init(CPU65xx *cpu, void *mm,
-                   CPU65xxReadFunc read_func, CPU65xxWriteFunc write_func) {
+void cpu_65xx_init(CPU65xx *cpu, void *mm, CPU65xxReadFuncPtr read_func,
+                                           CPU65xxWriteFuncPtr write_func) {
     cpu->a = cpu->x = cpu->y = cpu->s = 0;
     cpu->p = P__;
     cpu->pc = 0;
