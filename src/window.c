@@ -8,13 +8,17 @@
 #define FULLSCREEN_DEFAULT true
 #endif
 
+// Temporary mapping until it gets added to SDL
+#define XMAP "0300000000f00000f100000000000000,RetroUSB.com SNES RetroPort,a:b3,b:b2,x:b1,y:b0,back:b4,start:b6,leftshoulder:b5,rightshoulder:b7,leftx:a0,lefty:a1"
+
 // Button assignments
 // A, B, Select, Start, Up, Down, Left, Right
-// Default is PS4/Switch, others are specific checks of the controller name
-static const int buttons[] = {0, 2, 4, 6, 11, 12, 13, 14};
-static const int buttons_snes_retroport[] = {2, 0, 4, 6, -1, -1, -1, -1};
-static const int buttons_8bitdo[] = {0, 1, 10, 11, -1, -1, -1, -1};
-static const int buttons_ds3[] = {14, 15, 0, 3, 4, 6, 7, 5};
+static const int buttons[] = {
+    SDL_CONTROLLER_BUTTON_A, SDL_CONTROLLER_BUTTON_X,
+    SDL_CONTROLLER_BUTTON_BACK, SDL_CONTROLLER_BUTTON_START,
+    SDL_CONTROLLER_BUTTON_DPAD_UP, SDL_CONTROLLER_BUTTON_DPAD_DOWN,
+    SDL_CONTROLLER_BUTTON_DPAD_LEFT, SDL_CONTROLLER_BUTTON_DPAD_RIGHT,
+};
 
 static bool get_env_bool(const char *name, bool *value) {
     const char *content = getenv(name);
@@ -26,9 +30,10 @@ static bool get_env_bool(const char *name, bool *value) {
 }
 
 static int identify_js(Window *wnd, SDL_JoystickID which) {
+    SDL_GameController *js = SDL_GameControllerFromInstanceID(which);
     for (int i = 0; i < 2; i++) {
         if (wnd->js[i]) {
-            if (SDL_JoystickInstanceID(wnd->js[i]) == which) {
+            if (wnd->js[i] == js) {
                 return i;
             }
         }
@@ -61,15 +66,15 @@ static void audio_callback(Driver *driver, uint16_t *stream, int len) {
 
 int window_init(Window *wnd, Driver *driver, const char *filename) {
     // Init SDL
-    int error_code = SDL_Init(SDL_INIT_VIDEO |
-                              SDL_INIT_AUDIO |
-                              SDL_INIT_JOYSTICK);
+    int error_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO |
+                              SDL_INIT_GAMECONTROLLER);
     if (error_code) {
         eprintf("%s\n", SDL_GetError());
         return error_code;
     }
     
     // Attempt to open up to 2 controllers
+    SDL_GameControllerAddMapping(XMAP);
     wnd->js_use_axis[0] = wnd->js_use_axis[1] = false;
     wnd->js[0] = wnd->js[1] = NULL;
     int n_js = SDL_NumJoysticks();
@@ -78,21 +83,16 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     }
     int assigned_js = 0;
     for (int i = 0; i < n_js; i++) {
-        SDL_Joystick *js = SDL_JoystickOpen(i);
+        if (!SDL_IsGameController(i)) {
+            continue;
+        }
+        SDL_GameController *js = SDL_GameControllerOpen(i);
         if (js) {
-            const char *js_name = SDL_JoystickName(js);
+            const char *js_name = SDL_GameControllerName(js);
             char js_guid[33];
-            SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(js),
+            SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(i),
                                       js_guid, sizeof(js_guid));
-            if (!strcasecmp(js_name, "retrousb.com snes retroport")) {
-                wnd->buttons[assigned_js] = buttons_snes_retroport;
-            } else if (!strncasecmp(js_name, "8bitdo", 6)) {
-                wnd->buttons[assigned_js] = buttons_8bitdo;
-            } else if (!strcasecmp(js_name, "playstation(r)3 controller")) {
-                wnd->buttons[assigned_js] = buttons_ds3;
-            } else {
-                wnd->buttons[assigned_js] = buttons;
-            }
+            wnd->buttons[assigned_js] = buttons;
             wnd->js[assigned_js++] = js;
             eprintf("Assigned \"%s\" (%s) as controller #%d\n",
                     js_name, js_guid, assigned_js);
@@ -210,7 +210,7 @@ void window_cleanup(Window *wnd) {
     
     for (int i = 0; i < 2; i++) {
         if (wnd->js[i]) {
-            SDL_JoystickClose(wnd->js[i]);
+            SDL_GameControllerClose(wnd->js[i]);
         }
     }
 
@@ -240,52 +240,52 @@ void window_loop(Window *wnd, Driver *driver) {
         int cid;
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
-                case SDL_JOYAXISMOTION:
-                    if (event.jaxis.axis >= 2) {
+                case SDL_CONTROLLERAXISMOTION:
+                    if (event.caxis.axis >= 2) {
                         break;
                     }
-                    cid = identify_js(wnd, event.jaxis.which);
+                    cid = identify_js(wnd, event.caxis.which);
                     if (cid < 0) {
                         break;
                     }
                     if (!wnd->js_use_axis[cid]) {
-                        if (abs(event.jaxis.value) < AXIS_DEADZONE) {
+                        if (abs(event.caxis.value) < AXIS_DEADZONE) {
                             break;
                         }
                         ctrls[cid] &= 0b1111;
                         wnd->js_use_axis[cid] = true;
                     }
-                    if (event.jaxis.axis == 0) {
+                    if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX) {
                         ctrls[cid] &= ~(BUTTON_LEFT | BUTTON_RIGHT);
-                        if (event.jaxis.value < -AXIS_DEADZONE) {
+                        if (event.caxis.value < -AXIS_DEADZONE) {
                             ctrls[cid] |= BUTTON_LEFT;
-                        } else if (event.jaxis.value > AXIS_DEADZONE) {
+                        } else if (event.caxis.value > AXIS_DEADZONE) {
                             ctrls[cid] |= BUTTON_RIGHT;
                         }
-                    } else if (event.jaxis.axis == 1) {
+                    } else if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTY) {
                         ctrls[cid] &= ~(BUTTON_UP | BUTTON_DOWN);
-                        if (event.jaxis.value < -AXIS_DEADZONE) {
+                        if (event.caxis.value < -AXIS_DEADZONE) {
                             ctrls[cid] |= BUTTON_UP;
-                        } else if (event.jaxis.value > AXIS_DEADZONE) {
+                        } else if (event.caxis.value > AXIS_DEADZONE) {
                             ctrls[cid] |= BUTTON_DOWN;
                         }
                     }
                     /*printf("P%d A%d:%d => %d\n", cid + 1, event.jaxis.axis,
                            event.jaxis.value, ctrls[cid]);*/
                     break;
-                case SDL_JOYBUTTONDOWN:
-                case SDL_JOYBUTTONUP:
-                    cid = identify_js(wnd, event.jbutton.which);
+                case SDL_CONTROLLERBUTTONDOWN:
+                case SDL_CONTROLLERBUTTONUP:
+                    cid = identify_js(wnd, event.cbutton.which);
                     if (cid < 0) {
                         break;
                     }
                     for (int i = 0; i < 8; i++) {
-                        if (event.jbutton.button == wnd->buttons[cid][i]) {
+                        if (event.cbutton.button == wnd->buttons[cid][i]) {
                             if (i > 3 && wnd->js_use_axis[cid]) {
                                 ctrls[cid] &= 0b1111;
                                 wnd->js_use_axis[cid] = false;
                             }
-                            if (event.jbutton.state == SDL_PRESSED) {
+                            if (event.cbutton.state == SDL_PRESSED) {
                                 ctrls[cid] |= 1 << i;
                             } else {
                                 ctrls[cid] &= ~(1 << i);
