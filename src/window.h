@@ -33,7 +33,7 @@ typedef struct Window {
     SDL_AudioDeviceID audio_id;
     SDL_GameController *js[2];
     bool js_use_axis[2];
-    const int *buttons[2];
+    int kb_assign;
     bool fullscreen;
 } Window;
 

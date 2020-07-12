@@ -7,11 +7,15 @@
 
 // Button assignments
 // A, B, Select, Start, Up, Down, Left, Right
-static const int buttons[] = {
+static const SDL_GameControllerButton buttons[] = {
     SDL_CONTROLLER_BUTTON_A, SDL_CONTROLLER_BUTTON_X,
     SDL_CONTROLLER_BUTTON_BACK, SDL_CONTROLLER_BUTTON_START,
     SDL_CONTROLLER_BUTTON_DPAD_UP, SDL_CONTROLLER_BUTTON_DPAD_DOWN,
     SDL_CONTROLLER_BUTTON_DPAD_LEFT, SDL_CONTROLLER_BUTTON_DPAD_RIGHT,
+};
+static const SDL_Scancode keys[] = {
+    SDL_SCANCODE_X, SDL_SCANCODE_Z, SDL_SCANCODE_A, SDL_SCANCODE_S,
+    SDL_SCANCODE_UP, SDL_SCANCODE_DOWN, SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT,
 };
 
 static bool get_env_bool(const char *name, bool *value) {
@@ -130,7 +134,6 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     if (n_js < 0) {
         eprintf("%s\n", SDL_GetError());
     }
-    int assigned_js = 0;
     for (int i = 0; i < n_js; i++) {
         if (!SDL_IsGameController(i)) {
             continue;
@@ -141,19 +144,19 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
             char js_guid[33];
             SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(i),
                                       js_guid, sizeof(js_guid));
-            wnd->buttons[assigned_js] = buttons;
-            wnd->js[assigned_js++] = js;
+            wnd->js[wnd->kb_assign++] = js;
             eprintf("Assigned \"%s\" (%s) as controller #%d\n",
-                    js_name, js_guid, assigned_js);
-            if (assigned_js >= 2) {
+                    js_name, js_guid, wnd->kb_assign);
+            if (wnd->kb_assign >= 2) {
+                wnd->kb_assign = -1;
                 break;
             }
         } else {
             eprintf("%s\n", SDL_GetError());
         }
     }
-    if (!assigned_js) {
-        eprintf("No controllers were found, will continue without input\n");
+    if (wnd->kb_assign >= 0) {
+        eprintf("Assigned keyboard as controller #%d\n", wnd->kb_assign + 1);
     }
     
     // TODO: Everything below shouldn't assume a 8:7 anamorphic aspect ratio
@@ -288,8 +291,6 @@ void window_loop(Window *wnd, Driver *driver) {
                             ctrls[cid] |= BUTTON_DOWN;
                         }
                     }
-                    /*printf("P%d A%d:%d => %d\n", cid + 1, event.jaxis.axis,
-                           event.jaxis.value, ctrls[cid]);*/
                     break;
                 case SDL_CONTROLLERBUTTONDOWN:
                 case SDL_CONTROLLERBUTTONUP:
@@ -298,22 +299,16 @@ void window_loop(Window *wnd, Driver *driver) {
                         break;
                     }
                     for (int i = 0; i < 8; i++) {
-                        if (event.cbutton.button == wnd->buttons[cid][i]) {
+                        if (event.cbutton.button == buttons[i]) {
                             if (i > 3 && wnd->js_use_axis[cid]) {
                                 ctrls[cid] &= 0b1111;
                                 wnd->js_use_axis[cid] = false;
                             }
-                            if (event.cbutton.state == SDL_PRESSED) {
-                                ctrls[cid] |= 1 << i;
-                            } else {
-                                ctrls[cid] &= ~(1 << i);
-                            }
+                            BIT_AS(ctrls[cid], i,
+                                   event.cbutton.state == SDL_PRESSED);
                             break;
                         }
                     }
-                    /*printf("P%d B%d:%d => %d\n", cid + 1,
-                           event.jbutton.button,
-                           event.jbutton.state, ctrls[cid]);*/
                     break;
                 case SDL_MOUSEMOTION:
                     if (!(event.motion.state & SDL_BUTTON_RMASK)) {
@@ -339,35 +334,44 @@ void window_loop(Window *wnd, Driver *driver) {
                     }
                     break;
                 case SDL_KEYDOWN:
-                    switch (event.key.keysym.scancode) {
-                        case SDL_SCANCODE_ESCAPE:
-                            if (wnd->fullscreen) {
-                                window_toggle_fullscreen(wnd, driver);
-                            } else if (!quit_request) {
-                                quit_request = frame;
-                            }
-                            break;
-                        case SDL_SCANCODE_F:
-                            if (!event.key.repeat) {
-                                window_toggle_fullscreen(wnd, driver);
-                            }
-                            break;
-                        default: break;
-                    }
-                    break;
                 case SDL_KEYUP:
                     switch (event.key.keysym.scancode) {
                         case SDL_SCANCODE_ESCAPE:
-                            quit_request = 0;
-                            if (!wnd->fullscreen) {
-                                SDL_SetWindowOpacity(wnd->window, 1.0f);
+                            if (event.key.state == SDL_PRESSED) {
+                                if (wnd->fullscreen) {
+                                    window_toggle_fullscreen(wnd, driver);
+                                } else if (!quit_request) {
+                                    quit_request = frame;
+                                }
+                            } else {
+                                quit_request = 0;
+                                if (!wnd->fullscreen) {
+                                    SDL_SetWindowOpacity(wnd->window, 1.0f);
+                                }
                             }
                             break;
-                        default: break;
+                        case SDL_SCANCODE_F:
+                            if (event.key.state == SDL_PRESSED &&
+                                !event.key.repeat) {
+                                window_toggle_fullscreen(wnd, driver);
+                            }
+                            break;
+                        default:
+                            if (wnd->kb_assign < 0) {
+                                break;
+                            }
+                            for (int i = 0; i < 8; i++) {
+                                if (event.key.keysym.scancode == keys[i]) {
+                                    BIT_AS(ctrls[wnd->kb_assign], i,
+                                           event.key.state == SDL_PRESSED);
+                                }
+                            }
+                            break;
                     }
                     break;
                 case SDL_QUIT:
                     quitting = true;
+                    break;
             }
         }
         if (quitting) {
