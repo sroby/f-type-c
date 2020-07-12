@@ -132,12 +132,16 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
         return 1;
     }
 
-    // Compare physical resolution to display bounds to see if we can resize to
-    // pixel-perfect (2048x1680) mode
+    // Compare physical resolution to display bounds to see
+    // if we can rezise to pixel-perfect (2048x1568) mode
     int w, h;
     SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
     SDL_Rect bounds;
-    SDL_GetDisplayUsableBounds(0, &bounds);
+    if (fullscreen) {
+        SDL_GetDisplayBounds(0, &bounds);
+    } else {
+        SDL_GetDisplayUsableBounds(0, &bounds);
+    }
     int target_w = driver->screen_w * 8 / (w / width_adjusted);
     int target_h = driver->screen_h * 7 / (h / driver->screen_h);
     if (target_w <= bounds.w && target_h <= bounds.h) {
