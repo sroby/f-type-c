@@ -479,21 +479,21 @@ void ppu_step(PPU *ppu, const RenderPos *pos, bool verbose) {
     if (verbose && !pos->cycle) {
         printf("-- Scanline %d --\n", pos->scanline);
     }
-    
-    if (pos->scanline >= 0 && pos->scanline < HEIGHT &&
-        pos->cycle < WIDTH) {
-        task_render_pixel(ppu, pos);
-    }
-    
-    // Execute all tasks for that cycle
-    if (pos->scanline < 240 && is_rendering(ppu)) {
-        for (int i = 0; i < 3; i++) {
-            if (ppu->tasks[pos->cycle][i]) {
-                (*ppu->tasks[pos->cycle][i])(ppu, pos);
+
+    if (pos->scanline < HEIGHT) {
+        if (pos->scanline >= 0 && pos->cycle < WIDTH) {
+            task_render_pixel(ppu, pos);
+        }
+        // Execute all tasks for that cycle
+        if (is_rendering(ppu)) {
+            for (int i = 0; i < 3; i++) {
+                if (ppu->tasks[pos->cycle][i]) {
+                    (*ppu->tasks[pos->cycle][i])(ppu, pos);
+                }
             }
         }
     }
-    
+
     // Check for flag operations
     if (pos->cycle == 1) {
         switch (pos->scanline) {
@@ -508,9 +508,7 @@ void ppu_step(PPU *ppu, const RenderPos *pos, bool verbose) {
                 }
                 break;
         }
-    }
-    
-    if (!pos->cycle && (ppu->lightgun_sensor > 0)) {
+    } else if (!pos->cycle && (ppu->lightgun_sensor > 0)) {
         ppu->lightgun_sensor--;
     }
 }

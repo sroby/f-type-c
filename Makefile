@@ -19,7 +19,7 @@ SRCS= \
 
 all: $(TARGET)
 
-debug: CFLAGS += -DDEBUG -g
+debug: CFLAGS += -DDEBUG -g -fno-omit-frame-pointer
 debug: $(TARGET)
 
 $(TARGET): $(SRCS)
