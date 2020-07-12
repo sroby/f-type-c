@@ -34,6 +34,7 @@ typedef struct Window {
     SDL_GameController *js[2];
     bool js_use_axis[2];
     const int *buttons[2];
+    bool fullscreen;
 } Window;
 
 int window_init(Window *wnd, Driver *driver, const char *filename);

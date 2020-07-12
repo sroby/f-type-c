@@ -2,12 +2,6 @@
 
 #include "driver.h"
 
-#ifdef DEBUG
-#define FULLSCREEN_DEFAULT false
-#else
-#define FULLSCREEN_DEFAULT true
-#endif
-
 // Temporary mapping until it gets added to SDL
 #define XMAP "0300000000f00000f100000000000000,RetroUSB.com SNES RetroPort,a:b3,b:b2,x:b1,y:b0,back:b4,start:b6,leftshoulder:b5,rightshoulder:b7,leftx:a0,lefty:a1"
 
@@ -62,9 +56,66 @@ static void audio_callback(Driver *driver, uint16_t *stream, int len) {
     }
 }
 
+static bool window_update_area(Window *wnd, Driver *driver) {
+    int w, h;
+    SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
+    
+    int zoom = h / driver->screen_h + 1;
+    int adjusted_w;
+    do {
+        adjusted_w = driver->screen_w * --zoom * 8 / 7;
+        adjusted_w -= (adjusted_w % 2);
+    } while (adjusted_w > w);
+    wnd->display_area.w = adjusted_w;
+    wnd->display_area.h = driver->screen_h * zoom;
+    wnd->display_area.x = (w - wnd->display_area.w) / 2;
+    wnd->display_area.y = (h - wnd->display_area.h) / 2;
+    int win_w, win_h;
+    SDL_GetWindowSize(wnd->window, &win_w, &win_h);
+    wnd->mouse_area.w = wnd->display_area.w * win_w / w;
+    wnd->mouse_area.h = wnd->display_area.h * win_h / h;
+    wnd->mouse_area.x = wnd->display_area.x * win_w / w;
+    wnd->mouse_area.y = wnd->display_area.y * win_h / h;
+    
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,
+                (!wnd->fullscreen && (win_h == driver->screen_h) ? "best"
+                                                                 : "nearest"));
+    if (wnd->texture) {
+        SDL_DestroyTexture(wnd->texture);
+    }
+    wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
+                                     SDL_TEXTUREACCESS_STREAMING,
+                                     driver->screen_w, driver->screen_h);
+    if (!wnd->texture) {
+        eprintf("%s\n", SDL_GetError());
+        return false;
+    }
+    return true;
+}
+
+int window_toggle_fullscreen(Window *wnd, Driver *driver) {
+    SDL_PauseAudioDevice(wnd->audio_id, 1);
+    SDL_RenderClear(wnd->renderer);
+    SDL_RenderPresent(wnd->renderer);
+    
+    wnd->fullscreen = !wnd->fullscreen;
+    uint32_t flags = (wnd->fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+    int error_code = SDL_SetWindowFullscreen(wnd->window, flags);
+    if (error_code) {
+        eprintf("%s\n", SDL_GetError());
+    } else {
+        window_update_area(wnd, driver);
+    }
+    
+    SDL_PauseAudioDevice(wnd->audio_id, 0);
+    return error_code;
+}
+
 // PUBLIC FUNCTIONS //
 
 int window_init(Window *wnd, Driver *driver, const char *filename) {
+    memset(wnd, 0, sizeof(Window));
+    
     // Init SDL
     int error_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO |
                               SDL_INIT_GAMECONTROLLER);
@@ -75,8 +126,6 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     
     // Attempt to open up to 2 controllers
     SDL_GameControllerAddMapping(XMAP);
-    wnd->js_use_axis[0] = wnd->js_use_axis[1] = false;
-    wnd->js[0] = wnd->js[1] = NULL;
     int n_js = SDL_NumJoysticks();
     if (n_js < 0) {
         eprintf("%s\n", SDL_GetError());
@@ -110,16 +159,11 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     // TODO: Everything below shouldn't assume a 8:7 anamorphic aspect ratio
     int width_adjusted = driver->screen_w * 8 / 7;
     
-    bool fullscreen = FULLSCREEN_DEFAULT;
-    get_env_bool("FULLSCREEN", &fullscreen);
-    uint32_t flags = SDL_WINDOW_ALLOW_HIGHDPI |
-        (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-
     // Create window and renderer
     wnd->window = SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED,
                                              SDL_WINDOWPOS_UNDEFINED,
                                              width_adjusted, driver->screen_h,
-                                             flags);
+                                             SDL_WINDOW_ALLOW_HIGHDPI);
     if (!wnd->window) {
         eprintf("%s\n", SDL_GetError());
         return 1;
@@ -142,34 +186,8 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     int target_h = driver->screen_h * 7 / (h / driver->screen_h);
     if (target_w <= bounds.w && target_h <= bounds.h) {
         SDL_SetWindowSize(wnd->window, target_w, target_h);
-    } else {
-        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
     }
-    
-    // Compute the display area
-    SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
-    int zoom = h / driver->screen_h + 1;
-    int adjusted_w;
-    do {
-        adjusted_w = driver->screen_w * --zoom * 8 / 7;
-        adjusted_w -= (adjusted_w % 2);
-    } while (adjusted_w > w);
-    wnd->display_area.w = adjusted_w;
-    wnd->display_area.h = driver->screen_h * zoom;
-    wnd->display_area.x = (w - wnd->display_area.w) / 2;
-    wnd->display_area.y = (h - wnd->display_area.h) / 2;
-    int win_w, win_h;
-    SDL_GetWindowSize(wnd->window, &win_w, &win_h);
-    wnd->mouse_area.w = wnd->display_area.w * win_w / w;
-    wnd->mouse_area.h = wnd->display_area.h * win_h / h;
-    wnd->mouse_area.x = wnd->display_area.x * win_w / w;
-    wnd->mouse_area.y = wnd->display_area.y * win_h / h;
-
-    wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
-                                     SDL_TEXTUREACCESS_STREAMING,
-                                     driver->screen_w, driver->screen_h);
-    if (!wnd->texture) {
-        eprintf("%s\n", SDL_GetError());
+    if (!window_update_area(wnd, driver)) {
         return 1;
     }
     
@@ -233,7 +251,7 @@ void window_loop(Window *wnd, Driver *driver) {
     int frame = 0;
     int quit_request = 0;
     uint64_t t_next = SDL_GetPerformanceCounter();
-    while(true) {
+    while (true) {
         // Process events
         bool quitting = false;
         SDL_Event event;
@@ -323,8 +341,15 @@ void window_loop(Window *wnd, Driver *driver) {
                 case SDL_KEYDOWN:
                     switch (event.key.keysym.scancode) {
                         case SDL_SCANCODE_ESCAPE:
-                            if (!quit_request) {
+                            if (wnd->fullscreen) {
+                                window_toggle_fullscreen(wnd, driver);
+                            } else if (!quit_request) {
                                 quit_request = frame;
+                            }
+                            break;
+                        case SDL_SCANCODE_F:
+                            if (!event.key.repeat) {
+                                window_toggle_fullscreen(wnd, driver);
                             }
                             break;
                         default: break;
@@ -334,7 +359,9 @@ void window_loop(Window *wnd, Driver *driver) {
                     switch (event.key.keysym.scancode) {
                         case SDL_SCANCODE_ESCAPE:
                             quit_request = 0;
-                            SDL_SetWindowOpacity(wnd->window, 1.0f);
+                            if (!wnd->fullscreen) {
+                                SDL_SetWindowOpacity(wnd->window, 1.0f);
+                            }
                             break;
                         default: break;
                     }
