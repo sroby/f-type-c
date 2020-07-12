@@ -137,11 +137,7 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     int w, h;
     SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
     SDL_Rect bounds;
-    if (fullscreen) {
-        SDL_GetDisplayBounds(0, &bounds);
-    } else {
-        SDL_GetDisplayUsableBounds(0, &bounds);
-    }
+    SDL_GetDisplayUsableBounds(0, &bounds);
     int target_w = driver->screen_w * 8 / (w / width_adjusted);
     int target_h = driver->screen_h * 7 / (h / driver->screen_h);
     if (target_w <= bounds.w && target_h <= bounds.h) {
