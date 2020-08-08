@@ -1,6 +1,7 @@
 #include "loader.h"
 
 #include <ctype.h>
+#include "SDL.h"
 
 #include "../driver.h"
 
@@ -52,7 +53,7 @@ int s_loader(Driver *driver, blob *rom) {
     };
     bool valid = false;
     uint8_t *header = NULL;
-    char title[22];
+    char raw_title[GAME_TITLE_LENGTH + 1];
     int header_pos = 0;
     for (int i = 0; i < sizeof(header_offsets) / sizeof(int); i++) {
         header_pos = header_offsets[i];
@@ -75,23 +76,19 @@ int s_loader(Driver *driver, blob *rom) {
             continue;
         }
         
-        strncpy(title, (const char *)header + HEADER_GAME_TITLE,
-                sizeof(title) - 1);
-        title[sizeof(title) - 1] = 0;
-        long title_len = strlen(title);
-        if (title_len < 20) {
+        // Title validation
+        strncpy(raw_title, (const char *)header + HEADER_GAME_TITLE,
+                GAME_TITLE_LENGTH);
+        raw_title[GAME_TITLE_LENGTH] = 0;
+        long title_len = strlen(raw_title);
+        if (title_len < (GAME_TITLE_LENGTH - 1)) {
             valid = false;
         } else {
             for (int j = 0; j < title_len; j++) {
                 // Validate that the title is a valid text string
-                if (iscntrl(title[j])) {
+                if (iscntrl(raw_title[j])) {
                     valid = false;
                     break;
-                }
-                // Take out non-ASCII (Shift-JIS) characters
-                // TODO: use iconv to convert to UTF-8
-                if (title[j] < 0) {
-                    title[j] = ' ';
                 }
             }
         }
@@ -174,6 +171,17 @@ int s_loader(Driver *driver, blob *rom) {
     
     eprintf("Raw SHVC ROM image (header found at 0x%06X)\n",
             header_pos);
+    
+    // Convert title from Shift JIS to local charset
+    char title[GAME_TITLE_LENGTH * 2 + 1];
+    memset(title, 0, sizeof(title));
+    SDL_iconv_t cd = SDL_iconv_open("", "SHIFT_JIS");
+    const char *inbuf = raw_title;
+    char *outbuf = title;
+    size_t inleft = strlen(raw_title);
+    size_t outleft = sizeof(title) - 1;
+    SDL_iconv(cd, &inbuf, &inleft, &outbuf, &outleft);
+    SDL_iconv_close(cd);
     eprintf("Game title: %s\n", title);
     
     const char *code_display = STR_NOT_IN_HEADER;

@@ -19,6 +19,8 @@
 #define HEADER_COMPLEMENT 0x2C
 #define HEADER_CHECKSUM 0x2E
 
+#define GAME_TITLE_LENGTH 21
+
 #define STR_NOT_IN_HEADER "[not present in header]"
 
 typedef struct Driver Driver;
