@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
         return error_code;
     }
     
-    window_loop(&wnd, &driver);
+    window_loop(&wnd);
     window_cleanup(&wnd);
     
     free(fn);

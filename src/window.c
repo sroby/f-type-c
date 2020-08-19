@@ -60,18 +60,18 @@ static void audio_callback(Driver *driver, uint16_t *stream, int len) {
     }
 }
 
-static bool window_update_area(Window *wnd, Driver *driver) {
+static bool window_update_area(Window *wnd) {
     int w, h;
     SDL_GetRendererOutputSize(wnd->renderer, &w, &h);
     
-    int zoom = h / driver->screen_h + 1;
+    int zoom = h / wnd->driver->screen_h + 1;
     int adjusted_w;
     do {
-        adjusted_w = driver->screen_w * --zoom * 8 / 7;
+        adjusted_w = wnd->driver->screen_w * --zoom * 8 / 7;
         adjusted_w -= (adjusted_w % 2);
     } while (adjusted_w > w);
     wnd->display_area.w = adjusted_w;
-    wnd->display_area.h = driver->screen_h * zoom;
+    wnd->display_area.h = wnd->driver->screen_h * zoom;
     wnd->display_area.x = (w - wnd->display_area.w) / 2;
     wnd->display_area.y = (h - wnd->display_area.h) / 2;
     int win_w, win_h;
@@ -82,14 +82,15 @@ static bool window_update_area(Window *wnd, Driver *driver) {
     wnd->mouse_area.y = wnd->display_area.y * win_h / h;
     
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,
-                (!wnd->fullscreen && (win_h == driver->screen_h) ? "best"
-                                                                 : "nearest"));
+                (!wnd->fullscreen && (win_h == wnd->driver->screen_h)
+                                      ? "best" : "nearest"));
     if (wnd->texture) {
         SDL_DestroyTexture(wnd->texture);
     }
     wnd->texture = SDL_CreateTexture(wnd->renderer, SDL_PIXELFORMAT_ARGB8888,
                                      SDL_TEXTUREACCESS_STREAMING,
-                                     driver->screen_w, driver->screen_h);
+                                     wnd->driver->screen_w,
+                                     wnd->driver->screen_h);
     if (!wnd->texture) {
         eprintf("%s\n", SDL_GetError());
         return false;
@@ -97,7 +98,7 @@ static bool window_update_area(Window *wnd, Driver *driver) {
     return true;
 }
 
-int window_toggle_fullscreen(Window *wnd, Driver *driver) {
+int window_toggle_fullscreen(Window *wnd) {
     SDL_PauseAudioDevice(wnd->audio_id, 1);
     SDL_RenderClear(wnd->renderer);
     SDL_RenderPresent(wnd->renderer);
@@ -108,7 +109,7 @@ int window_toggle_fullscreen(Window *wnd, Driver *driver) {
     if (error_code) {
         eprintf("%s\n", SDL_GetError());
     } else {
-        window_update_area(wnd, driver);
+        window_update_area(wnd);
     }
     
     SDL_PauseAudioDevice(wnd->audio_id, 0);
@@ -119,6 +120,7 @@ int window_toggle_fullscreen(Window *wnd, Driver *driver) {
 
 int window_init(Window *wnd, Driver *driver, const char *filename) {
     memset(wnd, 0, sizeof(Window));
+    wnd->driver = driver;
     
     // Init SDL
     int error_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO |
@@ -190,7 +192,7 @@ int window_init(Window *wnd, Driver *driver, const char *filename) {
     if (target_w <= bounds.w && target_h <= bounds.h) {
         SDL_SetWindowSize(wnd->window, target_w, target_h);
     }
-    if (!window_update_area(wnd, driver)) {
+    if (!window_update_area(wnd)) {
         return 1;
     }
     
@@ -238,14 +240,14 @@ void window_cleanup(Window *wnd) {
     SDL_Quit();
 }
 
-void window_loop(Window *wnd, Driver *driver) {
+void window_loop(Window *wnd) {
     bool verbose = false;
     get_env_bool("VERBOSE", &verbose);
     
-    uint32_t *ctrls = driver->input.controllers;
+    uint32_t *ctrls = wnd->driver->input.controllers;
     
     const uint64_t frame_length =
-        (SDL_GetPerformanceFrequency() * 10000) / driver->refresh_rate;
+        (SDL_GetPerformanceFrequency() * 10000) / wnd->driver->refresh_rate;
     const uint64_t delay_div = SDL_GetPerformanceFrequency() / 1000;
     
     SDL_PauseAudioDevice(wnd->audio_id, 0);
@@ -312,7 +314,7 @@ void window_loop(Window *wnd, Driver *driver) {
                     break;
                 case SDL_MOUSEMOTION:
                     if (!(event.motion.state & SDL_BUTTON_RMASK)) {
-                        update_lightgun_pos(driver, &wnd->mouse_area,
+                        update_lightgun_pos(wnd->driver, &wnd->mouse_area,
                                             event.motion.x, event.motion.y);
                     }
                     break;
@@ -322,13 +324,13 @@ void window_loop(Window *wnd, Driver *driver) {
                         event.button.button != SDL_BUTTON_RIGHT) {
                         break;
                     }
-                    driver->input.lightgun_trigger =
+                    wnd->driver->input.lightgun_trigger =
                         (event.button.state == SDL_PRESSED);
                     if (event.button.button == SDL_BUTTON_RIGHT) {
-                        if (driver->input.lightgun_trigger) {
-                            driver->input.lightgun_pos = -1;
+                        if (wnd->driver->input.lightgun_trigger) {
+                            wnd->driver->input.lightgun_pos = -1;
                         } else {
-                            update_lightgun_pos(driver, &wnd->mouse_area,
+                            update_lightgun_pos(wnd->driver, &wnd->mouse_area,
                                                 event.button.x, event.button.y);
                         }
                     }
@@ -339,7 +341,7 @@ void window_loop(Window *wnd, Driver *driver) {
                         case SDL_SCANCODE_ESCAPE:
                             if (event.key.state == SDL_PRESSED) {
                                 if (wnd->fullscreen) {
-                                    window_toggle_fullscreen(wnd, driver);
+                                    window_toggle_fullscreen(wnd);
                                 } else if (!quit_request) {
                                     quit_request = frame;
                                 }
@@ -353,7 +355,7 @@ void window_loop(Window *wnd, Driver *driver) {
                         case SDL_SCANCODE_F:
                             if (event.key.state == SDL_PRESSED &&
                                 !event.key.repeat) {
-                                window_toggle_fullscreen(wnd, driver);
+                                window_toggle_fullscreen(wnd);
                             }
                             break;
                         default:
@@ -387,14 +389,14 @@ void window_loop(Window *wnd, Driver *driver) {
         }
         
         // Advance one frame
-        (*driver->advance_frame_func)(driver->vm, verbose);
+        (*wnd->driver->advance_frame_func)(wnd->driver->vm, verbose);
         
         // Render the frame unless we're behind schedule
         t_next += frame_length;
         int64_t t_left = t_next - SDL_GetPerformanceCounter();
         if (t_left > 0) {
-            SDL_UpdateTexture(wnd->texture, NULL, driver->screen,
-                              driver->screen_w * sizeof(uint32_t));
+            SDL_UpdateTexture(wnd->texture, NULL, wnd->driver->screen,
+                              wnd->driver->screen_w * sizeof(uint32_t));
             SDL_RenderClear(wnd->renderer);
             SDL_RenderCopy(wnd->renderer, wnd->texture, NULL, &wnd->display_area);
             SDL_RenderPresent(wnd->renderer);

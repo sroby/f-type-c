@@ -35,11 +35,12 @@ typedef struct Window {
     bool js_use_axis[2];
     int kb_assign;
     bool fullscreen;
+    Driver *driver;
 } Window;
 
 int window_init(Window *wnd, Driver *driver, const char *filename);
 void window_cleanup(Window *wnd);
 
-void window_loop(Window *wnd, Driver *driver);
+void window_loop(Window *wnd);
 
 #endif /* window_h */
