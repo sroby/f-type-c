@@ -7,7 +7,7 @@
 typedef struct Driver Driver;
 
 typedef void (*AdvanceFrameFuncPtr)(void *, bool);
-typedef uint32_t *(*GetScreenFuncPtr)(void *);
+typedef void (*TeardownFuncPtr)(Driver *);
 
 typedef struct Driver {
     void *vm;
@@ -19,7 +19,7 @@ typedef struct Driver {
     int16_t audio_buffer[8192];
     int audio_pos;
     AdvanceFrameFuncPtr advance_frame_func;
-    void (*teardown_func)(Driver *);
+    TeardownFuncPtr teardown_func;
 } Driver;
 
 #endif /* driver_h */
