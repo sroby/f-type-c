@@ -75,21 +75,34 @@ static void task_render_pixel(PPU *ppu, const RenderPos *pos) {
     uint8_t s_attrs = 0;
     bool s_is_zero = false;
     int bg_index = 0;
-    
+
     if (ppu->mask & MASK_RENDER_SPRITES) {
         // Decrement all sprites,
         // while looking for a matching non-transparent pixel
+        const int set_s_index = ppu->mask & MASK_NOCLIP_SPRITES ||
+                                pos->cycle >= 8;
         for (int s = 0; s < 8; s++) {
-            if (ppu->s_x[s] > 0) {
+            if (ppu->s_x[s]) {
                 ppu->s_x[s]--;
             } else {
-                if (!s_index && (ppu->mask & MASK_NOCLIP_SPRITES ||
-                                 pos->cycle >= 8)) {
+                if (set_s_index) {
                     s_index = ((ppu->s_pt0[s] & 128) >> 7) |
                               ((ppu->s_pt1[s] & 128) >> 6);
                     if (s_index) {
                         s_attrs = ppu->s_attrs[s];
                         s_is_zero = ppu->s_has_zero && !s;
+                        ppu->s_pt0[s] <<= 1;
+                        ppu->s_pt1[s] <<= 1;
+                        s++;
+                        for (; s < 8; s++) {
+                            if (ppu->s_x[s]) {
+                                ppu->s_x[s]--;
+                            } else {
+                                ppu->s_pt0[s] <<= 1;
+                                ppu->s_pt1[s] <<= 1;
+                            }
+                        }
+                        break;
                     }
                 }
                 ppu->s_pt0[s] <<= 1;
@@ -97,13 +110,12 @@ static void task_render_pixel(PPU *ppu, const RenderPos *pos) {
             }
         }
     }
-    if (ppu->mask & MASK_RENDER_BACKGROUND) {
-        if (ppu->mask & MASK_NOCLIP_BACKGROUND || pos->cycle >= 8) {
-            bg_index = (((ppu->bg_pt0 << ppu->x) & 32768) >> 15) |
-                       (((ppu->bg_pt1 << ppu->x) & 32768) >> 14);
-        }
+
+    if (ppu->mask & (MASK_RENDER_BACKGROUND | MASK_NOCLIP_BACKGROUND) || pos->cycle >= 8) {
+        bg_index = (((ppu->bg_pt0 << ppu->x) & 32768) >> 15) |
+                   (((ppu->bg_pt1 << ppu->x) & 32768) >> 14);
     }
-    
+
     if (bg_index && s_index && s_is_zero) {
         // TODO: delay by 1/2 (??) cycles
         ppu->status |= STATUS_SPRITE0_HIT;
@@ -119,8 +131,8 @@ static void task_render_pixel(PPU *ppu, const RenderPos *pos) {
     } else {
         color = ppu->background_colors[0];
     }
-    
-    int pixel = pos->scanline * WIDTH + pos->cycle;
+
+    const int pixel = pos->scanline * WIDTH + pos->cycle;
     ppu->screen[pixel] = colors_ntsc[color];
     if (pixel == *ppu->lightgun_pos && (color == 0x20 || color == 0x30)) {
         ppu->lightgun_sensor = LIGHTGUN_COOLDOWN;
@@ -467,21 +479,21 @@ void ppu_step(PPU *ppu, const RenderPos *pos, bool verbose) {
     if (verbose && !pos->cycle) {
         printf("-- Scanline %d --\n", pos->scanline);
     }
-    
-    if (pos->scanline >= 0 && pos->scanline < HEIGHT &&
-        pos->cycle < WIDTH) {
-        task_render_pixel(ppu, pos);
-    }
-    
-    // Execute all tasks for that cycle
-    if (pos->scanline < 240 && is_rendering(ppu)) {
-        for (int i = 0; i < 3; i++) {
-            if (ppu->tasks[pos->cycle][i]) {
-                (*ppu->tasks[pos->cycle][i])(ppu, pos);
+
+    if (pos->scanline < HEIGHT) {
+        if (pos->scanline >= 0 && pos->cycle < WIDTH) {
+            task_render_pixel(ppu, pos);
+        }
+        // Execute all tasks for that cycle
+        if (is_rendering(ppu)) {
+            for (int i = 0; i < 3; i++) {
+                if (ppu->tasks[pos->cycle][i]) {
+                    (*ppu->tasks[pos->cycle][i])(ppu, pos);
+                }
             }
         }
     }
-    
+
     // Check for flag operations
     if (pos->cycle == 1) {
         switch (pos->scanline) {
@@ -496,9 +508,7 @@ void ppu_step(PPU *ppu, const RenderPos *pos, bool verbose) {
                 }
                 break;
         }
-    }
-    
-    if (!pos->cycle && (ppu->lightgun_sensor > 0)) {
+    } else if (!pos->cycle && (ppu->lightgun_sensor > 0)) {
         ppu->lightgun_sensor--;
     }
 }
