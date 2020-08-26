@@ -53,8 +53,10 @@
 
 // Screen dimensions
 #define WIDTH 256
-#define HEIGHT 240
+#define HEIGHT_REAL 240
 #define HEIGHT_CROPPED 224
+#define HEIGHT_CROPPED_BEGIN 8
+#define HEIGHT_CROPPED_END 231
 
 #define PPU_CYCLES_PER_SCANLINE 341
 #define PPU_SCANLINES_PER_FRAME 262
@@ -114,7 +116,7 @@ struct PPU {
     bool s_has_zero, s_has_zero_next;
     
     // Raw screen data, in ARGB8888 format
-    uint32_t screen[WIDTH * HEIGHT];
+    uint32_t screen[WIDTH * HEIGHT_CROPPED];
     
     // Lightgun sensor handling
     int *lightgun_pos;

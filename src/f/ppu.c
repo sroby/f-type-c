@@ -108,22 +108,25 @@ static void task_render_pixel(PPU *ppu, const RenderPos *pos) {
         // TODO: delay by 1/2 (??) cycles
         ppu->status |= STATUS_SPRITE0_HIT;
     }
-
-    int color;
-    if (s_index && (!(s_attrs & OAM_ATTR_UNDER_BG) || !bg_index)) {
-        color = ppu->palettes[((s_attrs & 0b11) + 4) * 3 + s_index - 1];
-    } else if (bg_index) {
-        int palette = (((ppu->bg_at0 << ppu->x) & 32768) >> 15) |
-                      (((ppu->bg_at1 << ppu->x) & 32768) >> 14);
-        color = ppu->palettes[palette * 3 + bg_index - 1];
-    } else {
-        color = ppu->background_colors[0];
-    }
     
-    int pixel = pos->scanline * WIDTH + pos->cycle;
-    ppu->screen[pixel] = colors_ntsc[color];
-    if (pixel == *ppu->lightgun_pos && (color == 0x20 || color == 0x30)) {
-        ppu->lightgun_sensor = LIGHTGUN_COOLDOWN;
+    if (pos->scanline >= HEIGHT_CROPPED_BEGIN &&
+        pos->scanline <= HEIGHT_CROPPED_END) {
+        int color;
+        if (s_index && (!(s_attrs & OAM_ATTR_UNDER_BG) || !bg_index)) {
+            color = ppu->palettes[((s_attrs & 0b11) + 4) * 3 + s_index - 1];
+        } else if (bg_index) {
+            int palette = (((ppu->bg_at0 << ppu->x) & 32768) >> 15) |
+                          (((ppu->bg_at1 << ppu->x) & 32768) >> 14);
+            color = ppu->palettes[palette * 3 + bg_index - 1];
+        } else {
+            color = ppu->background_colors[0];
+        }
+        
+        int pixel = (pos->scanline - HEIGHT_CROPPED_BEGIN) * WIDTH + pos->cycle;
+        ppu->screen[pixel] = colors_ntsc[color];
+        if (pixel == *ppu->lightgun_pos && (color == 0x20 || color == 0x30)) {
+            ppu->lightgun_sensor = LIGHTGUN_COOLDOWN;
+        }
     }
 
     ppu->bg_at0 <<= 1;
@@ -468,7 +471,7 @@ void ppu_step(PPU *ppu, const RenderPos *pos, bool verbose) {
         printf("-- Scanline %d --\n", pos->scanline);
     }
     
-    if (pos->scanline >= 0 && pos->scanline < HEIGHT &&
+    if (pos->scanline >= 0 && pos->scanline < HEIGHT_REAL &&
         pos->cycle < WIDTH) {
         task_render_pixel(ppu, pos);
     }
