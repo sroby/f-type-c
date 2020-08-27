@@ -408,17 +408,19 @@ void window_loop(Window *wnd) {
                     break;
             }
         }
-        if (quitting) {
-            wnd->driver->message = MSG_TERMINATE;
-            break;
-        }
         if (quit_request) {
             int elapsed = last_frame - quit_request;
             if (elapsed > QUIT_REQUEST_DELAY) {
-                break;
+                quitting = true;
+            } else {
+                SDL_SetWindowOpacity(wnd->window,
+                                     1.0f - (float)elapsed /
+                                            (float)QUIT_REQUEST_DELAY);
             }
-            SDL_SetWindowOpacity(wnd->window, 1.0f - (float)elapsed /
-                                                     (float)QUIT_REQUEST_DELAY);
+        }
+        if (quitting) {
+            wnd->driver->message = MSG_TERMINATE;
+            break;
         }
         
         // Render the frame
