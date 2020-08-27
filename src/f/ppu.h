@@ -116,7 +116,8 @@ struct PPU {
     bool s_has_zero, s_has_zero_next;
     
     // Raw screen data, in ARGB8888 format
-    uint32_t screen[WIDTH * HEIGHT_CROPPED];
+    uint32_t screens[2][WIDTH * HEIGHT_CROPPED];
+    bool current_screen;
     
     // Lightgun sensor handling
     int *lightgun_pos;

@@ -123,7 +123,7 @@ static void task_render_pixel(PPU *ppu, const RenderPos *pos) {
         }
         
         int pixel = (pos->scanline - HEIGHT_CROPPED_BEGIN) * WIDTH + pos->cycle;
-        ppu->screen[pixel] = colors_ntsc[color];
+        ppu->screens[ppu->current_screen][pixel] = colors_ntsc[color];
         if (pixel == *ppu->lightgun_pos && (color == 0x20 || color == 0x30)) {
             ppu->lightgun_sensor = LIGHTGUN_COOLDOWN;
         }

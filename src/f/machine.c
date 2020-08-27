@@ -43,7 +43,9 @@ void machine_teardown(Machine *vm) {
     }
 }
 
-void machine_advance_frame(Machine *vm, bool verbose) {
+void machine_advance_frame(Machine *vm, int frame, bool verbose) {
+    vm->ppu.current_screen = frame & 1;
+    
     // TODO: Skip last cycle of the pre-render line on odd frames
     RenderPos pos = {-1, 0};
     do {

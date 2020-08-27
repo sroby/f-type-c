@@ -5,6 +5,9 @@
 // Temporary mapping until it gets added to SDL
 #define XMAP "0300000000f00000f100000000000000,RetroUSB.com SNES RetroPort,a:b3,b:b2,x:b1,y:b0,back:b4,start:b6,leftshoulder:b5,rightshoulder:b7,leftx:a0,lefty:a1"
 
+// Spinlock for the screen buffer swap
+SDL_SpinLock sl_screen = 0;
+
 // Button assignments
 // A, B, Select, Start, Up, Down, Left, Right
 static const SDL_GameControllerButton buttons[] = {
@@ -114,6 +117,32 @@ int window_toggle_fullscreen(Window *wnd) {
     
     SDL_PauseAudioDevice(wnd->audio_id, 0);
     return error_code;
+}
+
+int thread_vm(Driver *driver) {
+    const uint64_t frame_length = (SDL_GetPerformanceFrequency() * 10000)
+                                / driver->refresh_rate;
+    const uint64_t delay_units = SDL_GetPerformanceFrequency() / 1000;
+    
+    const char *const verb_char = getenv("VERBOSE");
+    const bool verbose = verb_char ? *verb_char - '0' : false;
+    
+    uint64_t t_next = SDL_GetPerformanceCounter();
+    while (driver->message != MSG_TERMINATE) {
+        (*driver->advance_frame_func)(driver->vm, driver->frame, verbose);
+        
+        t_next += frame_length;
+        int64_t t_left = t_next - SDL_GetPerformanceCounter();
+        if (t_left > 0) {
+            SDL_Delay((uint32_t)(t_left / delay_units));
+        }
+        
+        SDL_AtomicLock(&sl_screen);
+        ++driver->frame;
+        SDL_AtomicUnlock(&sl_screen);
+    }
+    
+    return 0;
 }
 
 // PUBLIC FUNCTIONS //
@@ -246,16 +275,19 @@ void window_loop(Window *wnd) {
     
     uint32_t *ctrls = wnd->driver->input.controllers;
     
-    const uint64_t frame_length =
-        (SDL_GetPerformanceFrequency() * 10000) / wnd->driver->refresh_rate;
-    const uint64_t delay_div = SDL_GetPerformanceFrequency() / 1000;
+    // Start emulation thread
+    SDL_Thread *vm_thread = SDL_CreateThread((SDL_ThreadFunction)thread_vm,
+                                             "vm", wnd->driver);
+    if (!vm_thread) {
+        eprintf("%s\n", SDL_GetError());
+        return;
+    }
     
     SDL_PauseAudioDevice(wnd->audio_id, 0);
     
     // Main loop
-    int frame = 0;
+    int last_frame = -1;
     int quit_request = 0;
-    uint64_t t_next = SDL_GetPerformanceCounter();
     while (true) {
         // Process events
         bool quitting = false;
@@ -343,7 +375,7 @@ void window_loop(Window *wnd) {
                                 if (wnd->fullscreen) {
                                     window_toggle_fullscreen(wnd);
                                 } else if (!quit_request) {
-                                    quit_request = frame;
+                                    quit_request = last_frame;
                                 }
                             } else {
                                 quit_request = 0;
@@ -377,10 +409,11 @@ void window_loop(Window *wnd) {
             }
         }
         if (quitting) {
+            wnd->driver->message = MSG_TERMINATE;
             break;
         }
         if (quit_request) {
-            int elapsed = frame - quit_request;
+            int elapsed = last_frame - quit_request;
             if (elapsed > QUIT_REQUEST_DELAY) {
                 break;
             }
@@ -388,29 +421,24 @@ void window_loop(Window *wnd) {
                                                      (float)QUIT_REQUEST_DELAY);
         }
         
-        // Advance one frame
-        (*wnd->driver->advance_frame_func)(wnd->driver->vm, verbose);
-        
-        // Render the frame unless we're behind schedule
-        t_next += frame_length;
-        int64_t t_left = t_next - SDL_GetPerformanceCounter();
-        if (t_left > 0) {
-            SDL_UpdateTexture(wnd->texture, NULL, wnd->driver->screen,
+        // Render the frame
+        SDL_AtomicLock(&sl_screen);
+        bool refresh = (last_frame != wnd->driver->frame);
+        if (refresh) {
+            SDL_UpdateTexture(wnd->texture, NULL,
+                              wnd->driver->screens[!(wnd->driver->frame & 1)],
                               wnd->driver->screen_w * sizeof(uint32_t));
+        }
+        last_frame = wnd->driver->frame;
+        SDL_AtomicUnlock(&sl_screen);
+        if (refresh) {
             SDL_RenderClear(wnd->renderer);
-            SDL_RenderCopy(wnd->renderer, wnd->texture, NULL, &wnd->display_area);
+            SDL_RenderCopy(wnd->renderer, wnd->texture, NULL,
+                           &wnd->display_area);
             SDL_RenderPresent(wnd->renderer);
-            
-            // Add extra delay if we're more than one frame over schedule
-            if (t_left > (frame_length + delay_div)) {
-                SDL_Delay((uint32_t)((t_left - frame_length) / delay_div));
-            }
-        }/* else {
-            printf("%lld\n", t_left);
-        }*/
-        
-        frame++;
+        }
     }
     
-    eprintf("Ended after %d frames\n", frame);
+    SDL_WaitThread(vm_thread, NULL);
+    eprintf("Ended after %d frames\n", wnd->driver->frame);
 }

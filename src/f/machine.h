@@ -71,7 +71,7 @@ typedef enum {
 void machine_init(Machine *vm, FCartInfo *carti, Driver *driver);
 void machine_teardown(Machine *vm);
 
-void machine_advance_frame(Machine *vm, bool verbose);
+void machine_advance_frame(Machine *vm, int frame, bool verbose);
 
 void machine_set_nt_mirroring(Machine *vm, NametableMirroring m);
 

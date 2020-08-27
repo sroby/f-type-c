@@ -68,7 +68,8 @@ int ines_loader(Driver *driver, blob *rom) {
     machine_init(vm, &cart, driver);
     driver->vm = vm;
     driver->refresh_rate = REFRESH_RATE;
-    driver->screen = vm->ppu.screen;
+    driver->screens[0] = vm->ppu.screens[0];
+    driver->screens[1] = vm->ppu.screens[1];
     driver->advance_frame_func = (AdvanceFrameFuncPtr)machine_advance_frame;
     driver->teardown_func = f_teardown;
     return 0;
