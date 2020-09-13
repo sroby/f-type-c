@@ -11,9 +11,13 @@
 
 // Size of various memory structures
 #define SIZE_WRAM 0x800
+#define MASK_WRAM (SIZE_WRAM - 1)
 #define SIZE_PRG_ROM 0x8000
+#define MASK_PRG_ROM (SIZE_PRG_ROM - 1)
 #define SIZE_CHR_ROM 0x2000
+#define MASK_CHR_ROM (SIZE_CHR_ROM - 1)
 #define SIZE_NAMETABLE 0x400
+#define MASK_NAMETABLE (SIZE_NAMETABLE - 1)
 
 // Timing constants
 #define T_CPU_MULTIPLIER 3

@@ -20,10 +20,10 @@ static uint8_t read_cpu_open_bus(Machine *vm, uint16_t addr) {
 }
 
 static uint8_t read_wram(Machine *vm, uint16_t addr) {
-    return vm->wram[addr];
+    return vm->wram[addr & MASK_WRAM];
 }
 static void write_wram(Machine *vm, uint16_t addr, uint8_t value) {
-    vm->wram[addr] = value;
+    vm->wram[addr & MASK_WRAM] = value;
 }
 
 static uint8_t read_controllers(Machine *vm, uint16_t addr) {
@@ -52,10 +52,10 @@ static uint8_t read_ppu_open_bus(Machine *vm, uint16_t addr) {
 }
 
 static uint8_t read_nametables(Machine *vm, uint16_t addr) {
-    return vm->nt_layout[(addr >> 10) & 0b11][addr & 0x3FF];
+    return vm->nt_layout[(addr >> 10) & 3][addr & MASK_NAMETABLE];
 }
 static void write_nametables(Machine *vm, uint16_t addr, uint8_t value) {
-    vm->nt_layout[(addr >> 10) & 0b11][addr & 0x3FF] = value;
+    vm->nt_layout[(addr >> 10) & 3][addr & MASK_NAMETABLE] = value;
 }
 
 // PUBLIC FUNCTIONS //
@@ -71,7 +71,7 @@ void memory_map_cpu_init(MemoryMap *mm, Machine *vm) {
     
     // Populate the address map
     // 0000-1FFF: WRAM (2kB, repeated)
-    for (int i = 0; i < SIZE_WRAM; i++) {
+    for (int i = 0; i < 0x2000; i++) {
         mm->read[i] = read_wram;
         mm->write[i] = write_wram;
     }
@@ -87,7 +87,7 @@ void memory_map_ppu_init(MemoryMap *mm, Machine *vm) {
     init_common(mm, vm);
     mm->addr_mask = 0x3FFF;
     
-    for (int i = 0; i < 0x4000; i++) {
+    for (int i = 0; i < 0x10000; i++) {
         mm->read[i] = read_ppu_open_bus;
         mm->write[i] = write_open_bus;
     }
@@ -109,7 +109,7 @@ uint8_t mm_read(MemoryMap *mm, uint16_t addr) {
     return mm->last_read;
 }
 uint16_t mm_read_word(MemoryMap *mm, uint16_t addr) {
-    return (uint16_t)mm_read(mm, addr) + ((uint16_t)mm_read(mm, addr + 1) << 8);
+    return (uint16_t)mm_read(mm, addr) | ((uint16_t)mm_read(mm, addr + 1) << 8);
 }
 
 void mm_write(MemoryMap *mm, uint16_t addr, uint8_t value) {

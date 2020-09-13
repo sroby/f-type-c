@@ -4,11 +4,15 @@
 #include "../common.h"
 
 #define SIZE_SRAM 0x2000
+#define MASK_SRAM (SIZE_SRAM - 1)
 
-#define SIZE_PRG_BANK (SIZE_PRG_ROM / 4)
-#define SIZE_CHR_BANK (SIZE_CHR_ROM / 8)
+#define PRG_BANKS 4
+#define SIZE_PRG_BANK (SIZE_PRG_ROM / PRG_BANKS)
+#define MASK_PRG_BANK (SIZE_PRG_BANK - 1)
 
-#define MAX_BANKS 8
+#define CHR_BANKS 8
+#define SIZE_CHR_BANK (SIZE_CHR_ROM / CHR_BANKS)
+#define MASK_CHR_BANK (SIZE_CHR_BANK - 1)
 
 // Forward declarations
 typedef struct Machine Machine;

@@ -7,25 +7,28 @@
 // GENERIC MAPPER I/O //
 
 static uint8_t read_prg(Machine *vm, uint16_t addr) {
-    return vm->cart.prg_banks[(addr >> 13) & 3][addr & 0x1FFF];
+    return vm->cart.prg_banks[(addr >> 13) & (PRG_BANKS - 1)]
+                             [addr & MASK_PRG_BANK];
 }
 
 static uint8_t read_chr(Machine *vm, uint16_t addr) {
-    return vm->cart.chr_banks[(addr >> 10) & 7][addr & 0x3FF];
+    return vm->cart.chr_banks[(addr >> 10) & (CHR_BANKS - 1)]
+                             [addr & MASK_CHR_BANK];
 }
 static void write_chr(Machine *vm, uint16_t addr, uint8_t value) {
-    vm->cart.chr_banks[(addr >> 10) & 7][addr & 0x3FF] = value;
+    vm->cart.chr_banks[(addr >> 10) & (CHR_BANKS - 1)]
+                      [addr & MASK_CHR_BANK] = value;
 }
 
 static uint8_t read_sram(Machine *vm, uint16_t addr) {
     if (vm->cart.sram_enabled) {
-        return vm->cart.sram.data[(addr & 0x1FFF) % vm->cart.sram.size];
+        return vm->cart.sram.data[(addr & MASK_SRAM) % vm->cart.sram.size];
     }
     return vm->cpu_mm.last_read;
 }
 static void write_sram(Machine *vm, uint16_t addr, uint8_t value) {
     if (vm->cart.sram_enabled) {
-        vm->cart.sram.data[(addr & 0x1FFF) % vm->cart.sram.size] = value;
+        vm->cart.sram.data[(addr & MASK_SRAM) % vm->cart.sram.size] = value;
     }
 }
 
