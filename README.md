@@ -54,6 +54,12 @@ Building for Windows is only supported via [mingw-w64](http://mingw-w64.org/doku
 
 You will also need to copy `SDL2.dll` from `$SDL_PATH/bin` to the same directory as the executable.
 
+## Running
+
+**f-type** doesn't have any sort of GUI yet, so a iNES format ROM file (ie. `.nes` extension) must be specified as argument to the command-line.
+
+If you are looking for free sample games to try it out, download the [MegaPack](https://neshomebrew.ca/files/MegaPack.zip) at [NES Homebrew Competition](https://neshomebrew.ca/about/).
+
 ## Documentation credits
 This project wouldn't be possible without the following sources:
 * [Nesdev Wiki](http://wiki.nesdev.com/w/index.php/Nesdev_Wiki)
