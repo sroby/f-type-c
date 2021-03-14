@@ -1,5 +1,6 @@
 #include "loader.h"
 
+#include "../crc32.h"
 #include "../driver.h"
 #include "cartridge.h"
 #include "machine.h"
@@ -8,22 +9,12 @@ int ines_loader(Driver *driver, blob *rom) {
     FCartInfo cart;
     memset(&cart, 0, sizeof(FCartInfo));
 
-    int size = rom->data[4] * 16;
-    eprintf("PRG ROM: %dKB\n", size);
-    if (size <= 0) {
+    cart.prg_rom.size = rom->data[4] * 0x4000;
+    if (cart.prg_rom.size <= 0) {
         eprintf("Unexpected zero size for PRG ROM\n");
         return 1;
     }
-    cart.prg_rom.size = size << 10;
-    
-    size = rom->data[5] * 8;
-    eprintf("CHR ROM: ");
-    if (size) {
-        eprintf("%dKB\n", size);
-    } else {
-        eprintf("None (uses RAM instead)\n");
-    }
-    cart.chr_rom.size = size << 10;
+    cart.chr_rom.size = rom->data[5] * 0x2000;
 
     size_t expected_size = cart.prg_rom.size + cart.chr_rom.size + HEADER_SIZE;
     if (expected_size > rom->size) {
@@ -34,8 +25,21 @@ int ines_loader(Driver *driver, blob *rom) {
     }
     
     cart.prg_rom.data = rom->data + HEADER_SIZE;
+    uint32_t crc = crc32(&cart.prg_rom);
+    eprintf("PRG ROM: %zuKB (%08X)\n", cart.prg_rom.size >> 10, crc);
+    
+    eprintf("CHR ROM: ");
     if (cart.chr_rom.size) {
         cart.chr_rom.data = cart.prg_rom.data + cart.prg_rom.size;
+        eprintf("%zuKB (%08X)\n",
+                cart.chr_rom.size >> 10, crc32(&cart.chr_rom));
+        blob combined = {.data = cart.prg_rom.data,
+                         .size = cart.prg_rom.size + cart.chr_rom.size};
+        crc = crc32(&combined);
+        eprintf("Combined ROMs: %zuKB (%08X)\n",
+                combined.size >> 10, crc);
+    } else {
+        eprintf("None (uses RAM instead)\n");
     }
     
     if (BIT_CHECK(rom->data[7], 3) && !BIT_CHECK(rom->data[7], 2)) {

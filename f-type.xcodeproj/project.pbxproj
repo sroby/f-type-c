@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		F414915B2410BAAE00319710 /* loader.c in Sources */ = {isa = PBXBuildFile; fileRef = F414915A2410BAAE00319710 /* loader.c */; };
 		F4149163242185E000319710 /* loader.c in Sources */ = {isa = PBXBuildFile; fileRef = F4149162242185E000319710 /* loader.c */; };
+		F42F401025FDC52400445C0E /* crc32.c in Sources */ = {isa = PBXBuildFile; fileRef = F42F400F25FDC52400445C0E /* crc32.c */; };
 		F4642F7C22CE57E2000B4BEB /* cartridge.c in Sources */ = {isa = PBXBuildFile; fileRef = F4642F7B22CE57E2000B4BEB /* cartridge.c */; };
 		F4858D7722BCE2BC0043C2EF /* libSDL2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = F4858D7622BCE2BC0043C2EF /* libSDL2.dylib */; };
 		F4858D7A22BCECB70043C2EF /* window.c in Sources */ = {isa = PBXBuildFile; fileRef = F4858D7922BCECB70043C2EF /* window.c */; };
@@ -39,6 +40,8 @@
 		F414915F2420018100319710 /* input.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = input.h; sourceTree = "<group>"; };
 		F4149161242185E000319710 /* loader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = loader.h; sourceTree = "<group>"; };
 		F4149162242185E000319710 /* loader.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = loader.c; sourceTree = "<group>"; };
+		F42F400E25FDC52400445C0E /* crc32.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = crc32.h; sourceTree = "<group>"; };
+		F42F400F25FDC52400445C0E /* crc32.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = crc32.c; sourceTree = "<group>"; };
 		F4642F7A22CE57E2000B4BEB /* cartridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cartridge.h; sourceTree = "<group>"; };
 		F4642F7B22CE57E2000B4BEB /* cartridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cartridge.c; sourceTree = "<group>"; };
 		F4858D5E22B84A860043C2EF /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
@@ -142,6 +145,8 @@
 				F4149158240DC96300319710 /* f */,
 				F41491602421859F00319710 /* s */,
 				F4858D5E22B84A860043C2EF /* common.h */,
+				F42F400F25FDC52400445C0E /* crc32.c */,
+				F42F400E25FDC52400445C0E /* crc32.h */,
 				F414915C2419E7A100319710 /* driver.h */,
 				F414915F2420018100319710 /* input.h */,
 				F4EEF80522AA050A00B38C9F /* main.c */,
@@ -214,6 +219,7 @@
 				F4EEF81022AA054300B38C9F /* memory_maps.c in Sources */,
 				F4149163242185E000319710 /* loader.c in Sources */,
 				F4642F7C22CE57E2000B4BEB /* cartridge.c in Sources */,
+				F42F401025FDC52400445C0E /* crc32.c in Sources */,
 				F493C3562447D50300FD4611 /* apu.c in Sources */,
 				F4EEF81722AC842C00B38C9F /* machine.c in Sources */,
 				F4858D7A22BCECB70043C2EF /* window.c in Sources */,
