@@ -38,6 +38,10 @@ int ines_loader(Driver *driver, blob *rom) {
         cart.chr_rom.data = cart.prg_rom.data + cart.prg_rom.size;
     }
     
+    if (BIT_CHECK(rom->data[7], 3) && !BIT_CHECK(rom->data[7], 2)) {
+        eprintf("FILE HAS NES 2.0 HEADER!!\n");
+    }
+    
     cart.mapper_id = (rom->data[6] >> 4) | (rom->data[7] & 0b11110000);
     const char *mapper_name = "Unidentified";
     bool supported = mapper_check_support(cart.mapper_id, &mapper_name);
