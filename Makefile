@@ -1,11 +1,18 @@
-CC=gcc
-SDL2_CONFIG=sdl2-config
-CFLAGS=-O3 -Wall -Werror `$(SDL2_CONFIG) --cflags`
-LDFLAGS=`$(SDL2_CONFIG) --libs`
-BUILD_ID=`git rev-parse --short HEAD`
+# Possible usages:
+# $ make [DEBUG=1]
+# $ make clean
 
-TARGET=f-type
-SRCS= \
+TARGET := f-type
+SDLCONFIG := sdl2-config
+
+CFLAGS := -Wall -Werror $(shell $(SDLCONFIG) --cflags --libs) -DBUILD_ID=\"$(shell git rev-parse --short HEAD)\"
+ifdef DEBUG
+	CFLAGS += -DDEBUG -g
+else
+	CFLAGS += -O3
+endif
+
+SRCS := \
 	src/cpu/65xx.c \
 	src/f/apu.c \
 	src/f/cartridge.c \
@@ -18,13 +25,25 @@ SRCS= \
 	src/main.c \
 	src/window.c
 
+INCLUDES := \
+	src/common.h \
+	src/cpu/65xx.h \
+	src/crc32.h \
+	src/driver.h \
+	src/f/apu.h \
+	src/f/cartridge.h \
+	src/f/loader.h \
+	src/f/machine.h \
+	src/f/memory_maps.h \
+	src/f/ppu.h \
+	src/input.h \
+	src/s/loader.h \
+	src/window.h
+
 all: $(TARGET)
 
-debug: CFLAGS += -DDEBUG -g
-debug: $(TARGET)
-
-$(TARGET): $(SRCS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS) $(LDFLAGS) -DBUILD_ID=\"$(BUILD_ID)\"
+$(TARGET): $(SRCS) $(INCLUDES)
+	$(CC) -o $@ $(SRCS) $(CFLAGS)
 
 clean:
 	$(RM) $(TARGET)
