@@ -1,4 +1,10 @@
-# f-type
+# f-type (historical C iteration)
+
+*This project has been discontinued in favour of a complete rewrite in Rust.*
+
+*Original readme follows...*
+
+***
 
 **f-type** is a work-in-progress emulator for Nintendo's 8-bit 6502 family of systems (NES, Family Computer, Vs. System, Playchoice-10). It is written entirely from scratch, using existing documentation available online.
 
